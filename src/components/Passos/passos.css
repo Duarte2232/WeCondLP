@@ -1,0 +1,79 @@
+.passos-container {
+    text-align: center;
+    padding: 2rem 1rem;
+    max-width: 800px;
+    margin: 0 auto;
+    position: relative;
+  }
+  
+  .passos-title {
+    font-size: 2rem;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+    color: #000;
+  }
+  
+  .passos-subtitle {
+    font-size: 1rem;
+    color: #4a4a4a;
+    margin-bottom: 2rem;
+  }
+  
+  .passos-steps {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: 2rem;
+    gap: 11rem; /* Increased horizontal spacing between steps */
+    flex-wrap: nowrap; /* Prevent steps from wrapping unless desired */
+  }
+  
+  .step {
+    position: relative;
+    z-index: 1;
+    text-align: center;
+    width: 220px; /* Fixed width ensures steps don't shrink */
+    padding: 1rem; /* Optional: Add padding for content inside */
+    flex-shrink: 0; /* Prevent flexbox from shrinking this element */
+  }
+  
+  
+  .dotted-line-bg {
+    position: absolute;
+    top: 17%;
+    left: 0;
+    width: 100%;
+    transform: translateY(-50%);
+    z-index: 0;
+  }
+  
+  
+  .step-icon {
+    width: 4rem; /* Larger icon for proportion */
+    height: 4rem;
+    background: white;
+    border: 2px solid #ccc;
+    background: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #000;
+    margin: 0 auto 1rem auto;
+  }
+  
+  .step-title {
+    font-size: 1.25rem;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+    color: #000;
+  }
+  
+  .step-description {
+    font-size: 0.9rem;
+    color: #6b6b6b;
+  }
+  

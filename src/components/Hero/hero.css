@@ -1,0 +1,157 @@
+.component-container {
+    position: relative;
+    background-color: #f9fafb;
+}
+
+.background-image {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    overflow: hidden;
+}
+
+.background-pattern {
+    width: auto;
+    height: 100%;
+}
+
+.header {
+    position: relative;
+    padding: 1rem 0;
+}
+
+.header-container {
+    max-width: 1900px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 1rem;
+}
+
+.logo-image {
+    height: 2rem;
+}
+
+.nav-links {
+    display: flex;
+    align-items: center;
+    gap: 2.5rem;
+}
+
+.nav-item {
+    text-decoration: none;
+    font-size: 1rem;
+    color: #1f2937;
+    transition: color 0.2s;
+}
+
+.nav-item:hover {
+    color: rgba(31, 41, 55, 0.5);
+}
+
+.nav-cta {
+    padding: 0.5rem 1rem;
+    border: 1px solid #1f2937;
+    border-radius: 1rem;
+    color: #1f2937;
+    font-weight: bold;
+    transition: all 0.2s;
+}
+
+.nav-cta:hover {
+    background-color: #1f2937;
+    color: #ffffff;
+}
+
+.hero {
+    padding: 2rem 1rem;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 2rem;
+    text-align: center;
+}
+
+.hero-container {
+    max-width: 2400px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between; /* Space out content and image */
+    align-items: center; /* Vertically align the items */
+    gap: 2rem;
+}
+
+.hero-content {
+    max-width: 1600px;
+}
+
+.hero-title {
+    font-size: 2.5rem;
+    font-weight: bold;
+    color: #1f2937;
+}
+
+.hero-stats {
+    margin-top: 1rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.avatars {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.avatar {
+    width: 3.5rem;
+    height: 3.5rem;
+    border-radius: 50%;
+    border: 2px solid #ffffff;
+}
+
+.hero-actions {
+    margin-top: 1rem;
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+}
+
+.primary-action {
+    padding: 0.75rem 2rem;
+    background-color: #1f2937;
+    color: #ffffff;
+    border-radius: 1rem;
+    text-decoration: none;
+    font-weight: bold;
+    transition: background-color 0.2s;
+}
+
+.primary-action:hover {
+    background-color: #4b5563;
+}
+
+.secondary-action {
+    padding: 0.75rem 1rem;
+    background-color: transparent;
+    border-radius: 1rem;
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+    font-weight: bold;
+    color: #1f2937;
+    transition: background-color 0.2s;
+}
+
+.secondary-action:hover {
+    background-color: #e5e7eb;
+}
+
+.hero-image {
+    background-image: url("../../assets/gajo.png");
+    width: 58%;
+    height: 420px; /* Example height */
+    background-size: cover;
+    background-position: center;
+}
