@@ -1,0 +1,79 @@
+.landing-page {
+    text-align: center;
+    background-color: #f9f9f9;
+    padding: 50px;
+    border-radius: 10px;
+    font-family: 'Arial', sans-serif;
+    max-width: 600px;
+    margin: 0 auto;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  }
+  
+  .landing-page h1 {
+    font-size: 2rem;
+    color: #1a1a1a;
+    margin-bottom: 20px;
+  }
+  
+  .features {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    margin-bottom: 30px;
+  }
+  
+  .feature {
+    font-size: 1rem;
+    color: #333;
+    display: flex;
+    align-items: center;
+  }
+  
+  .checkmark {
+    color: #4caf50;
+    font-weight: bold;
+    margin-right: 8px;
+  }
+  
+  .cta-button {
+    background-color: #000;
+    color: #fff;
+    font-size: 1rem;
+    padding: 12px 25px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s, box-shadow 0.3s;
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .cta-button::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, rgba(255, 0, 150, 0.5), rgba(0, 204, 255, 0.5));
+    opacity: 0;
+    transition: opacity 0.3s;
+    z-index: 1;
+  }
+  
+  .cta-button:hover {
+    background-color: #1a1a1a;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+  }
+  
+  .cta-button:hover::after {
+    opacity: 1;
+  }
+  
+  .cta-button:focus {
+    outline: none;
+  }
+  
+  .no-credit {
+    margin-top: 10px;
+    font-size: 0.9rem;
+    color: #777;
+  }
+  
