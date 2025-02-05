@@ -1,7 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import './Hero.css';
 
 const Hero = () => {
+    const [menuOpen, setMenuOpen] = useState(false);
+
+const toggleMenu = () => {
+    setMenuOpen((prev) => !prev); // Toggle state
+};
     return (
         <div className="component-container">
             <div className="background-image">
@@ -15,35 +20,28 @@ const Hero = () => {
             <header className="header">
                 <div className="header-container">
                     <div className="logo">
-                        <a href="#" title="Logo">
+                        
                         <h1 className="hero-title">WeCond</h1>
-                        </a>
+                        
                     </div>
-                    <div className="menu-toggle lg:hidden">
-                        <button type="button" className="menu-button">
-                            <svg className="menu-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth="1.5"
-                                    d="M4 6h16M4 12h16M4 18h16"
-                                ></path>
-                            </svg>
-                        </button>
-                    </div>
-                    <nav className="nav-links hidden lg:flex">
-                        <a href="#" className="nav-item">Funcionalidades</a>
-                        <a href="#" className="nav-item">Como Funciona</a>
-                        <a href="#" className="nav-item">Saber Mais</a>
-                
-                    </nav>
+                    
+                    <div className="hamburger-menu" onClick={toggleMenu}>
+                    ☰
+                </div>
+                <nav className={`nav-links ${menuOpen ? 'open' : ''}`}>
+                    <a href="#Features" className="nav-item" onClick={toggleMenu}>Funcionalidades</a>
+                    <a href="#passos" className="nav-item" onClick={toggleMenu}>Como Funciona</a>
+                    <a href="#calltoaction" className="nav-item" onClick={toggleMenu}>Saber Mais</a>
+                </nav>
                 </div>
             </header>
 
             <section className="hero">
                 <div className="hero-container">
                     <div className="hero-content">
-                        <h1 className="hero-title">Conectamos Condomínios com Trabalhadores de Confiança</h1>
+                        <h1 className="hero-title">Conectamos <span className='ui'>Condomínios</span> com Trabalhadores de Confiança</h1>
+                        <div className="hero-imagetwo">
+                    </div>
                         <div className="hero-stats">
 
                             <p className="stats-text">
@@ -51,11 +49,11 @@ const Hero = () => {
                             </p>
                         </div>
                         <div className="hero-actions">
-                            <a href="#" className="primary-action">Saber mais</a>
+                            <a href="#calltoaction" className="primary-action">Saber Mais</a>
                             
                         </div>
                     </div>
-                    <div className="hero-image">
+                    <div className="hero-imageone">
                     </div>
                 </div>
             </section>

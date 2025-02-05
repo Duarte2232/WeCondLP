@@ -1,13 +1,21 @@
 #root {
   max-width: 1280px;
   margin: 0 auto;
-  padding: 2rem;
+  
   text-align: center;
 }
-
+html {
+  scroll-behavior: smooth;
+}
+body{
+  width: 100vw;
+}
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 50px; /* Adjust the gap size */
+}
 .logo {
-  height: 6em;
-  padding: 1.5em;
   will-change: filter;
   transition: filter 300ms;
 }
@@ -39,4 +47,34 @@
 
 .read-the-docs {
   color: #888;
+}
+@media (max-width: 768px){
+  html, body {
+    height: 100%; /* Full viewport height */
+    margin: 0; /* Remove default margin */
+    display: flex;
+    width: 100vw;
+    justify-content: center;
+    align-items: center;
+    scroll-behavior: smooth;
+    /* Vertical and horizontal centering */
+}
+
+#root {
+    width: 100vw; /* Adjust width dynamically */
+    height: 100%; /* Fill the viewport height */
+    display: flex;
+    justify-content: center; /* Center children horizontally */
+    /* Center children vertically */
+    text-align: center;
+}
+
+  .container {
+    display: flex;
+    flex-direction: column;
+    gap: 50px; /* Adjust the gap size */
+    width: 80vw;
+  margin-bottom: 4vw;
+    
+  }
 }

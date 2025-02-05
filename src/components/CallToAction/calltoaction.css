@@ -9,7 +9,7 @@
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
   }
   
-  .landing-page h1 {
+  .landing-page brev {
     font-size: 2rem;
     color: #1a1a1a;
     margin-bottom: 20px;
@@ -77,3 +77,138 @@
     color: #777;
   }
   
+  .modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 1000000;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  
+  .modal {
+    position: relative;
+    background: white;
+    border-radius: 8px;
+    padding: 20px;
+    width: 300px;
+    text-align: center;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }
+  
+  .modal h2 {
+    font-size: 20px;
+    margin-bottom: 20px;
+  }
+  
+  .email-input {
+    width: 90%;
+    padding: 10px;
+    margin-bottom: 20px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    color: black !important;
+    background-color: white !important;
+    font-size: 14px;
+  }
+
+  .email-input::placeholder{
+    color: #000;
+  }
+  
+  .submit-button {
+    background-color: #000;
+    color: #fff;
+    font-size: 1rem;
+    padding: 12px 25px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s, box-shadow 0.3s;
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .submit-button::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, rgba(255, 0, 150, 0.5), rgba(0, 204, 255, 0.5));
+    opacity: 0;
+    transition: opacity 0.3s;
+    z-index: 1;
+  }
+  .submit-button:hover {
+    background-color: #1a1a1a;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+  }
+  .radio-group {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+  }
+  
+  .radio-label {
+    display: flex;
+    flex-direction: row;
+    padding: 0.5rem;
+    border: 2px solid black;
+    border-radius: 20px;
+    color: black;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+  
+  .radio-input {
+    margin-right: 0.5rem;
+    color: wheat;
+  }
+  .radio-input:checked + .radio-label {
+    background-color: black;
+    color: #fff;
+  }
+  .close-button {
+    position: absolute;
+    top: 0px;
+    right: 0px;
+    background: transparent;
+    border: none;
+    font-size: 24px;
+    font-weight: bold;
+    color: #000;
+    cursor: pointer;
+  }
+  
+  .close-button:hover {
+    color: red;
+  }
+  h2{
+    color: #000;
+
+  }
+  .brev{
+    color: #000;
+  }
+  @media (max-width: 768px) {
+    .brev{
+      font-size: 5vw;
+      color: #000;
+    }
+    .landing-page {
+      text-align: center;
+      background-color: #f9f9f9;
+      border-radius: 10px;
+      font-family: 'Arial', sans-serif;
+      max-width: 600px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+     padding: 1.5rem;
+    }
+    .feature {
+      font-size: 0.8rem;
+    }
+  }
