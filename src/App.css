@@ -1,20 +1,33 @@
-#root {
-  max-width: 1280px;
-  margin: 0 auto;
-  
-  text-align: center;
-}
-html {
+ohtml {
   scroll-behavior: smooth;
 }
-body{
-  width: 100vw;
+
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow-x: hidden;
 }
-.container {
+
+#root {
+  width: 100%;
+  min-height: 100vh;
   display: flex;
   flex-direction: column;
-  gap: 50px; /* Adjust the gap size */
+  text-align: center;
+
 }
+
+.container {
+  width: 100%;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+
+overflow-y: scroll;
+}
+
 .logo {
   will-change: filter;
   transition: filter 300ms;
@@ -64,6 +77,7 @@ body{
     width: 100vw; /* Adjust width dynamically */
     height: 100%; /* Fill the viewport height */
     display: flex;
+    flex-direction: column;
     justify-content: center; /* Center children horizontally */
     /* Center children vertically */
     text-align: center;
@@ -77,4 +91,36 @@ body{
   margin-bottom: 4vw;
     
   }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+.component-container {
+  width: 100%;
+  position: relative;
+}
+
+/* Ensure sections are properly sized */
+section {
+  width: 100%;
+  position: relative;
+}
+
+/* Reset heights for content sections */
+.hero-content, 
+.features-content,
+.passos-content,
+.calltoaction-content {
+  position: relative;
+  width: 100%;
+}
+
+/* Ensure background stays visible */
+.background-image {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  z-index: 0;
 }

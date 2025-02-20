@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
 import { db } from '../../services/firebase';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import './login.css';
 
 function Login() {
@@ -76,6 +76,9 @@ function Login() {
 
   return (
     <div className="login-container">
+      <Link to="/" className="back-arrow">
+        <span>←</span>
+      </Link>
       <div className="login-box">
         <h2>{isLogin ? 'Login' : 'Registro'}</h2>
         <form onSubmit={handleSubmit}>
