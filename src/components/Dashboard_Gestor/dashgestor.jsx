@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
 import './dashgestor.css';
-import { FiPlusCircle, FiFilter, FiSearch, FiBell, FiEdit2, FiEye, FiCheck, FiX, FiCalendar, FiUpload, FiArrowLeft } from 'react-icons/fi';
+import { FiPlusCircle, FiFilter, FiSearch, FiBell, FiEdit2, FiEye, FiCheck, FiX, FiCalendar, FiUpload, FiArrowLeft, FiFile } from 'react-icons/fi';
 import { useAuth } from '../../contexts/auth';
 import { db } from '../../services/firebase';
 import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, getDoc } from 'firebase/firestore';
@@ -35,8 +35,10 @@ function DashGestor() {
     location: '',
     date: new Date().toISOString().split('T')[0],
     status: 'Pendente',
-    image: null
+    files: []
   });
+
+  const [editingWork, setEditingWork] = useState(null);
 
   const metrics = {
     total: works.length,
@@ -146,8 +148,11 @@ function DashGestor() {
   };
 
   const handleEdit = (work) => {
-    // Implement edit logic
-    setNewWork(work);
+    setEditingWork(work);
+    setNewWork({
+      ...work,
+      files: work.files || [] // Ensure files array exists
+    });
     setShowNewWorkForm(true);
   };
 
@@ -157,52 +162,54 @@ function DashGestor() {
     addNotification(`Obra '${work.title}' foi concluída`);
   };
 
-  const handleNewWork = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log('Form submitted', newWork); // Debug log
-    
-    try {
-      const workData = {
-        ...newWork,
-        userEmail: user.email,
-        createdAt: new Date().toISOString(),
-      };
-      
-      console.log('Attempting to save:', workData); // Debug log
-      
-      const docRef = await addDoc(collection(db, 'works'), workData);
-      console.log('Document written with ID:', docRef.id); // Debug log
-      
-      setWorks([...works, { id: docRef.id, ...workData }]);
-      addNotification(`Nova obra '${workData.title}' foi adicionada`);
-      
-      setNewWork({
-        title: '',
-        description: '',
-        category: '',
-        priority: '',
-        location: '',
-        date: new Date().toISOString().split('T')[0],
-        status: 'Pendente',
-        image: null
-      });
-      
-      setShowNewWorkForm(false);
-    } catch (error) {
-      console.error('Error adding work:', error); // Better error logging
-      alert('Erro ao criar obra: ' + error.message); // Show error to user
+    if (editingWork) {
+      // Handle update
+      try {
+        // Your update logic here
+        await updateWork(editingWork.id, newWork);
+        setShowNewWorkForm(false);
+        setEditingWork(null);
+      } catch (error) {
+        console.error('Error updating work:', error);
+      }
+    } else {
+      // Handle create new
+      try {
+        // Your create logic here
+        await createWork(newWork);
+        setShowNewWorkForm(false);
+      } catch (error) {
+        console.error('Error creating work:', error);
+      }
     }
   };
 
-  const handleImageUpload = (e) => {
-    const file = e.target.files[0];
-    if (file) {
+  const handleFileUpload = (e) => {
+    const files = Array.from(e.target.files);
+    const maxFileSize = 5 * 1024 * 1024; // 5MB limit per file
+
+    files.forEach(file => {
+      if (file.size > maxFileSize) {
+        alert(`O arquivo ${file.name} é muito grande. O tamanho máximo é 5MB.`);
+        return;
+      }
+
       const reader = new FileReader();
       reader.onloadend = () => {
-        setNewWork({ ...newWork, image: reader.result });
+        setNewWork(prev => ({
+          ...prev,
+          files: [...prev.files, {
+            type: file.type.split('/')[0],
+            name: file.name,
+            size: file.size,
+            data: reader.result
+          }]
+        }));
       };
       reader.readAsDataURL(file);
-    }
+    });
   };
 
   const filteredWorks = works.filter(work => {
@@ -265,6 +272,66 @@ function DashGestor() {
 
     loadNotifications();
   }, [user]);
+
+  const updateWork = async (workId, updatedWork) => {
+    try {
+      const workRef = doc(db, 'works', workId);
+      await updateDoc(workRef, {
+        title: updatedWork.title,
+        description: updatedWork.description,
+        category: updatedWork.category,
+        priority: updatedWork.priority,
+        location: updatedWork.location,
+        date: updatedWork.date,
+        files: updatedWork.files,
+        // Don't update status here as it's handled separately
+      });
+
+      // Update local state
+      setWorks(works.map(work => 
+        work.id === workId 
+          ? { ...work, ...updatedWork }
+          : work
+      ));
+
+      // Add notification
+      addNotification(`Obra '${updatedWork.title}' foi atualizada`);
+    } catch (error) {
+      console.error('Error updating work:', error);
+      throw error;
+    }
+  };
+
+  // Helper function to group files by type
+  const groupFilesByType = (files) => {
+    return {
+      images: files.filter(file => file.type === 'image'),
+      videos: files.filter(file => file.type === 'video'),
+      documents: files.filter(file => file.type === 'application')
+    };
+  };
+
+  // Add file removal function
+  const handleRemoveFile = (indexToRemove) => {
+    setNewWork(prev => ({
+      ...prev,
+      files: prev.files.filter((_, index) => index !== indexToRemove)
+    }));
+  };
+
+  // Add this function to handle work deletion
+  const handleDeleteWork = async (workId) => {
+    if (window.confirm('Tem certeza que deseja excluir esta obra?')) {
+      try {
+        await deleteDoc(doc(db, 'works', workId));
+        setWorks(works.filter(work => work.id !== workId));
+        addNotification('Obra excluída com sucesso');
+      } catch (error) {
+        console.error('Error deleting work:', error);
+        alert('Erro ao excluir obra');
+      }
+    }
+  };
 
   return (
     <div className="dashboard-container">
@@ -465,7 +532,9 @@ function DashGestor() {
           <tbody>
             {filteredWorks.map(work => (
               <React.Fragment key={work.id}>
-                <tr>
+                <tr 
+                  className={work.status === 'Concluído' ? 'concluida' : ''}
+                >
                   <td>{work.title}</td>
                   <td>{new Date(work.date).toLocaleDateString()}</td>
                   <td>
@@ -505,6 +574,13 @@ function DashGestor() {
                     >
                       <FiCheck />
                     </button>
+                    <button 
+                      className="action-btn delete-btn" 
+                      title="Excluir obra"
+                      onClick={() => handleDeleteWork(work.id)}
+                    >
+                      <FiX />
+                    </button>
                   </td>
                 </tr>
                 {expandedWorks.includes(work.id) && (
@@ -521,6 +597,43 @@ function DashGestor() {
                             <h4>Localização</h4>
                             <p>{work.location}</p>
                           </div>
+
+                          {work.files && work.files.length > 0 && (
+                            <div className="details-section">
+                              <h4>Arquivos</h4>
+                              <div className="details-files-grid">
+                                {work.files.map((file, index) => (
+                                  <div key={index} className="details-file-item">
+                                    {file.type === 'image' && (
+                                      <div className="file-preview">
+                                        <img src={file.data} alt={file.name} />
+                                        <a href={file.data} download={file.name} className="download-btn">
+                                          Download
+                                        </a>
+                                      </div>
+                                    )}
+                                    {file.type === 'video' && (
+                                      <div className="file-preview">
+                                        <video src={file.data} controls />
+                                        <a href={file.data} download={file.name} className="download-btn">
+                                          Download
+                                        </a>
+                                      </div>
+                                    )}
+                                    {file.type === 'application' && (
+                                      <div className="file-preview document">
+                                        <FiFile size={24} />
+                                        <span>{file.name}</span>
+                                        <a href={file.data} download={file.name} className="download-btn">
+                                          Download
+                                        </a>
+                                      </div>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
 
                           <div className="details-section">
                             <h4>Status</h4>
@@ -560,12 +673,15 @@ function DashGestor() {
         <div className="modal-overlay">
           <div className="modal-content">
             <div className="modal-header">
-              <h2>Nova Obra</h2>
-              <button className="close-btn" onClick={() => setShowNewWorkForm(false)}>
+              <h2>{editingWork ? 'Editar Obra' : 'Nova Obra'}</h2>
+              <button className="close-btn" onClick={() => {
+                setShowNewWorkForm(false);
+                setEditingWork(null);
+              }}>
                 <FiX />
               </button>
             </div>
-            <form onSubmit={handleNewWork} className="new-work-form">
+            <form className="new-work-form" onSubmit={handleSubmit}>
               <div className="form-row">
                 <div className="form-group">
                   <label>Título da Obra</label>
@@ -636,48 +752,110 @@ function DashGestor() {
 
               <div className="form-row">
                 <div className="form-group">
-                  <label>Imagem da Obra</label>
+                  <label>Arquivos da Obra</label>
                   <div className="file-input-container">
-                    {newWork.image ? (
-                      <div className="image-preview">
-                        <img src={newWork.image} alt="Preview" />
-                        <button 
-                          type="button" 
-                          className="remove-image-btn"
-                          onClick={() => setNewWork({ ...newWork, image: null })}
-                        >
-                          <FiX />
-                        </button>
+                    {newWork.files.length > 0 && (
+                      <div className="files-preview-sections">
+                        {/* Images Section */}
+                        {groupFilesByType(newWork.files).images.length > 0 && (
+                          <div className="files-section">
+                            <h4>Fotografias</h4>
+                            <div className="files-grid">
+                              {groupFilesByType(newWork.files).images.map((file, index) => (
+                                <div key={index} className="file-preview-item">
+                                  <button 
+                                    type="button" 
+                                    className="remove-file-btn"
+                                    onClick={() => handleRemoveFile(newWork.files.indexOf(file))}
+                                  >
+                                    <FiX />
+                                  </button>
+                                  <img src={file.data} alt={file.name} />
+                                  <div className="file-preview-overlay">
+                                    <span className="file-name">{file.name}</span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Videos Section */}
+                        {groupFilesByType(newWork.files).videos.length > 0 && (
+                          <div className="files-section">
+                            <h4>Vídeos</h4>
+                            <div className="files-grid">
+                              {groupFilesByType(newWork.files).videos.map((file, index) => (
+                                <div key={index} className="file-preview-item">
+                                  <button 
+                                    type="button" 
+                                    className="remove-file-btn"
+                                    onClick={() => handleRemoveFile(newWork.files.indexOf(file))}
+                                  >
+                                    <FiX />
+                                  </button>
+                                  <video src={file.data} controls />
+                                  <div className="file-preview-overlay">
+                                    <span className="file-name">{file.name}</span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Documents Section */}
+                        {groupFilesByType(newWork.files).documents.length > 0 && (
+                          <div className="files-section">
+                            <h4>Documentos</h4>
+                            <div className="files-grid">
+                              {groupFilesByType(newWork.files).documents.map((file, index) => (
+                                <div key={index} className="file-preview-item document">
+                                  <button 
+                                    type="button" 
+                                    className="remove-file-btn"
+                                    onClick={() => handleRemoveFile(newWork.files.indexOf(file))}
+                                  >
+                                    <FiX />
+                                  </button>
+                                  <FiFile size={24} />
+                                  <span className="file-name">{file.name}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
-                    ) : (
-                      <>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={handleImageUpload}
-                          className="file-input"
-                        />
-                        <div className="file-input-text">
-                          <FiUpload />
-                          <p>Clique ou arraste uma imagem aqui</p>
-                          <span>PNG, JPG até 5MB</span>
-                        </div>
-                      </>
                     )}
+                    <input
+                      type="file"
+                      multiple
+                      accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx"
+                      onChange={handleFileUpload}
+                      className="file-input"
+                    />
+                    <div className="file-input-text">
+                      <FiUpload />
+                      <p>Clique ou arraste arquivos aqui</p>
+                      <span>Imagens, Vídeos, PDF, DOC, XLS</span>
+                    </div>
                   </div>
                 </div>
               </div>
 
               <div className="form-actions">
                 <button type="submit" className="submit-btn">
-                  <FiPlusCircle /> Criar Obra
+                  {editingWork ? 'Confirmar Alterações' : 'Criar Obra'}
                 </button>
                 <button
                   type="button"
                   className="cancel-btn"
-                  onClick={() => setShowNewWorkForm(false)}
+                  onClick={() => {
+                    setShowNewWorkForm(false);
+                    setEditingWork(null);
+                  }}
                 >
-                  <FiX /> Cancelar
+                  Cancelar
                 </button>
               </div>
             </form>

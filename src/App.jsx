@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import {Hero, Passos, CallToAction, Features, Login, DashGestor} from "./components"
+import {Hero, Passos, CallToAction, Features, Login, DashGestor, DashTecnico} from "./components"
 import React from 'react';
 import './App.css';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
@@ -20,6 +20,7 @@ function App() {
           } />
           <Route path="/login" element={<Login />} />
           <Route path="/dashgestor" element={<DashGestor />} />
+          <Route path="/dashtecnico" element={<DashTecnico />} />
         </Routes>
       </Router>
     </AuthProvider>

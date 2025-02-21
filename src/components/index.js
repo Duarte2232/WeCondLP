@@ -4,4 +4,5 @@ import CallToAction from "./CallToAction/calltoaction";
 import Features from "./Features/features";
 import Login from "./Login/login";
 import DashGestor from "./Dashboard_Gestor/dashgestor";
-export {Hero, Passos, CallToAction, Features, Login, DashGestor};
+import DashTecnico from "./Dashboard_Técnico/dashtecnico";
+export {Hero, Passos, CallToAction, Features, Login, DashGestor, DashTecnico};
