@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
 import './dashgestor.css';
-import { FiPlusCircle, FiFilter, FiSearch, FiBell, FiEdit2, FiEye, FiCheck, FiX, FiCalendar, FiUpload, FiArrowLeft, FiFile } from 'react-icons/fi';
+import { FiPlusCircle, FiFilter, FiSearch, FiBell, FiEdit2, FiEye, FiCheck, FiX, FiCalendar, FiUpload, FiArrowLeft, FiFile, FiDownload } from 'react-icons/fi';
 import { useAuth } from '../../contexts/auth';
 import { db } from '../../services/firebase';
 import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, getDoc } from 'firebase/firestore';
@@ -11,7 +11,7 @@ import { useNavigate } from 'react-router-dom';
 function DashGestor() {
   const { user } = useAuth();
   const [showNewWorkForm, setShowNewWorkForm] = useState(false);
-  const [expandedWorks, setExpandedWorks] = useState([]);
+  const [expandedWorks, setExpandedWorks] = useState(new Set());
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedFilters, setSelectedFilters] = useState({
     status: '',
@@ -32,10 +32,20 @@ function DashGestor() {
     description: '',
     category: '',
     priority: '',
-    location: '',
+    location: {
+      morada: '',
+      codigoPostal: '',
+      cidade: '',
+      andar: ''
+    },
     date: new Date().toISOString().split('T')[0],
     status: 'Pendente',
-    files: []
+    files: [],
+    orcamentos: {
+      minimo: '',
+      maximo: ''
+    },
+    prazoOrcamentos: ''
   });
 
   const [editingWork, setEditingWork] = useState(null);
@@ -98,12 +108,14 @@ function DashGestor() {
   }, [user]);
 
   const handleViewDetails = (workId) => {
-    setExpandedWorks(prevExpanded => {
-      if (prevExpanded.includes(workId)) {
-        return prevExpanded.filter(id => id !== workId);
+    setExpandedWorks(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(workId)) {
+        newSet.delete(workId);
       } else {
-        return [...prevExpanded, workId];
+        newSet.add(workId);
       }
+      return newSet;
     });
   };
 
@@ -151,7 +163,8 @@ function DashGestor() {
     setEditingWork(work);
     setNewWork({
       ...work,
-      files: work.files || [] // Ensure files array exists
+      files: work.files || [],
+      id: work.id
     });
     setShowNewWorkForm(true);
   };
@@ -160,30 +173,6 @@ function DashGestor() {
     const work = works.find(w => w.id === workId);
     handleStatusChange(workId, 'Concluído');
     addNotification(`Obra '${work.title}' foi concluída`);
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (editingWork) {
-      // Handle update
-      try {
-        // Your update logic here
-        await updateWork(editingWork.id, newWork);
-        setShowNewWorkForm(false);
-        setEditingWork(null);
-      } catch (error) {
-        console.error('Error updating work:', error);
-      }
-    } else {
-      // Handle create new
-      try {
-        // Your create logic here
-        await createWork(newWork);
-        setShowNewWorkForm(false);
-      } catch (error) {
-        console.error('Error creating work:', error);
-      }
-    }
   };
 
   const handleFileUpload = (e) => {
@@ -203,13 +192,85 @@ function DashGestor() {
           files: [...prev.files, {
             type: file.type.split('/')[0],
             name: file.name,
-            size: file.size,
             data: reader.result
           }]
         }));
       };
       reader.readAsDataURL(file);
     });
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const { id, ...workDataWithoutId } = newWork;
+      
+      const workData = {
+        ...workDataWithoutId,
+        userEmail: user.email,
+        ...(editingWork ? {} : { createdAt: new Date().toISOString() })
+      };
+
+      if (editingWork) {
+        const workId = editingWork.id;
+        console.log('Updating work with ID:', workId); // Debug log
+        
+        const workRef = doc(db, 'works', workId);
+        
+        const workDoc = await getDoc(workRef);
+        if (!workDoc.exists()) {
+          throw new Error('Documento não encontrado');
+        }
+
+        await updateDoc(workRef, workData);
+        
+        setWorks(works.map(work => 
+          work.id === workId 
+            ? { ...workData, id: workId }
+            : work
+        ));
+        
+        addNotification('Obra atualizada com sucesso!');
+      } else {
+        const docRef = await addDoc(collection(db, 'works'), workData);
+        setWorks([...works, { id: docRef.id, ...workData }]);
+        addNotification('Obra criada com sucesso!');
+      }
+
+      setNewWork({
+        title: '',
+        description: '',
+        category: '',
+        priority: '',
+        location: {
+          morada: '',
+          codigoPostal: '',
+          cidade: '',
+          andar: ''
+        },
+        date: new Date().toISOString().split('T')[0],
+        status: 'Pendente',
+        files: [],
+        orcamentos: {
+          minimo: '',
+          maximo: ''
+        },
+        prazoOrcamentos: ''
+      });
+
+      setShowNewWorkForm(false);
+      setEditingWork(null);
+    } catch (error) {
+      console.error('Error saving work:', error);
+      addNotification(
+        error.message === 'Documento não encontrado'
+          ? 'Erro: Obra não encontrada'
+          : editingWork 
+            ? 'Erro ao atualizar obra' 
+            : 'Erro ao criar obra',
+        'error'
+      );
+    }
   };
 
   const filteredWorks = works.filter(work => {
@@ -307,7 +368,7 @@ function DashGestor() {
     return {
       images: files.filter(file => file.type === 'image'),
       videos: files.filter(file => file.type === 'video'),
-      documents: files.filter(file => file.type === 'application')
+      documents: files.filter(file => !file.type.startsWith('image') && !file.type.startsWith('video'))
     };
   };
 
@@ -330,6 +391,17 @@ function DashGestor() {
         console.error('Error deleting work:', error);
         alert('Erro ao excluir obra');
       }
+    }
+  };
+
+  // Atualize a renderização dos arquivos nos detalhes
+  const renderFilePreview = (file) => {
+    if (file.type.startsWith('image/')) {
+      return <img src={file.url} alt={file.name} />;
+    } else if (file.type.startsWith('video/')) {
+      return <video src={file.url} controls />;
+    } else {
+      return <FiFile size={24} />;
     }
   };
 
@@ -441,6 +513,13 @@ function DashGestor() {
             onChange={(e) => setSelectedFilters({...selectedFilters, category: e.target.value})}
           >
             <option value="">Categoria</option>
+            <option value="Infiltração">Infiltração</option>
+            <option value="Fissuras e rachaduras">Fissuras e rachaduras</option>
+            <option value="Canalização">Canalização</option>
+            <option value="Manutenção">Manutenção</option>
+            <option value="Jardinagem">Jardinagem</option>
+            <option value="Fiscalização">Fiscalização</option>
+            <option value="Reabilitação de Fachada">Reabilitação de Fachada</option>
             <option value="Eletricidade">Eletricidade</option>
             <option value="Construção">Construção</option>
             <option value="Pintura">Pintura</option>
@@ -505,7 +584,7 @@ function DashGestor() {
                       <span className={`status-badge ${work.status.toLowerCase().replace(' ', '-')}`}>
                         {work.status}
                       </span>
-                      <span className="location">{work.location}</span>
+                      <span className="location">{work.location.morada}, {work.location.cidade}, {work.location.codigoPostal}</span>
                     </div>
                   </div>
                 ))}
@@ -533,7 +612,8 @@ function DashGestor() {
             {filteredWorks.map(work => (
               <React.Fragment key={work.id}>
                 <tr 
-                  className={work.status === 'Concluído' ? 'concluida' : ''}
+                  className={`work-row ${work.status === 'Concluído' ? 'concluida' : ''}`}
+                  onClick={() => handleViewDetails(work.id)}
                 >
                   <td>{work.title}</td>
                   <td>{new Date(work.date).toLocaleDateString()}</td>
@@ -552,14 +632,7 @@ function DashGestor() {
                       {work.status}
                     </span>
                   </td>
-                  <td className="actions-cell">
-                    <button 
-                      className={`action-btn ${expandedWorks.includes(work.id) ? 'active' : ''}`}
-                      title="Ver detalhes"
-                      onClick={() => handleViewDetails(work.id)}
-                    >
-                      <FiEye />
-                    </button>
+                  <td className="actions-cell" onClick={e => e.stopPropagation()}>
                     <button 
                       className="action-btn" 
                       title="Editar"
@@ -583,7 +656,7 @@ function DashGestor() {
                     </button>
                   </td>
                 </tr>
-                {expandedWorks.includes(work.id) && (
+                {expandedWorks.has(work.id) && (
                   <tr className="details-row">
                     <td colSpan="6">
                       <div className="work-details">
@@ -595,69 +668,95 @@ function DashGestor() {
                           
                           <div className="details-section">
                             <h4>Localização</h4>
-                            <p>{work.location}</p>
+                            <p>
+                              {work.location.morada}<br />
+                              {work.location.codigoPostal} - {work.location.cidade}
+                              {work.location.andar && <><br />{work.location.andar}</>}
+                            </p>
                           </div>
 
                           {work.files && work.files.length > 0 && (
-                            <div className="details-section">
-                              <h4>Arquivos</h4>
-                              <div className="details-files-grid">
-                                {work.files.map((file, index) => (
-                                  <div key={index} className="details-file-item">
-                                    {file.type === 'image' && (
-                                      <div className="file-preview">
-                                        <img src={file.data} alt={file.name} />
-                                        <a href={file.data} download={file.name} className="download-btn">
-                                          Download
-                                        </a>
-                                      </div>
-                                    )}
-                                    {file.type === 'video' && (
-                                      <div className="file-preview">
-                                        <video src={file.data} controls />
-                                        <a href={file.data} download={file.name} className="download-btn">
-                                          Download
-                                        </a>
-                                      </div>
-                                    )}
-                                    {file.type === 'application' && (
-                                      <div className="file-preview document">
-                                        <FiFile size={24} />
-                                        <span>{file.name}</span>
-                                        <a href={file.data} download={file.name} className="download-btn">
-                                          Download
-                                        </a>
-                                      </div>
-                                    )}
+                            <div className="details-section files-container">
+                              {/* Seção de Fotografias */}
+                              {work.files.filter(file => file.type === 'image').length > 0 && (
+                                <div className="file-type-section">
+                                  <h4>Fotografias</h4>
+                                  <div className="files-grid">
+                                    {work.files
+                                      .filter(file => file.type === 'image')
+                                      .map((file, index) => (
+                                        <div key={index} className="file-preview-item">
+                                          <img src={file.data} alt={file.name} />
+                                          <div className="file-preview-overlay">
+                                            <span className="file-name">{file.name}</span>
+                                            <a 
+                                              href={file.data}
+                                              download={file.name}
+                                              className="download-btn"
+                                              onClick={(e) => e.stopPropagation()}
+                                            >
+                                              <FiDownload /> Download
+                                            </a>
+                                          </div>
+                                        </div>
+                                    ))}
                                   </div>
-                                ))}
-                              </div>
+                                </div>
+                              )}
+
+                              {/* Seção de Vídeos */}
+                              {work.files.filter(file => file.type === 'video').length > 0 && (
+                                <div className="file-type-section">
+                                  <h4>Vídeos</h4>
+                                  <div className="files-grid">
+                                    {work.files
+                                      .filter(file => file.type === 'video')
+                                      .map((file, index) => (
+                                        <div key={index} className="file-preview-item">
+                                          <video src={file.data} controls />
+                                          <div className="file-preview-overlay">
+                                            <span className="file-name">{file.name}</span>
+                                            <a 
+                                              href={file.data}
+                                              download={file.name}
+                                              className="download-btn"
+                                              onClick={(e) => e.stopPropagation()}
+                                            >
+                                              <FiDownload /> Download
+                                            </a>
+                                          </div>
+                                        </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Seção de Documentos */}
+                              {work.files.filter(file => file.type !== 'image' && file.type !== 'video').length > 0 && (
+                                <div className="file-type-section">
+                                  <h4>Documentos</h4>
+                                  <div className="files-grid">
+                                    {work.files
+                                      .filter(file => file.type !== 'image' && file.type !== 'video')
+                                      .map((file, index) => (
+                                        <div key={index} className="file-preview-item document">
+                                          <FiFile size={24} />
+                                          <span className="file-name">{file.name}</span>
+                                          <a 
+                                            href={file.data}
+                                            download={file.name}
+                                            className="download-btn"
+                                            onClick={(e) => e.stopPropagation()}
+                                          >
+                                            <FiDownload /> Download
+                                          </a>
+                                        </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           )}
-
-                          <div className="details-section">
-                            <h4>Status</h4>
-                            <div className="status-selector">
-                              <button
-                                className={`status-btn ${work.status === 'Pendente' ? 'active' : ''}`}
-                                onClick={() => handleStatusChange(work.id, 'Pendente')}
-                              >
-                                Pendente
-                              </button>
-                              <button
-                                className={`status-btn ${work.status === 'Em Andamento' ? 'active' : ''}`}
-                                onClick={() => handleStatusChange(work.id, 'Em Andamento')}
-                              >
-                                Em Andamento
-                              </button>
-                              <button
-                                className={`status-btn ${work.status === 'Concluído' ? 'active' : ''}`}
-                                onClick={() => handleStatusChange(work.id, 'Concluído')}
-                              >
-                                Concluído
-                              </button>
-                            </div>
-                          </div>
                         </div>
                       </div>
                     </td>
@@ -716,6 +815,13 @@ function DashGestor() {
                     onChange={(e) => setNewWork({...newWork, category: e.target.value})}
                   >
                     <option value="">Selecione uma categoria</option>
+                    <option value="Infiltração">Infiltração</option>
+                    <option value="Fissuras e rachaduras">Fissuras e rachaduras</option>
+                    <option value="Canalização">Canalização</option>
+                    <option value="Manutenção">Manutenção</option>
+                    <option value="Jardinagem">Jardinagem</option>
+                    <option value="Fiscalização">Fiscalização</option>
+                    <option value="Reabilitação de Fachada">Reabilitação de Fachada</option>
                     <option value="Eletricidade">Eletricidade</option>
                     <option value="Construção">Construção</option>
                     <option value="Pintura">Pintura</option>
@@ -740,12 +846,111 @@ function DashGestor() {
               <div className="form-row">
                 <div className="form-group">
                   <label>Localização</label>
+                  <div className="location-fields-container">
+                    <input
+                      type="text"
+                      required
+                      value={newWork.location.morada}
+                      onChange={(e) => setNewWork({
+                        ...newWork,
+                        location: {
+                          ...newWork.location,
+                          morada: e.target.value
+                        }
+                      })}
+                      placeholder="Morada"
+                      className="morada-input"
+                    />
+                    <div className="postal-cidade-container">
+                      <input
+                        type="text"
+                        required
+                        value={newWork.location.codigoPostal}
+                        onChange={(e) => setNewWork({
+                          ...newWork,
+                          location: {
+                            ...newWork.location,
+                            codigoPostal: e.target.value
+                          }
+                        })}
+                        placeholder="Código Postal"
+                      />
+                      <input
+                        type="text"
+                        required
+                        value={newWork.location.cidade}
+                        onChange={(e) => setNewWork({
+                          ...newWork,
+                          location: {
+                            ...newWork.location,
+                            cidade: e.target.value
+                          }
+                        })}
+                        placeholder="Cidade"
+                      />
+                    </div>
+                    <input
+                      type="text"
+                      value={newWork.location.andar}
+                      onChange={(e) => setNewWork({
+                        ...newWork,
+                        location: {
+                          ...newWork.location,
+                          andar: e.target.value
+                        }
+                      })}
+                      placeholder="Andar/Sítio no Condomínio (opcional)"
+                      className="andar-input"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="form-row two-columns">
+                <div className="form-group">
+                  <label>Orçamentos desejados</label>
+                  <div className="orcamentos-container">
+                    <input
+                      type="number"
+                      min="1"
+                      required
+                      value={newWork.orcamentos.minimo}
+                      onChange={(e) => setNewWork({
+                        ...newWork,
+                        orcamentos: {
+                          ...newWork.orcamentos,
+                          minimo: e.target.value
+                        }
+                      })}
+                      placeholder="Mínimo"
+                    />
+                    <input
+                      type="number"
+                      min={newWork.orcamentos.minimo || 1}
+                      required
+                      value={newWork.orcamentos.maximo}
+                      onChange={(e) => setNewWork({
+                        ...newWork,
+                        orcamentos: {
+                          ...newWork.orcamentos,
+                          maximo: e.target.value
+                        }
+                      })}
+                      placeholder="Máximo"
+                    />
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label>Prazo para Orçamentos</label>
                   <input
-                    type="text"
+                    type="date"
                     required
-                    value={newWork.location}
-                    onChange={(e) => setNewWork({...newWork, location: e.target.value})}
-                    placeholder="Ex: Bloco A - Térreo"
+                    min={new Date().toISOString().split('T')[0]}
+                    value={newWork.prazoOrcamentos}
+                    onChange={(e) => setNewWork({
+                      ...newWork,
+                      prazoOrcamentos: e.target.value
+                    })}
                   />
                 </div>
               </div>
@@ -770,9 +975,11 @@ function DashGestor() {
                                   >
                                     <FiX />
                                   </button>
-                                  <img src={file.data} alt={file.name} />
-                                  <div className="file-preview-overlay">
-                                    <span className="file-name">{file.name}</span>
+                                  <div className="file-preview">
+                                    <img src={file.data} alt={file.name} />
+                                    <div className="file-preview-overlay">
+                                      <span className="file-name">{file.name}</span>
+                                    </div>
                                   </div>
                                 </div>
                               ))}
@@ -794,9 +1001,11 @@ function DashGestor() {
                                   >
                                     <FiX />
                                   </button>
-                                  <video src={file.data} controls />
-                                  <div className="file-preview-overlay">
-                                    <span className="file-name">{file.name}</span>
+                                  <div className="file-preview">
+                                    <video src={file.data} controls />
+                                    <div className="file-preview-overlay">
+                                      <span className="file-name">{file.name}</span>
+                                    </div>
                                   </div>
                                 </div>
                               ))}
