@@ -4,6 +4,7 @@ import React from 'react';
 import './App.css';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './contexts/auth';
+import DashAdmin from './components/Dashboard_Admin/dashadmin';
 
 function App() {
   return (
@@ -21,6 +22,7 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/dashgestor" element={<DashGestor />} />
           <Route path="/dashtecnico" element={<DashTecnico />} />
+          <Route path="/dashadmin" element={<DashAdmin />} />
         </Routes>
       </Router>
     </AuthProvider>

@@ -1,9 +1,10 @@
 import React, { useState } from "react";
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
-import { doc, setDoc } from 'firebase/firestore';
-import { db } from '../../services/firebase';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { db } from '../../services/firebase.jsx';
 import { useNavigate, Link } from 'react-router-dom';
 import './login.css';
+import LoadingAnimation from '../LoadingAnimation/LoadingAnimation';
 
 function Login() {
   const [isLogin, setIsLogin] = useState(false);
@@ -13,6 +14,7 @@ function Login() {
     password: '',
     role: 'tecnico'
   });
+  const [isLoading, setIsLoading] = useState(false);
 
   const navigate = useNavigate();
   const auth = getAuth();
@@ -27,6 +29,7 @@ function Login() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setIsLoading(true);
     
     try {
       if (!isLogin) {
@@ -46,21 +49,33 @@ function Login() {
         });
 
         alert('Registro realizado com sucesso!');
+        // Redirect based on role after registration
+        navigate(formData.role === 'tecnico' ? '/dashtecnico' : '/dashgestor');
       } else {
         // Login existing user
-        await signInWithEmailAndPassword(
+        const userCredential = await signInWithEmailAndPassword(
           auth,
           formData.email,
           formData.password
         );
+        
+        // Verificar se é admin
+        if (formData.email === "wecondlda@gmail.com") {
+          navigate('/dashadmin');
+        } else {
+          // Get user role from Firestore
+          const userDoc = await getDoc(doc(db, 'users', userCredential.user.uid));
+          const userRole = userDoc.data().role;
+          
+          // Redirect based on role
+          navigate(userRole === 'tecnico' ? '/dashtecnico' : '/dashgestor');
+        }
       }
-
-      // Redirect based on role
-      navigate('/dashgestor');
-      
     } catch (error) {
       console.error('Error:', error);
       alert(error.message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -136,8 +151,8 @@ function Login() {
             </div>
           )}
 
-          <button type="submit" className="submit-btn">
-            {isLogin ? 'Entrar' : 'Registrar'}
+          <button type="submit" className="submit-btn" disabled={isLoading}>
+            {isLoading ? <LoadingAnimation /> : (isLogin ? 'Entrar' : 'Registrar')}
           </button>
         </form>
 

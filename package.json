@@ -10,9 +10,11 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@cloudinary/url-gen": "^1.21.0",
     "@emailjs/browser": "^4.4.1",
     "@lottiefiles/dotlottie-react": "^0.13.0",
     "body-parser": "^1.20.3",
+    "cloudinary-react": "^1.8.1",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "emailjs-com": "^3.2.0",
