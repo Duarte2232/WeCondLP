@@ -433,3 +433,110 @@ input[type="file"] {
   align-items: center;
   min-width: 120px; /* Prevent button size changes during loading */
 }
+
+/* Estilos para o modal de orçamento */
+.orcamento-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.file-type-hint {
+  font-size: 12px;
+  color: #666;
+  margin-top: 4px;
+}
+
+.file-input-container {
+  position: relative;
+  border: 2px dashed #ccc;
+  border-radius: 8px;
+  padding: 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.file-input-container:hover {
+  border-color: #2196f3;
+  background-color: rgba(33, 150, 243, 0.05);
+}
+
+.file-input {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.file-input-text {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: #666;
+}
+
+.file-input-text svg {
+  font-size: 24px;
+  color: #2196f3;
+}
+
+/* Estilo para o botão de adicionar orçamento */
+.action-button.orcamento-button {
+  background-color: #4CAF50;
+  color: white;
+}
+
+.action-button.orcamento-button:hover {
+  background-color: #45a049;
+}
+
+.orcamento-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.orcamento-download,
+.remove-orcamento-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.orcamento-download {
+  background-color: #2196f3;
+  color: white;
+  text-decoration: none;
+}
+
+.orcamento-download:hover {
+  background-color: #1976d2;
+}
+
+.remove-orcamento-btn {
+  background-color: #dc3545;
+  color: white;
+  border: none;
+}
+
+.remove-orcamento-btn:hover {
+  background-color: #c82333;
+}
+
+.orcamento-card {
+  position: relative;
+  padding: 16px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  margin-bottom: 8px;
+}

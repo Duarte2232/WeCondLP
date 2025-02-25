@@ -9,6 +9,7 @@ import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, g
 import { useNavigate } from 'react-router-dom';
 import { CLOUDINARY_CONFIG } from '../../config/cloudinary';
 import LoadingAnimation from '../LoadingAnimation/LoadingAnimation';
+import sha1 from 'crypto-js/sha1';
 
 function DashGestor() {
   const { user } = useAuth();
@@ -448,14 +449,37 @@ function DashGestor() {
     }
   };
 
-  // Atualize a renderização dos arquivos nos detalhes
-  const renderFilePreview = (file) => {
-    if (file.type.startsWith('image/')) {
-      return <img src={file.url} alt={file.name} />;
-    } else if (file.type.startsWith('video/')) {
-      return <video src={file.url} controls />;
-    } else {
-      return <FiFile size={24} />;
+  // Função genérica de download para qualquer tipo de arquivo
+  const handleFileDownload = async (file, fileName) => {
+    try {
+      console.log('Iniciando download:', file);
+      
+      // Fazer o fetch do arquivo
+      const response = await fetch(file.url);
+      const blob = await response.blob();
+      
+      // Criar URL do blob
+      const blobUrl = window.URL.createObjectURL(blob);
+      
+      // Criar link de download
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = fileName || file.name;
+      link.style.display = 'none';
+      
+      // Adicionar à página, clicar e remover
+      document.body.appendChild(link);
+      link.click();
+      
+      // Limpar
+      setTimeout(() => {
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(blobUrl);
+      }, 100);
+      
+    } catch (error) {
+      console.error('Erro ao fazer download:', error);
+      alert('Erro ao fazer download do arquivo. Por favor, tente novamente.');
     }
   };
 
@@ -685,13 +709,12 @@ function DashGestor() {
                   {expandedWorks.has(work.id) && (
                     <tr className="details-row">
                       <td colSpan="6">
-                        <div className="work-details">
-                          <div className="details-content">
-                            <div className="details-section">
-                              <h4>Descrição</h4>
+                        <div className="work-details-container">
+                          <div className="work-details-main">
+                            <div className="description-section">
+                              <h3>Descrição</h3>
                               <p>{work.description}</p>
                             </div>
-                            
                             <div className="details-section">
                               <h4>Localização</h4>
                               <p>
@@ -702,87 +725,123 @@ function DashGestor() {
                             </div>
 
                             {work.files && work.files.length > 0 && (
-                              <div className="details-section files-container">
+                              <div className="files-preview-sections">
                                 {/* Seção de Fotografias */}
                                 {work.files.filter(file => file.type === 'image').length > 0 && (
-                                  <div className="file-type-section">
+                                  <div className="files-section">
                                     <h4>Fotografias</h4>
                                     <div className="files-grid">
                                       {work.files
                                         .filter(file => file.type === 'image')
                                         .map((file, index) => (
-                                          <div key={index} className="file-preview-item">
+                                          <div key={`image-${index}`} className="file-preview-item">
                                             <img src={file.url} alt={file.name} />
                                             <div className="file-preview-overlay">
                                               <span className="file-name">{file.name}</span>
-                                              <a 
-                                                href={file.url}
-                                                download={file.name}
+                                              <button 
                                                 className="download-btn"
-                                                onClick={(e) => e.stopPropagation()}
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  handleFileDownload(file, file.name);
+                                                }}
                                               >
                                                 <FiDownload /> Download
-                                              </a>
+                                              </button>
                                             </div>
                                           </div>
-                                      ))}
+                                        ))}
                                     </div>
                                   </div>
                                 )}
 
                                 {/* Seção de Vídeos */}
                                 {work.files.filter(file => file.type === 'video').length > 0 && (
-                                  <div className="file-type-section">
+                                  <div className="files-section">
                                     <h4>Vídeos</h4>
                                     <div className="files-grid">
                                       {work.files
                                         .filter(file => file.type === 'video')
                                         .map((file, index) => (
-                                          <div key={index} className="file-preview-item">
+                                          <div key={`video-${index}`} className="file-preview-item">
                                             <video src={file.url} controls />
                                             <div className="file-preview-overlay">
                                               <span className="file-name">{file.name}</span>
-                                              <a 
-                                                href={file.url}
-                                                download={file.name}
+                                              <button 
                                                 className="download-btn"
-                                                onClick={(e) => e.stopPropagation()}
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  handleFileDownload(file, file.name);
+                                                }}
                                               >
                                                 <FiDownload /> Download
-                                              </a>
+                                              </button>
                                             </div>
                                           </div>
-                                      ))}
+                                        ))}
                                     </div>
                                   </div>
                                 )}
 
                                 {/* Seção de Documentos */}
                                 {work.files.filter(file => file.type !== 'image' && file.type !== 'video').length > 0 && (
-                                  <div className="file-type-section">
+                                  <div className="files-section">
                                     <h4>Documentos</h4>
                                     <div className="files-grid">
                                       {work.files
                                         .filter(file => file.type !== 'image' && file.type !== 'video')
                                         .map((file, index) => (
-                                          <div key={index} className="file-preview-item document">
+                                          <div key={`doc-${index}`} className="file-preview-item document">
                                             <FiFile size={24} />
                                             <span className="file-name">{file.name}</span>
-                                            <a 
-                                              href={file.url}
-                                              download={file.name}
+                                            <button 
                                               className="download-btn"
-                                              onClick={(e) => e.stopPropagation()}
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleFileDownload(file, file.name);
+                                              }}
                                             >
                                               <FiDownload /> Download
-                                            </a>
+                                            </button>
                                           </div>
-                                      ))}
+                                        ))}
                                     </div>
                                   </div>
                                 )}
                               </div>
                             )}
+                          </div>
+
+                          <div className="orcamentos-sidebar">
+                            <div className="orcamentos-header">
+                              <h3>Orçamentos Disponíveis</h3>
+                            </div>
+                            <div className="orcamentos-list">
+                              {Array.isArray(work.orcamentos) && work.orcamentos.length > 0 ? (
+                                work.orcamentos.map((orcamento, index) => (
+                                  <div key={index} className="orcamento-card">
+                                    <div className="orcamento-info">
+                                      <h4>{orcamento.empresa}</h4>
+                                      <span className="orcamento-date">
+                                        {new Date(orcamento.data).toLocaleDateString()}
+                                      </span>
+                                    </div>
+                                    <div className="orcamento-value">
+                                      {orcamento.valor}€
+                                    </div>
+                                    {orcamento.documento && (
+                                      <button 
+                                        className="orcamento-download"
+                                        onClick={() => handleFileDownload(orcamento.documento, orcamento.documento.nome)}
+                                      >
+                                        <FiDownload /> Download 
+                                      </button>
+                                    )}
+                                  </div>
+                                ))
+                              ) : (
+                                <p className="no-orcamentos">Nenhum orçamento disponível</p>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </td>

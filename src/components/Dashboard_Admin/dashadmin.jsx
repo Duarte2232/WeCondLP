@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/auth';
 import { db } from '../../services/firebase';
-import { collection, query, where, getDocs, doc, updateDoc, getDoc, addDoc, serverTimestamp } from 'firebase/firestore';
-import { FiEdit2, FiEye, FiSearch, FiFilter, FiX, FiCheck, FiArrowLeft, FiFile, FiUpload, FiDownload } from 'react-icons/fi';
+import { collection, query, where, getDocs, doc, updateDoc, getDoc, addDoc, serverTimestamp, deleteDoc } from 'firebase/firestore';
+import { FiEdit2, FiEye, FiSearch, FiFilter, FiX, FiCheck, FiArrowLeft, FiFile, FiUpload, FiDownload, FiFileText, FiTrash2 } from 'react-icons/fi';
 import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { CLOUDINARY_CONFIG } from '../../config/cloudinary';
 import './dashadmin.css';
@@ -70,6 +70,13 @@ function DashAdmin() {
     date: new Date().toISOString().split('T')[0]
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showOrcamentoModal, setShowOrcamentoModal] = useState(false);
+  const [selectedWorkForOrcamento, setSelectedWorkForOrcamento] = useState(null);
+  const [newOrcamento, setNewOrcamento] = useState({
+    empresa: '',
+    valor: '',
+    documento: null
+  });
 
   // Verificar se é o admin autorizado
   useEffect(() => {
@@ -372,6 +379,224 @@ function DashAdmin() {
     }
   };
 
+  // Função para lidar com o upload do documento
+  const handleDocumentoUpload = async (file) => {
+    if (!file) return null;
+    
+    try {
+      console.log('Iniciando upload do arquivo:', file.name);
+      
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('upload_preset', CLOUDINARY_CONFIG.uploadPreset);
+      formData.append('resource_type', 'raw');
+
+      console.log('Dados do upload:', {
+        fileName: file.name,
+        fileSize: file.size,
+        fileType: file.type,
+        uploadPreset: CLOUDINARY_CONFIG.uploadPreset
+      });
+
+      const response = await fetch(
+        `https://api.cloudinary.com/v1_1/${CLOUDINARY_CONFIG.cloudName}/raw/upload`,
+        {
+          method: 'POST',
+          body: formData
+        }
+      );
+
+      const responseText = await response.text();
+      console.log('Resposta bruta do servidor:', responseText);
+
+      if (!response.ok) {
+        throw new Error(`Falha no upload: ${response.status} - ${responseText}`);
+      }
+
+      const data = JSON.parse(responseText);
+      console.log('Upload bem-sucedido:', data);
+
+      return {
+        url: data.secure_url,
+        publicId: data.public_id,
+        nome: file.name,
+        formato: file.name.split('.').pop().toLowerCase()
+      };
+    } catch (error) {
+      console.error('Erro detalhado no upload:', error);
+      throw error;
+    }
+  };
+
+  // Função para adicionar orçamento
+  const handleAddOrcamento = async (e) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+
+    try {
+      let documentoData = null;
+      if (newOrcamento.documento) {
+        documentoData = await handleDocumentoUpload(newOrcamento.documento);
+      }
+
+      const orcamentoData = {
+        empresa: newOrcamento.empresa,
+        valor: parseFloat(newOrcamento.valor),
+        data: new Date().toISOString(),
+        documento: documentoData ? {
+          url: documentoData.url,
+          nome: documentoData.nome,
+          formato: documentoData.formato,
+          publicId: documentoData.publicId
+        } : null
+      };
+
+      // Atualizar no Firestore
+      const workRef = doc(db, 'works', selectedWorkForOrcamento.id);
+      const workDoc = await getDoc(workRef);
+      const workData = workDoc.data();
+      
+      // Inicializa o array de orçamentos se não existir
+      let currentOrcamentos = [];
+      if (workData && Array.isArray(workData.orcamentos)) {
+        currentOrcamentos = workData.orcamentos;
+      }
+
+      // Atualiza o documento com o novo array de orçamentos
+      await updateDoc(workRef, {
+        orcamentos: [...currentOrcamentos, orcamentoData]
+      });
+
+      // Atualizar estado local
+      setUsers(prevUsers => 
+        prevUsers.map(user => ({
+          ...user,
+          works: user.works?.map(work => 
+            work.id === selectedWorkForOrcamento.id
+              ? {
+                  ...work,
+                  orcamentos: Array.isArray(work.orcamentos) 
+                    ? [...work.orcamentos, orcamentoData]
+                    : [orcamentoData]
+                }
+              : work
+          )
+        }))
+      );
+
+      setShowOrcamentoModal(false);
+      setNewOrcamento({ empresa: '', valor: '', documento: null });
+      setSelectedWorkForOrcamento(null);
+      alert('Orçamento adicionado com sucesso!');
+    } catch (error) {
+      console.error('Erro detalhado ao adicionar orçamento:', error);
+      alert('Erro ao adicionar orçamento: ' + error.message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Adicione esta nova função
+  const handleRemoveOrcamento = async (workId, orcamentoIndex) => {
+    if (!window.confirm('Tem certeza que deseja remover este orçamento?')) {
+      return;
+    }
+
+    try {
+      const workRef = doc(db, 'works', workId);
+      const workDoc = await getDoc(workRef);
+      const workData = workDoc.data();
+      
+      if (!workData.orcamentos) return;
+
+      // Remove o orçamento do array
+      const newOrcamentos = workData.orcamentos.filter((_, index) => index !== orcamentoIndex);
+
+      // Atualiza no Firestore
+      await updateDoc(workRef, {
+        orcamentos: newOrcamentos
+      });
+
+      // Atualiza o estado local
+      setUsers(prevUsers => 
+        prevUsers.map(user => ({
+          ...user,
+          works: user.works?.map(work => 
+            work.id === workId
+              ? { ...work, orcamentos: newOrcamentos }
+              : work
+          )
+        }))
+      );
+
+      alert('Orçamento removido com sucesso!');
+    } catch (error) {
+      console.error('Erro ao remover orçamento:', error);
+      alert('Erro ao remover orçamento: ' + error.message);
+    }
+  };
+
+  // Adicionar a função de deletar obra
+  const handleDelete = async (workId) => {
+    if (!workId) {
+      console.error('ID da obra não fornecido');
+      return;
+    }
+
+    try {
+      if (window.confirm('Tem certeza que deseja excluir esta obra?')) {
+        setIsLoading(true);
+        
+        const workRef = doc(db, 'works', workId);
+        await deleteDoc(workRef);
+        
+        setUsers(prevUsers => prevUsers.map(user => ({
+          ...user,
+          works: user.works?.filter(work => work.id !== workId)
+        })));
+      }
+    } catch (error) {
+      console.error('Erro ao deletar obra:', error);
+      alert('Erro ao deletar obra: ' + error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Função de download atualizada
+  const handleFileDownload = async (file, fileName) => {
+    try {
+      console.log('Iniciando download:', file);
+      
+      // Fazer o fetch do arquivo
+      const response = await fetch(file.url);
+      const blob = await response.blob();
+      
+      // Criar URL do blob
+      const blobUrl = window.URL.createObjectURL(blob);
+      
+      // Criar link de download
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = fileName || file.name;
+      link.style.display = 'none';
+      
+      // Adicionar à página, clicar e remover
+      document.body.appendChild(link);
+      link.click();
+      
+      // Limpar
+      setTimeout(() => {
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(blobUrl);
+      }, 100);
+      
+    } catch (error) {
+      console.error('Erro ao fazer download:', error);
+      alert('Erro ao fazer download do arquivo. Por favor, tente novamente.');
+    }
+  };
+
   return (
     <div className="admin-dashboard-container">
       <nav className="admin-top-nav">
@@ -504,6 +729,69 @@ function DashAdmin() {
                                 >
                                   <FiCheck /> Marcar Concluído
                                 </button>
+                                <button
+                                  className="action-button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedWorkForOrcamento(work);
+                                    setShowOrcamentoModal(true);
+                                  }}
+                                >
+                                  <FiFileText /> Adicionar Orçamento
+                                </button>
+                                <button
+                                  className="action-button delete-btn"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDelete(work.id);
+                                  }}
+                                >
+                                  <FiX /> Excluir
+                                </button>
+                              </div>
+                              <div className="orcamentos-list">
+                                {Array.isArray(work.orcamentos) && work.orcamentos.length > 0 ? (
+                                  work.orcamentos.map((orcamento, index) => (
+                                    <div key={index} className="orcamento-card">
+                                      <div className="orcamento-info">
+                                        <h4>{orcamento.empresa}</h4>
+                                        <span className="orcamento-date">
+                                          {new Date(orcamento.data).toLocaleDateString()}
+                                        </span>
+                                      </div>
+                                      <div className="orcamento-value">
+                                        {orcamento.valor}€
+                                      </div>
+                                      <div className="orcamento-actions">
+                                        {orcamento.documento && (
+                                          <a 
+                                            href={orcamento.documento.url}
+                                            target="_blank" 
+                                            rel="noopener noreferrer"
+                                            className="orcamento-download"
+                                            onClick={(e) => {
+                                              e.preventDefault();
+                                              handleFileDownload(orcamento.documento, orcamento.documento.nome);
+                                            }}
+                                          >
+                                            <FiDownload /> Download
+                                          </a>
+                                        )}
+                                        <button
+                                          className="remove-orcamento-btn"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleRemoveOrcamento(work.id, index);
+                                          }}
+                                        >
+                                          <FiTrash2 /> Remover
+                                        </button>
+                                      </div>
+                                    </div>
+                                  ))
+                                ) : (
+                                  <p className="no-orcamentos">Nenhum orçamento disponível</p>
+                                )}
                               </div>
                             </div>
                           ))}
@@ -656,14 +944,15 @@ function DashAdmin() {
                               <img src={file.url} alt={file.name} />
                               <div className="file-preview-overlay">
                                 <span className="file-name">{file.name}</span>
-                                <a 
-                                  href={file.url}
-                                  download={file.name}
+                                <button 
                                   className="download-btn"
-                                  onClick={(e) => e.stopPropagation()}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleFileDownload(file, file.name);
+                                  }}
                                 >
                                   <FiDownload /> Download
-                                </a>
+                                </button>
                               </div>
                             </div>
                           ) : file.type === 'video' ? (
@@ -671,28 +960,30 @@ function DashAdmin() {
                               <video src={file.url} controls />
                               <div className="file-preview-overlay">
                                 <span className="file-name">{file.name}</span>
-                                <a 
-                                  href={file.url}
-                                  download={file.name}
+                                <button 
                                   className="download-btn"
-                                  onClick={(e) => e.stopPropagation()}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleFileDownload(file, file.name);
+                                  }}
                                 >
                                   <FiDownload /> Download
-                                </a>
+                                </button>
                               </div>
                             </div>
                           ) : (
                             <div className="file-preview document">
                               <FiFile size={24} />
                               <span className="file-name">{file.name}</span>
-                              <a 
-                                href={file.url}
-                                download={file.name}
+                              <button 
                                 className="download-btn"
-                                onClick={(e) => e.stopPropagation()}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleFileDownload(file, file.name);
+                                }}
                               >
                                 <FiDownload /> Download
-                              </a>
+                              </button>
                             </div>
                           )}
                         </div>
@@ -733,6 +1024,92 @@ function DashAdmin() {
                   disabled={isSubmitting}
                 >
                   Cancelar
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Orçamento */}
+      {showOrcamentoModal && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h2>Adicionar Orçamento</h2>
+              <button 
+                className="close-btn"
+                onClick={() => {
+                  setShowOrcamentoModal(false);
+                  setNewOrcamento({ empresa: '', valor: '', documento: null });
+                }}
+              >
+                <FiX />
+              </button>
+            </div>
+            
+            <form onSubmit={handleAddOrcamento} className="orcamento-form">
+              <div className="form-group">
+                <label>Empresa</label>
+                <input
+                  type="text"
+                  value={newOrcamento.empresa}
+                  onChange={(e) => setNewOrcamento({
+                    ...newOrcamento,
+                    empresa: e.target.value
+                  })}
+                  required
+                  placeholder="Nome da empresa"
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Valor (€)</label>
+                <input
+                  type="number"
+                  value={newOrcamento.valor}
+                  onChange={(e) => setNewOrcamento({
+                    ...newOrcamento,
+                    valor: e.target.value
+                  })}
+                  required
+                  placeholder="0.00"
+                  step="0.01"
+                  min="0"
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Documento do Orçamento (PDF, DOC, DOCX)</label>
+                <div className="file-input-container">
+                  <input
+                    type="file"
+                    onChange={(e) => setNewOrcamento({
+                      ...newOrcamento,
+                      documento: e.target.files[0]
+                    })}
+                    accept=".pdf,.doc,.docx"
+                    className="file-input"
+                  />
+                  <div className="file-input-text">
+                    <FiUpload />
+                    <p>
+                      {newOrcamento.documento
+                        ? newOrcamento.documento.name
+                        : 'Clique ou arraste o documento aqui (PDF, DOC, DOCX)'}
+                    </p>
+                    <span className="file-type-hint">Apenas documentos PDF, DOC ou DOCX</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="form-actions">
+                <button 
+                  type="submit" 
+                  className="submit-btn"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? <LoadingAnimation /> : 'Adicionar Orçamento'}
                 </button>
               </div>
             </form>
