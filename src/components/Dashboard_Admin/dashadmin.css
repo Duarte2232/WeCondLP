@@ -45,16 +45,23 @@
   padding: 15px;
   text-align: left;
   border-bottom: 1px solid #eee;
+  color: #000000;
 }
 
 .users-table th {
   background-color: #f5f5f5;
   font-weight: 600;
+  color: #000000;
 }
 
 .user-row {
   cursor: pointer;
   transition: background-color 0.2s;
+  color: #000000;
+}
+
+.user-row td {
+  color: #000000 !important;
 }
 
 .user-row:hover {
@@ -191,38 +198,49 @@
   margin-bottom: 30px;
   padding: 0 20px;
   align-items: center;
+  width: 100%;
 }
 
 .search-bar {
-  flex: 1;
+  flex: 4;
   display: flex;
   align-items: center;
   background: white;
   border: 1px solid #ddd;
   border-radius: 4px;
   padding: 8px 15px;
+  min-width: 500px;
+  max-width: 800px;
 }
 
 .search-bar input {
   flex: 1;
   border: none;
-  padding: 8px;
+  padding: 8px 12px;
   font-size: 1rem;
   outline: none;
   width: 100%;
 }
 
+.search-bar svg {
+  color: #000000;
+  margin-right: 10px;
+  font-size: 18px;
+}
+
 .search-bar .search-icon {
-  color: #666;
+  color: #000000;
   margin-right: 10px;
 }
 
 .filter-select {
-  min-width: 200px;
+  min-width: 180px;
+  max-width: 220px;
   padding: 10px 15px;
   border: 1px solid #ddd;
   border-radius: 4px;
   font-size: 1rem;
+  color: #000000;
 }
 
 /* Responsividade */
@@ -234,11 +252,12 @@
   .search-bar {
     min-width: 100%;
     margin-bottom: 10px;
+    max-width: 100%;
   }
 
   .filter-select {
     flex: 1;
-    min-width: 150px;
+    min-width: 180px;
   }
 }
 
@@ -505,18 +524,21 @@ input[type="file"] {
 .remove-orcamento-btn {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 4px;
   padding: 4px 8px;
   border-radius: 4px;
   font-size: 14px;
   cursor: pointer;
   transition: all 0.2s ease;
+  height: 28px;
 }
 
 .orcamento-download {
   background-color: #2196f3;
   color: white;
   text-decoration: none;
+  min-width: 100px;
 }
 
 .orcamento-download:hover {
@@ -539,4 +561,154 @@ input[type="file"] {
   background: #f8f9fa;
   border-radius: 8px;
   margin-bottom: 8px;
+  transition: all 0.3s ease;
+  border-left: 3px solid transparent;
+}
+
+.orcamento-card.orcamento-aceito {
+  background-color: #d4edda;
+  border-left: 3px solid #28a745;
+}
+
+.orcamento-aceito-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 4px 8px;
+  background-color: #28a745;
+  color: white;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 500;
+  margin-right: 8px;
+  text-align: center;
+  min-width: 100px;
+  height: 28px;
+}
+
+/* Estilos para a seção de documentos da obra */
+.work-files {
+  margin: 15px 0;
+  padding: 15px;
+  background-color: #f5f5f5;
+  border-radius: 6px;
+}
+
+.work-files h4 {
+  margin-bottom: 12px;
+  font-size: 16px;
+  color: #333;
+  font-weight: 600;
+}
+
+.work-files .files-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 12px;
+}
+
+.work-files .file-preview-item {
+  position: relative;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  overflow: hidden;
+  height: 120px;
+  background-color: white;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.work-files .file-preview-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.work-files .file-preview {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+.work-files .file-preview img,
+.work-files .file-preview video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.work-files .file-preview-item.document {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 10px;
+  text-align: center;
+}
+
+.work-files .file-preview-item.document .file-name {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #333;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.work-files .file-preview-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(0, 0, 0, 0.7);
+  padding: 8px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.work-files .file-preview-overlay .file-name {
+  color: white;
+  font-size: 11px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-bottom: 4px;
+}
+
+.work-files .file-preview-item:hover .file-preview-overlay {
+  opacity: 1;
+}
+
+.work-files .download-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 4px 8px;
+  background-color: #2196f3;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: background-color 0.2s;
+  width: 100%;
+}
+
+.work-files .download-btn:hover {
+  background-color: #0d8bf2;
+}
+
+.work-files .no-files {
+  color: #6c757d;
+  font-style: italic;
+  text-align: center;
+  padding: 15px;
+  background-color: #fff;
+  border-radius: 4px;
+  border: 1px dashed #ddd;
 }

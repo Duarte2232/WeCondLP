@@ -441,8 +441,9 @@ function DashAdmin() {
 
       const orcamentoData = {
         empresa: newOrcamento.empresa,
-        valor: parseFloat(newOrcamento.valor),
+        valor: newOrcamento.valor,
         data: new Date().toISOString(),
+        aceito: false,
         documento: documentoData ? {
           url: documentoData.url,
           nome: documentoData.nome,
@@ -701,6 +702,69 @@ function DashAdmin() {
                                 <p><strong>Local:</strong> {work.location.morada}, {work.location.cidade}</p>
                                 <p><strong>Data:</strong> {new Date(work.date).toLocaleDateString()}</p>
                               </div>
+                              
+                              {/* Seção de documentos da obra */}
+                              <div className="work-files">
+                                <h4>Documentos da Obra</h4>
+                                {work.files && work.files.length > 0 ? (
+                                  <div className="files-grid">
+                                    {work.files.map((file, fileIndex) => (
+                                      <div key={fileIndex} className={`file-preview-item ${file.type !== 'image' && file.type !== 'video' ? 'document' : ''}`}>
+                                        {file.type === 'image' ? (
+                                          <div className="file-preview">
+                                            <img src={file.url} alt={file.name} />
+                                            <div className="file-preview-overlay">
+                                              <span className="file-name">{file.name}</span>
+                                              <button 
+                                                className="download-btn"
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  handleFileDownload(file, file.name);
+                                                }}
+                                              >
+                                                <FiDownload /> Download
+                                              </button>
+                                            </div>
+                                          </div>
+                                        ) : file.type === 'video' ? (
+                                          <div className="file-preview">
+                                            <video src={file.url} controls />
+                                            <div className="file-preview-overlay">
+                                              <span className="file-name">{file.name}</span>
+                                              <button 
+                                                className="download-btn"
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  handleFileDownload(file, file.name);
+                                                }}
+                                              >
+                                                <FiDownload /> Download
+                                              </button>
+                                            </div>
+                                          </div>
+                                        ) : (
+                                          <div className="file-preview document">
+                                            <FiFile size={24} />
+                                            <span className="file-name">{file.name}</span>
+                                            <button 
+                                              className="download-btn"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleFileDownload(file, file.name);
+                                              }}
+                                            >
+                                              <FiDownload /> Download
+                                            </button>
+                                          </div>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <p className="no-files">Nenhum documento disponível para esta obra</p>
+                                )}
+                              </div>
+                              
                               <div className="work-actions">
                                 <button
                                   className="action-button edit-button"
@@ -752,7 +816,7 @@ function DashAdmin() {
                               <div className="orcamentos-list">
                                 {Array.isArray(work.orcamentos) && work.orcamentos.length > 0 ? (
                                   work.orcamentos.map((orcamento, index) => (
-                                    <div key={index} className="orcamento-card">
+                                    <div key={index} className={`orcamento-card ${orcamento.aceito ? 'orcamento-aceito' : ''}`}>
                                       <div className="orcamento-info">
                                         <h4>{orcamento.empresa}</h4>
                                         <span className="orcamento-date">
@@ -776,6 +840,9 @@ function DashAdmin() {
                                           >
                                             <FiDownload /> Download
                                           </a>
+                                        )}
+                                        {orcamento.aceito && (
+                                          <span className="orcamento-aceito-badge">Aceite</span>
                                         )}
                                         <button
                                           className="remove-orcamento-btn"
@@ -1066,16 +1133,14 @@ function DashAdmin() {
               <div className="form-group">
                 <label>Valor (€)</label>
                 <input
-                  type="number"
+                  type="text"
                   value={newOrcamento.valor}
                   onChange={(e) => setNewOrcamento({
                     ...newOrcamento,
                     valor: e.target.value
                   })}
                   required
-                  placeholder="0.00"
-                  step="0.01"
-                  min="0"
+                  placeholder="Digite o valor"
                 />
               </div>
 

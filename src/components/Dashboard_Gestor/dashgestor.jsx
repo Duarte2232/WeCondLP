@@ -483,6 +483,47 @@ function DashGestor() {
     }
   };
 
+  // Função para aceitar um orçamento
+  const handleAceitarOrcamento = async (workId, orcamentoIndex) => {
+    try {
+      const workRef = doc(db, 'works', workId);
+      const workDoc = await getDoc(workRef);
+      const workData = workDoc.data();
+      
+      if (!workData.orcamentos || !Array.isArray(workData.orcamentos)) {
+        alert('Não foi possível encontrar os orçamentos desta obra.');
+        return;
+      }
+
+      // Atualiza o orçamento específico para marcá-lo como aceito
+      const updatedOrcamentos = workData.orcamentos.map((orcamento, index) => {
+        if (index === orcamentoIndex) {
+          return { ...orcamento, aceito: true };
+        }
+        return orcamento;
+      });
+
+      // Atualiza no Firestore
+      await updateDoc(workRef, {
+        orcamentos: updatedOrcamentos
+      });
+
+      // Atualiza o estado local
+      setWorks(prevWorks => 
+        prevWorks.map(work => 
+          work.id === workId
+            ? { ...work, orcamentos: updatedOrcamentos }
+            : work
+        )
+      );
+
+      alert('Orçamento aceito com sucesso!');
+    } catch (error) {
+      console.error('Erro ao aceitar orçamento:', error);
+      alert('Erro ao aceitar orçamento: ' + error.message);
+    }
+  };
+
   return (
     <div className="dashboard-container">
       <nav className="top-nav">
@@ -818,7 +859,7 @@ function DashGestor() {
                             <div className="orcamentos-list">
                               {Array.isArray(work.orcamentos) && work.orcamentos.length > 0 ? (
                                 work.orcamentos.map((orcamento, index) => (
-                                  <div key={index} className="orcamento-card">
+                                  <div key={index} className={`orcamento-card ${orcamento.aceito ? 'orcamento-aceito' : ''}`}>
                                     <div className="orcamento-info">
                                       <h4>{orcamento.empresa}</h4>
                                       <span className="orcamento-date">
@@ -828,14 +869,27 @@ function DashGestor() {
                                     <div className="orcamento-value">
                                       {orcamento.valor}€
                                     </div>
-                                    {orcamento.documento && (
-                                      <button 
-                                        className="orcamento-download"
-                                        onClick={() => handleFileDownload(orcamento.documento, orcamento.documento.nome)}
-                                      >
-                                        <FiDownload /> Download 
-                                      </button>
-                                    )}
+                                    <div className="orcamento-actions">
+                                      {orcamento.documento && (
+                                        <button 
+                                          className="orcamento-download"
+                                          onClick={() => handleFileDownload(orcamento.documento, orcamento.documento.nome)}
+                                        >
+                                          <FiDownload /> Download 
+                                        </button>
+                                      )}
+                                      {!orcamento.aceito && (
+                                        <button 
+                                          className="orcamento-aceitar"
+                                          onClick={() => handleAceitarOrcamento(work.id, index)}
+                                        >
+                                          <FiCheck /> Aceitar
+                                        </button>
+                                      )}
+                                      {orcamento.aceito && (
+                                        <span className="orcamento-aceito-badge">Aceito</span>
+                                      )}
+                                    </div>
                                   </div>
                                 ))
                               ) : (
