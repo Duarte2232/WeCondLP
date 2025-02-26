@@ -2,12 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/auth';
 import { db } from '../../services/firebase';
-import { collection, query, where, getDocs, doc, updateDoc, getDoc, addDoc, serverTimestamp, deleteDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, updateDoc, getDoc, addDoc, serverTimestamp, deleteDoc, arrayUnion } from 'firebase/firestore';
 import { FiEdit2, FiEye, FiSearch, FiFilter, FiX, FiCheck, FiArrowLeft, FiFile, FiUpload, FiDownload, FiFileText, FiTrash2 } from 'react-icons/fi';
 import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { CLOUDINARY_CONFIG } from '../../config/cloudinary';
 import './dashadmin.css';
 import LoadingAnimation from '../LoadingAnimation/LoadingAnimation';
+import emailjs from 'emailjs-com';
 
 const uploadToCloudinary = async (file) => {
   const formData = new FormData();
@@ -428,6 +429,41 @@ function DashAdmin() {
     }
   };
 
+  // Função separada para envio de email
+  const sendNotificationEmail = async (workData) => {
+    try {
+      console.log('1. Iniciando envio de email');
+      console.log('2. Dados completos da obra:', workData);
+      
+      // Buscar os dados do usuário dono da obra
+      const userRef = doc(db, 'users', workData.userId);
+      const userDoc = await getDoc(userRef);
+      const userData = userDoc.data();
+
+      console.log('3. Dados do usuário:', userData);
+
+      const templateParams = {
+        to_email: userData.email,    // Email do dono da obra
+        to_name: userData.name,      // Nome do dono da obra
+        obra_title: workData.title,
+        obra_location: `${workData.location.morada}, ${workData.location.cidade}`
+      };
+
+      console.log('4. Parâmetros do email:', templateParams);
+
+      await emailjs.send(
+        "service_pb8u46m",
+        "template_20a3axt",
+        templateParams,
+        "Gb88AoliqUfgkEuJ1"
+      );
+
+      console.log('5. Email enviado com sucesso!');
+    } catch (error) {
+      console.error('Erro ao enviar email:', error);
+    }
+  };
+
   // Função para adicionar orçamento
   const handleAddOrcamento = async (e) => {
     e.preventDefault();
@@ -466,35 +502,21 @@ function DashAdmin() {
 
       // Atualiza o documento com o novo array de orçamentos
       await updateDoc(workRef, {
-        orcamentos: [...currentOrcamentos, orcamentoData]
+        orcamentos: arrayUnion(orcamentoData)
       });
 
-      // Atualizar estado local
-      setUsers(prevUsers => 
-        prevUsers.map(user => ({
-          ...user,
-          works: user.works?.map(work => 
-            work.id === selectedWorkForOrcamento.id
-              ? {
-                  ...work,
-                  orcamentos: Array.isArray(work.orcamentos) 
-                    ? [...work.orcamentos, orcamentoData]
-                    : [orcamentoData]
-                }
-              : work
-          )
-        }))
-      );
+      // Tenta enviar o email passando apenas workData
+      await sendNotificationEmail(workData);
 
-      setShowOrcamentoModal(false);
       setNewOrcamento({ empresa: '', valor: '', documento: null });
-      setSelectedWorkForOrcamento(null);
+      setShowOrcamentoModal(false);
+      setIsLoading(false);
+      
       alert('Orçamento adicionado com sucesso!');
     } catch (error) {
-      console.error('Erro detalhado ao adicionar orçamento:', error);
+      console.error('Erro ao adicionar orçamento:', error);
       alert('Erro ao adicionar orçamento: ' + error.message);
-    } finally {
-      setIsSubmitting(false);
+      setIsLoading(false);
     }
   };
 
