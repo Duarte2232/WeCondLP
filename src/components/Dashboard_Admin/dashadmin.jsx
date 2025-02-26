@@ -444,6 +444,7 @@ function DashAdmin() {
         valor: newOrcamento.valor,
         data: new Date().toISOString(),
         aceito: false,
+        visualizado: false,
         documento: documentoData ? {
           url: documentoData.url,
           nome: documentoData.nome,

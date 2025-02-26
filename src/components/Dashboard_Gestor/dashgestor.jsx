@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
 import './dashgestor.css';
-import { FiPlusCircle, FiFilter, FiSearch, FiBell, FiEdit2, FiEye, FiCheck, FiX, FiCalendar, FiUpload, FiArrowLeft, FiFile, FiDownload } from 'react-icons/fi';
+import { FiPlusCircle, FiFilter, FiSearch, FiBell, FiEdit2, FiEye, FiCheck, FiX, FiCalendar, FiUpload, FiArrowLeft, FiFile, FiDownload, FiAlertCircle } from 'react-icons/fi';
 import { useAuth } from '../../contexts/auth';
 import { db } from '../../services/firebase';
 import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, getDoc, serverTimestamp, writeBatch } from 'firebase/firestore';
@@ -30,6 +30,7 @@ function DashGestor() {
   const [userData, setUserData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [unviewedOrcamentos, setUnviewedOrcamentos] = useState({});
 
   const [newWork, setNewWork] = useState({
     title: '',
@@ -111,6 +112,7 @@ function DashGestor() {
       })));
       
       setWorks(worksData);
+      
     } catch (error) {
       console.error('Erro ao carregar obras:', error);
       setWorks([]);
@@ -122,6 +124,22 @@ function DashGestor() {
   useEffect(() => {
     loadWorks();
   }, [user?.uid]);
+
+  // Monitorar mudanças nos orçamentos
+  useEffect(() => {
+    // Verificar orçamentos não visualizados
+    const newUnviewedOrcamentos = {};
+    works.forEach(work => {
+      if (Array.isArray(work.orcamentos) && work.orcamentos.length > 0) {
+        // Verificar se há orçamentos não visualizados
+        const unviewedCount = work.orcamentos.filter(orc => !orc.visualizado).length;
+        if (unviewedCount > 0) {
+          newUnviewedOrcamentos[work.id] = unviewedCount;
+        }
+      }
+    });
+    setUnviewedOrcamentos(newUnviewedOrcamentos);
+  }, [works]);
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -158,6 +176,10 @@ function DashGestor() {
         newSet.delete(workId);
       } else {
         newSet.add(workId);
+        // Marcar orçamentos como visualizados quando expandir os detalhes
+        if (unviewedOrcamentos[workId]) {
+          markOrcamentosAsViewed(workId);
+        }
       }
       return newSet;
     });
@@ -495,10 +517,10 @@ function DashGestor() {
         return;
       }
 
-      // Atualiza o orçamento específico para marcá-lo como aceito
+      // Atualiza o orçamento específico para marcá-lo como aceito e visualizado
       const updatedOrcamentos = workData.orcamentos.map((orcamento, index) => {
         if (index === orcamentoIndex) {
-          return { ...orcamento, aceito: true };
+          return { ...orcamento, aceito: true, visualizado: true };
         }
         return orcamento;
       });
@@ -517,10 +539,65 @@ function DashGestor() {
         )
       );
 
+      // Atualiza o estado de orçamentos não visualizados
+      const unviewedCount = updatedOrcamentos.filter(orc => !orc.visualizado).length;
+      setUnviewedOrcamentos(prev => {
+        const newState = { ...prev };
+        if (unviewedCount > 0) {
+          newState[workId] = unviewedCount;
+        } else {
+          delete newState[workId];
+        }
+        return newState;
+      });
+
       alert('Orçamento aceito com sucesso!');
     } catch (error) {
       console.error('Erro ao aceitar orçamento:', error);
       alert('Erro ao aceitar orçamento: ' + error.message);
+    }
+  };
+
+  // Função para marcar orçamentos como visualizados
+  const markOrcamentosAsViewed = async (workId) => {
+    try {
+      const workRef = doc(db, 'works', workId);
+      const workDoc = await getDoc(workRef);
+      const workData = workDoc.data();
+      
+      if (!workData.orcamentos || !Array.isArray(workData.orcamentos)) {
+        return;
+      }
+
+      // Marcar todos os orçamentos como visualizados
+      const updatedOrcamentos = workData.orcamentos.map(orcamento => ({
+        ...orcamento,
+        visualizado: true
+      }));
+
+      // Atualizar no Firestore
+      await updateDoc(workRef, {
+        orcamentos: updatedOrcamentos
+      });
+
+      // Atualizar o estado local
+      setWorks(prevWorks => 
+        prevWorks.map(work => 
+          work.id === workId
+            ? { ...work, orcamentos: updatedOrcamentos }
+            : work
+        )
+      );
+
+      // Remover da lista de não visualizados
+      setUnviewedOrcamentos(prev => {
+        const newState = { ...prev };
+        delete newState[workId];
+        return newState;
+      });
+
+    } catch (error) {
+      console.error('Erro ao marcar orçamentos como visualizados:', error);
     }
   };
 
@@ -700,10 +777,32 @@ function DashGestor() {
               {filteredWorks.map((work, index) => (
                 <React.Fragment key={`${work.id}-${index}`}>
                   <tr 
-                    className={`work-row ${work.status === 'Concluído' ? 'concluida' : ''}`}
+                    className={`work-row ${work.status === 'Concluído' ? 'concluida' : ''} ${unviewedOrcamentos[work.id] ? 'work-row-with-notification' : ''}`}
                     onClick={() => handleViewDetails(work.id)}
                   >
-                    <td>{work.title}</td>
+                    <td>
+                      <div className="title-with-notification">
+                        <span className="work-title">{work.title}</span>
+                        {Array.isArray(work.orcamentos) && work.orcamentos.length > 0 && (
+                          <span className="orcamentos-count" title={`${work.orcamentos.length} orçamento(s) disponível(is)`}>
+                            {work.orcamentos.length}
+                          </span>
+                        )}
+                        {unviewedOrcamentos[work.id] && (
+                          <span 
+                            className="orcamento-notification" 
+                            title={`${unviewedOrcamentos[work.id]} novo(s) orçamento(s)`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleViewDetails(work.id);
+                            }}
+                          >
+                            <FiAlertCircle />
+                            <span className="notification-count">{unviewedOrcamentos[work.id]}</span>
+                          </span>
+                        )}
+                      </div>
+                    </td>
                     <td>{new Date(work.date).toLocaleDateString()}</td>
                     <td>
                       <span className={`category-badge ${work.category.toLowerCase()}`}>

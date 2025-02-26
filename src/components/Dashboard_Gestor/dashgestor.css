@@ -1511,3 +1511,109 @@
   text-align: center;
   padding: 10px;
 }
+
+/* Estilos para notificação de orçamentos */
+.title-with-notification {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  position: relative;
+}
+
+.work-title {
+  font-weight: 500;
+}
+
+.orcamentos-count {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-left: 5px;
+  font-weight: normal;
+  background-color: #f0f0f0;
+  padding: 2px 6px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.orcamento-notification {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  color: var(--warning-color);
+  cursor: pointer;
+  transition: transform 0.2s ease;
+  margin-left: 8px;
+  background-color: rgba(245, 158, 11, 0.15);
+  padding: 5px;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  border: 2px solid rgba(245, 158, 11, 0.3);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.orcamento-notification:hover {
+  transform: scale(1.1);
+  background-color: rgba(245, 158, 11, 0.25);
+}
+
+.orcamento-notification svg {
+  font-size: 1.3rem;
+  animation: pulse 1.5s infinite;
+}
+
+.notification-count {
+  position: absolute;
+  top: -10px;
+  right: -10px;
+  background-color: var(--danger-color);
+  color: white;
+  border-radius: 50%;
+  min-width: 20px;
+  height: 20px;
+  font-size: 0.8rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  padding: 0 3px;
+  z-index: 3;
+  border: 2px solid white;
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.1);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Estilo para a linha da tabela quando há novos orçamentos */
+.work-row:has(.orcamento-notification) {
+  background-color: rgba(245, 158, 11, 0.05);
+}
+
+.work-row:has(.orcamento-notification):hover {
+  background-color: rgba(245, 158, 11, 0.1);
+}
+
+/* Estilo para a linha da tabela quando há novos orçamentos - compatibilidade */
+.work-row-with-notification {
+  background-color: rgba(245, 158, 11, 0.05);
+}
+
+.work-row-with-notification:hover {
+  background-color: rgba(245, 158, 11, 0.1);
+}
