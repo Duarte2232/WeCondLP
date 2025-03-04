@@ -37,15 +37,15 @@ body, html, #root {
   justify-content: center;
   align-items: center;
   height: 100vh;
-  position: absolute;
+  position: relative;
   left: 0;
   top: 0;
   width: 100vw;
   color: var(--text-color);
-  position: relative;
   overflow: hidden;
 }
 
+/* Gradiente de fundo com efeito de movimento */
 .login-container::before {
   content: "";
   position: absolute;
@@ -58,9 +58,16 @@ body, html, #root {
   animation: moveBackground 15s ease infinite;
 }
 
-/* Removendo a imagem de fundo */
+/* Ilustração do martelo - Movendo para dentro do login-box */
 .login-container::after {
-  display: none;
+  content: "";
+  display: none; /* Desativando a ilustração atual fora do box */
+}
+
+/* Removendo a ilustração do gajo */
+.login-box::after {
+  display: none; /* Desativa completamente o elemento */
+  content: none; /* Garante que o conteúdo não seja gerado */
 }
 
 @keyframes moveBackground {

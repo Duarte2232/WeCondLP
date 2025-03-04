@@ -16,7 +16,7 @@ const Jobs = ({ jobs, loading }) => {
   };
 
   return (
-    <div className="main-content jobs-page">
+    <div className="main-content obras-page">
       <div className="page-header-container">
         <button className="back-button" onClick={goBackToDashboard}>
           <FiArrowLeft />
@@ -26,39 +26,45 @@ const Jobs = ({ jobs, loading }) => {
       </div>
       
       <div className="jobs-list">
-        {jobs?.map((job) => (
-          <div key={job.id} className="job-card">
-            <div className="job-header">
-              <h2>{job.title}</h2>
-              <span className={`status-badge ${job.status}`}>
-                {job.status === "disponivel" ? "Pendente" : 
-                 job.status === "confirmada" ? "Confirmada" : 
-                 job.status === "concluida" ? "Concluída" : job.status}
-              </span>
-            </div>
-            
-            <div className="job-details">
-              <div className="job-location">
-                <FiMapPin />
-                <span>{job.location.cidade}</span>
+        {jobs && jobs.length > 0 ? (
+          jobs.map((job) => (
+            <div key={job.id} className="job-card">
+              <div className="job-header">
+                <h2>{job.title}</h2>
+                <span className={`status-badge ${job.status}`}>
+                  {job.status === "disponivel" ? "Pendente" : 
+                   job.status === "confirmada" ? "Confirmada" : 
+                   job.status === "concluida" ? "Concluída" : job.status}
+                </span>
               </div>
-              <div className="job-time">
-                <FiClock />
-                <span>{job.date} • {job.time}</span>
+              
+              <div className="job-details">
+                <div className="job-location">
+                  <FiMapPin />
+                  <span>{job.location.cidade}</span>
+                </div>
+                <div className="job-time">
+                  <FiClock />
+                  <span>{job.date} • {job.time}</span>
+                </div>
+                <div className="job-contact">
+                  <FiPhone />
+                  <span>{job.contact}</span>
+                </div>
+                <p className="job-description">{job.description}</p>
               </div>
-              <div className="job-contact">
-                <FiPhone />
-                <span>{job.contact}</span>
-              </div>
-              <p className="job-description">{job.description}</p>
-            </div>
 
-            <div className="job-actions">
-              <button className="status-update-btn">Atualizar Estado</button>
-              <button className="view-details-btn">Ver Detalhes</button>
+              <div className="job-actions">
+                <button className="status-update-btn">Atualizar Estado</button>
+                <button className="view-details-btn">Ver Detalhes</button>
+              </div>
             </div>
+          ))
+        ) : (
+          <div className="no-jobs-message">
+            <p>Nenhuma obra disponível no momento.</p>
           </div>
-        ))}
+        )}
       </div>
     </div>
   );

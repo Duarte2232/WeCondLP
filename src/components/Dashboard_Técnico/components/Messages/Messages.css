@@ -1,27 +1,65 @@
 .main-content {
-  padding: 24px;
+  padding: 30px;
   width: 100%;
 }
 
+/* Específico para a página de mensagens */
+.messages-page .page-header-container {
+  padding: 16px 24px;
+  margin-bottom: 0;
+  background-color: #FFFFFF;
+  display: flex;
+  align-items: center;
+}
+
+.main-content.messages-page {
+  padding: 0;
+  margin-top: 56px;
+}
+
 .page-title {
-  font-size: 24px;
+  font-size: 20px;
   font-weight: 600;
   color: #111827;
-  margin-bottom: 24px;
+  margin: 0;
+}
+
+/* Estilizar o botão de voltar */
+.back-button {
+  display: flex;
+  align-items: center;
+  background: transparent;
+  border: none;
+  color: #4B5563;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 8px 12px;
+  border-radius: 6px;
+  transition: background-color 0.2s;
+}
+
+.back-button:hover {
+  background-color: #F3F4F6;
+}
+
+.back-button svg {
+  margin-right: 6px;
+  font-size: 16px;
 }
 
 .messages-container {
   background: #fff;
-  border-radius: 8px;
-  padding: 24px;
+  border-radius: 0;
+  padding: 40px 60px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  margin-top: 0;
 }
 
 .messages-content {
   display: flex;
   justify-content: center;
   align-items: center;
-  min-height: 200px;
+  min-height: 300px;
   color: #6B7280;
   font-size: 16px;
 } 

@@ -1,20 +1,57 @@
 .main-content {
-  padding: 24px;
+  padding: 0px;
   width: 100%;
 }
 
+.main-content.calendar-page {
+  padding: 0;
+  margin-top: 56px;
+}
+
+.page-header-container {
+  display: flex;
+  align-items: center;
+  padding: 16px 24px;
+}
+
 .page-title {
-  font-size: 24px;
+  font-size: 20px;
   font-weight: 600;
   color: #111827;
-  margin-bottom: 24px;
+  margin: 0;
+}
+
+.back-button {
+  display: flex;
+  align-items: center;
+  background: none;
+  border: none;
+  color: #6B7280;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 8px 12px;
+  border-radius: 4px;
+  margin-right: 16px;
+  transition: background-color 0.2s;
+}
+
+.back-button:hover {
+  background-color: #F3F4F6;
+  color: #111827;
+}
+
+.back-button svg {
+  margin-right: 6px;
+  font-size: 16px;
 }
 
 .calendar-container {
   background: #fff;
-  border-radius: 8px;
+  border-radius: 0;
   padding: 24px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  margin-top: 0;
   margin-bottom: 24px;
 }
 
@@ -239,10 +276,14 @@
   padding-top: 0;
 }
 
-.calendar-header-container {
-  display: flex;
-  align-items: center;
-  margin-bottom: 16px;
+.main-content.calendar-page {
+  margin-top: 0;
+}
+
+@media (max-width: 768px) {
+  .main-content.calendar-page {
+    margin-top: 0;
+  }
 }
 
 .back-button {
@@ -280,4 +321,311 @@
   border-radius: 8px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   overflow: hidden;
+}
+
+/* Estilo para a visualização semanal */
+.week-view-container {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.week-header {
+  display: flex;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.time-column {
+  width: 80px;
+  background-color: #f9fafb;
+  border-right: 1px solid #e5e7eb;
+}
+
+.day-column-header {
+  flex: 1;
+  text-align: center;
+  padding: 12px 4px;
+  background-color: #f9fafb;
+  border-right: 1px solid #e5e7eb;
+}
+
+.day-column-header:last-child {
+  border-right: none;
+}
+
+.day-column-header.today {
+  background-color: #f0f9ff;
+}
+
+.week-grid {
+  display: flex;
+  height: 720px; /* 12 horas * 60px por hora */
+  position: relative;
+}
+
+.time-slots {
+  width: 80px;
+  background-color: #f9fafb;
+  border-right: 1px solid #e5e7eb;
+}
+
+.time-slot {
+  height: 60px;
+  position: relative;
+  padding: 0 8px;
+}
+
+.hour-label {
+  position: absolute;
+  top: -10px;
+  left: 8px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #6b7280;
+  background: #f9fafb;
+  padding: 2px 4px;
+  z-index: 1;
+}
+
+.clock-icon {
+  font-size: 10px;
+}
+
+.hour-line {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background-color: #e5e7eb;
+}
+
+.day-columns {
+  display: flex;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.day-column {
+  flex: 1;
+  border-right: 1px solid #e5e7eb;
+  background: white;
+}
+
+.day-column:last-child {
+  border-right: none;
+}
+
+.day-cell {
+  height: 60px;
+  padding: 2px;
+  border-bottom: 1px solid #f3f4f6;
+  position: relative;
+}
+
+.week-event {
+  position: relative;
+  margin: 2px 0;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  height: calc(100% - 4px);
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform 0.2s;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.week-event:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  z-index: 10;
+}
+
+.week-event.yellow {
+  background: #fef3c7;
+  color: #92400e;
+  border-left: 3px solid #f59e0b;
+}
+
+.week-event.blue {
+  background: #dbeafe;
+  color: #1e40af;
+  border-left: 3px solid #3b82f6;
+}
+
+.week-event.green {
+  background: #d1fae5;
+  color: #065f46;
+  border-left: 3px solid #10b981;
+}
+
+.week-event .event-title {
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.week-event .event-time {
+  font-size: 11px;
+  opacity: 0.8;
+}
+
+/* Ajustes responsivos para visualização semanal */
+@media (max-width: 768px) {
+  .time-column {
+    width: 60px;
+  }
+  
+  .time-slots {
+    width: 60px;
+  }
+  
+  .hour-label {
+    font-size: 10px;
+  }
+  
+  .day-column-header {
+    padding: 8px 2px;
+  }
+  
+  .week-event {
+    padding: 2px 4px;
+    font-size: 10px;
+  }
+  
+  .week-event .event-time {
+    font-size: 9px;
+  }
+}
+
+/* Estilos para a visualização diária */
+.day-view-container {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.day-header {
+  padding: 16px;
+  border-bottom: 1px solid #e5e7eb;
+  background-color: #f9fafb;
+}
+
+.day-title {
+  text-align: center;
+}
+
+.day-name {
+  font-size: 18px;
+  font-weight: 500;
+  color: #111827;
+  text-transform: capitalize;
+}
+
+.day-grid {
+  display: flex;
+  height: 720px; /* 12 horas * 60px por hora */
+  position: relative;
+}
+
+.day-events-column {
+  flex: 1;
+  background: white;
+  overflow-y: auto;
+}
+
+.day-cell {
+  height: 60px;
+  padding: 4px 16px;
+  border-bottom: 1px solid #f3f4f6;
+  position: relative;
+}
+
+.day-event {
+  position: relative;
+  margin: 4px 0;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 14px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.day-event:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
+}
+
+.day-event.yellow {
+  background: #fef3c7;
+  color: #92400e;
+  border-left: 4px solid #f59e0b;
+}
+
+.day-event.blue {
+  background: #dbeafe;
+  color: #1e40af;
+  border-left: 4px solid #3b82f6;
+}
+
+.day-event.green {
+  background: #d1fae5;
+  color: #065f46;
+  border-left: 4px solid #10b981;
+}
+
+.day-event .event-title {
+  font-weight: 600;
+  font-size: 15px;
+  margin-bottom: 4px;
+}
+
+.day-event .event-time {
+  font-size: 13px;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.day-event .event-details {
+  font-size: 13px;
+  color: rgba(0, 0, 0, 0.7);
+  margin-top: 6px;
+}
+
+.day-event .event-location,
+.day-event .event-description {
+  margin-bottom: 4px;
+}
+
+/* Ajustes responsivos para visualização diária */
+@media (max-width: 768px) {
+  .day-name {
+    font-size: 16px;
+  }
+  
+  .day-event {
+    padding: 6px 10px;
+    font-size: 13px;
+  }
+  
+  .day-event .event-title {
+    font-size: 14px;
+  }
+  
+  .day-event .event-time,
+  .day-event .event-details {
+    font-size: 12px;
+  }
 } 

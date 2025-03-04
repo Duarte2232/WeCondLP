@@ -22,7 +22,9 @@ const Messages = () => {
       </div>
       
       <div className="messages-container">
-        <p>Nenhuma mensagem disponível no momento.</p>
+        <div className="messages-content">
+          <p>Nenhuma mensagem disponível no momento.</p>
+        </div>
       </div>
     </div>
   );

@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { FiHome, FiCalendar, FiBriefcase, FiMessageSquare, FiUser, FiSearch, FiTool } from 'react-icons/fi';
-import { getAuth } from 'firebase/auth';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { FiHome, FiCalendar, FiBriefcase, FiMessageSquare, FiUser, FiSearch, FiTool, FiArrowLeft } from 'react-icons/fi';
+import { getAuth, signOut } from 'firebase/auth';
 import { getDoc, doc } from 'firebase/firestore';
 import { db } from '../../../../services/firebase.jsx';
 import './TopBar.css';
 
 const TopBar = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const [empresaNome, setEmpresaNome] = useState('');
   const auth = getAuth();
 
@@ -20,6 +21,8 @@ const TopBar = () => {
             const userData = userDoc.data();
             if (userData.empresaNome) {
               setEmpresaNome(userData.empresaNome);
+            } else if (userData.name) {
+              setEmpresaNome(userData.name);
             }
           }
         } catch (error) {
@@ -35,14 +38,28 @@ const TopBar = () => {
     return location.pathname.includes(path);
   };
 
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      navigate('/');
+    } catch (error) {
+      console.error("Erro ao fazer logout:", error);
+    }
+  };
+
   return (
     <div className="topbar-container">
       <div className="topbar">
-        <div className="topbar-logo">
-          <Link to="/dashtecnico">
-            <FiTool className="logo-icon" />
-            <h1>{empresaNome || "Portal do Prestador"}</h1>
-          </Link>
+        <div className="topbar-left">
+          <button className="back-button-topbar" onClick={handleLogout}>
+            <FiArrowLeft />
+          </button>
+          <div className="topbar-logo">
+            <Link to="/dashtecnico">
+              <FiTool className="logo-icon" />
+              <h1>{empresaNome || "Portal do Técnico"}</h1>
+            </Link>
+          </div>
         </div>
         
         <nav className="topbar-nav">

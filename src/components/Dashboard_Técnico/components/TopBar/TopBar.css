@@ -22,6 +22,31 @@
   margin: 0 auto;
 }
 
+.topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.back-button-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: #6B7280;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 4px;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.back-button-topbar:hover {
+  background-color: #F3F4F6;
+  color: #111827;
+}
+
 .topbar-logo {
   display: flex;
   align-items: center;
@@ -31,18 +56,21 @@
   text-decoration: none;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 }
 
 .logo-icon {
   color: #2563EB;
-  font-size: 20px;
+  font-size: 22px;
 }
 
 .topbar-logo h1 {
   font-size: 1.2rem;
   font-weight: 600;
   color: #333;
+  margin: 0;
+  padding-top: 1px;
+  line-height: 2;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

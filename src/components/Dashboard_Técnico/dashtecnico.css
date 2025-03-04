@@ -72,7 +72,7 @@
 }
 
 .dashboard-content {
-  padding-top: 0;
+  padding-top: 56px;
   padding-left: 24px;
   padding-right: 24px;
   padding-bottom: 24px;
@@ -268,7 +268,7 @@
   }
 
   .dashboard-content {
-    padding-top: 0;
+    padding-top: 48px;
     padding-left: 16px;
     padding-right: 16px;
     padding-bottom: 16px;
@@ -651,6 +651,22 @@
 
 .completar-perfil-btn:hover {
   background-color: #B91C1C;
+}
+
+.info-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background-color: #991B1B;
+  color: white;
+  font-size: 10px;
+  font-weight: bold;
+  cursor: help;
+  margin-left: 8px;
+  border: none;
 }
 
 /* Estilo para botões desabilitados */
