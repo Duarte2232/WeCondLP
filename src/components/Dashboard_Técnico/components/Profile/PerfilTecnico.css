@@ -1,0 +1,419 @@
+.main-content.perfil-page {
+  padding: 0;
+  margin-top: 56px;
+}
+
+.perfil-page .page-header-container {
+  padding: 16px 24px;
+  margin-bottom: 0;
+  background-color: #FFFFFF;
+}
+
+.perfil-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  margin-top: 0;
+}
+
+.perfil-container form {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.perfil-container h2 {
+  color: #111827;
+  margin-bottom: 1rem;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.perfil-container h1 {
+  color: #111827;
+  margin-bottom: 2rem;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.perfil-container section {
+  background: white;
+  border-radius: 12px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.form-group {
+  margin-bottom: 1.5rem;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: #111827;
+  font-weight: 500;
+  font-size: 0.875rem;
+}
+
+.form-group input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1px solid #E5E7EB;
+  border-radius: 8px;
+  font-size: 1rem;
+  background-color: #F9FAFB;
+  color: #374151;
+  transition: all 0.2s;
+}
+
+.form-group input:focus {
+  border-color: #2563EB;
+  outline: none;
+  background-color: white;
+}
+
+.form-group input::placeholder {
+  color: #9CA3AF;
+}
+
+.input-readonly {
+  background-color: #F3F4F6 !important;
+  cursor: not-allowed;
+  opacity: 0.8;
+}
+
+.input-readonly:focus {
+  border-color: #E5E7EB !important;
+  background-color: #F3F4F6 !important;
+}
+
+.documentos-descricao {
+  color: #6B7280;
+  margin-bottom: 2rem;
+  font-size: 0.875rem;
+}
+
+.documentos-lista {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 2rem;
+}
+
+.documento-item {
+  background: white;
+}
+
+.documento-item h3 {
+  color: #111827;
+  font-size: 0.875rem;
+  font-weight: 500;
+  margin-bottom: 0.75rem;
+}
+
+.upload-area {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.upload-area input[type="file"] {
+  display: none;
+}
+
+.upload-dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  border: 1px dashed #E5E7EB;
+  border-radius: 8px;
+  background: #F9FAFB;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.upload-dropzone:hover {
+  border-color: #2563EB;
+  background: #F3F4F6;
+}
+
+.upload-icon {
+  color: #9CA3AF;
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.upload-text {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  margin-bottom: 0.5rem;
+}
+
+.upload-primary {
+  color: #2563EB;
+  font-weight: 500;
+  font-size: 0.875rem;
+}
+
+.upload-secondary {
+  color: #6B7280;
+  font-size: 0.875rem;
+}
+
+.upload-description {
+  color: #6B7280;
+  font-size: 0.75rem;
+  text-align: center;
+}
+
+.upload-success {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: #ECFDF5;
+  border-radius: 6px;
+  color: #059669;
+  font-size: 0.875rem;
+}
+
+.upload-success .icon-success {
+  font-size: 1.25rem;
+}
+
+.upload-status {
+  text-align: center;
+  padding: 0.5rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+}
+
+.upload-status.error {
+  background: #FEE2E2;
+  color: #DC2626;
+}
+
+.especialidades-descricao {
+  color: #6B7280;
+  margin-bottom: 1.5rem;
+  font-size: 0.875rem;
+}
+
+.especialidades-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+}
+
+.especialidade-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background: white;
+  border: 1px solid #E5E7EB;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.especialidade-item:hover {
+  border-color: #2563EB;
+  background: #F9FAFB;
+}
+
+.especialidade-item input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #E5E7EB;
+  border-radius: 4px;
+  cursor: pointer;
+  accent-color: #2563EB;
+}
+
+.especialidade-item span {
+  font-size: 0.875rem;
+  color: #111827;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 2rem;
+}
+
+.submit-button {
+  padding: 0.75rem 2rem;
+  background: #2563EB;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.submit-button:hover:not(:disabled) {
+  background: #1D4ED8;
+}
+
+.submit-button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 200px;
+  color: #6B7280;
+}
+
+.section-dados-empresa {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.5rem;
+  margin-top: 0;
+}
+
+.section-dados-empresa h2 {
+  grid-column: 1 / -1;
+}
+
+.logo-upload-container {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  margin-bottom: 2rem;
+  padding: 1.5rem;
+  background: #F9FAFB;
+  border-radius: 8px;
+  border: 1px dashed #E5E7EB;
+}
+
+.logo-preview {
+  width: 120px;
+  height: 120px;
+  border-radius: 8px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: white;
+  border: 1px solid #E5E7EB;
+}
+
+.company-logo {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.logo-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  color: #9CA3AF;
+}
+
+.logo-placeholder svg {
+  font-size: 2rem;
+}
+
+.logo-placeholder span {
+  font-size: 0.875rem;
+}
+
+.logo-upload-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.logo-input {
+  display: none;
+}
+
+.logo-upload-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.75rem 1.5rem;
+  background-color: white;
+  border: 1px solid #E5E7EB;
+  border-radius: 6px;
+  color: #374151;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.logo-upload-button:hover {
+  border-color: #2563EB;
+  color: #2563EB;
+}
+
+.section-dados-empresa .form-group:nth-child(2),
+.section-dados-empresa .form-group:nth-child(3) {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 1200px) {
+  .documentos-lista {
+    grid-template-columns: 1fr;
+  }
+  
+  .section-dados-empresa {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .especialidades-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .main-content.perfil-page {
+    margin-top: 48px;
+  }
+
+  .perfil-container {
+    padding: 1rem;
+  }
+
+  .perfil-container section {
+    padding: 1.5rem;
+  }
+
+  .section-dados-empresa {
+    grid-template-columns: 1fr;
+  }
+  
+  .especialidades-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .upload-dropzone {
+    padding: 1.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .especialidades-grid {
+    grid-template-columns: 1fr;
+  }
+} 

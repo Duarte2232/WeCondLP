@@ -141,7 +141,7 @@ function Login() {
         </div>
         
         <div className="form-group">
-          <label htmlFor="name">Nome:</label>
+          <label htmlFor="name">Nome da Empresa:</label>
           <input
             type="text"
             id="name"
