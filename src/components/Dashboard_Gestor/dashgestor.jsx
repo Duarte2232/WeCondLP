@@ -11,6 +11,13 @@ import { CLOUDINARY_CONFIG } from '../../config/cloudinary';
 import LoadingAnimation from '../LoadingAnimation/LoadingAnimation';
 import sha1 from 'crypto-js/sha1';
 
+// Importação dos componentes
+import Metrics from './components/Metrics/Metrics';
+import SearchFilters from './components/SearchFilters/SearchFilters';
+import NewWorkButton from './components/WorkForm/NewWorkButton';
+import WorkForm from './components/WorkForm/WorkForm';
+import WorksTable from './components/WorksTable/WorksTable';
+
 function DashGestor() {
   const { user } = useAuth();
   const [showNewWorkForm, setShowNewWorkForm] = useState(false);
@@ -601,6 +608,21 @@ function DashGestor() {
     }
   };
 
+  const tileContent = ({ date }) => {
+    const worksForDate = getWorksForDate(date);
+    return worksForDate.length > 0 ? (
+      <div className="work-dot-container">
+        {worksForDate.map(work => (
+          <span 
+            key={work.id} 
+            className={`work-dot ${work.status.toLowerCase().replace(' ', '-')}`}
+            title={`${work.title} - ${work.status}`}
+          />
+        ))}
+      </div>
+    ) : null;
+  };
+
   return (
     <div className="dashboard-container">
       <nav className="top-nav">
@@ -621,88 +643,22 @@ function DashGestor() {
         </div>
       </nav>
 
-      <section className="metrics-grid">
-        {isLoading ? (
-          <div className="loading-container">
-            <LoadingAnimation />
-          </div>
-        ) : (
-          <>
-            <div className="metric-card">
-              <h3>Total de Obras</h3>
-              <p className="metric-value">{metrics.total}</p>
-            </div>
-            <div className="metric-card">
-              <h3>Obras Pendentes</h3>
-              <p className="metric-value">{metrics.pending}</p>
-            </div>
-            <div className="metric-card">
-              <h3>Em Andamento</h3>
-              <p className="metric-value">{metrics.inProgress}</p>
-            </div>
-            <div className="metric-card">
-              <h3>Concluídas</h3>
-              <p className="metric-value">{metrics.completed}</p>
-            </div>
-          </>
-        )}
-      </section>
+      <Metrics metrics={metrics} isLoading={isLoading} />
 
       <section className="actions-bar">
-        <div className="search-bar">
-          <FiSearch className="search-icon" />
-          <input
-            type="text"
-            placeholder="Pesquisar obras..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-        <div className="filters">
-          <select
-            value={selectedFilters.status}
-            onChange={(e) => setSelectedFilters({...selectedFilters, status: e.target.value})}
-          >
-            <option value="">Status</option>
-            <option value="Pendente">Pendente</option>
-            <option value="Em Andamento">Em Andamento</option>
-            <option value="Concluído">Concluído</option>
-          </select>
-          <select
-            value={selectedFilters.category}
-            onChange={(e) => setSelectedFilters({...selectedFilters, category: e.target.value})}
-          >
-            <option value="">Categoria</option>
-            <option value="Infiltração">Infiltração</option>
-            <option value="Fissuras e rachaduras">Fissuras e rachaduras</option>
-            <option value="Canalização">Canalização</option>
-            <option value="Manutenção">Manutenção</option>
-            <option value="Jardinagem">Jardinagem</option>
-            <option value="Fiscalização">Fiscalização</option>
-            <option value="Reabilitação de Fachada">Reabilitação de Fachada</option>
-            <option value="Eletricidade">Eletricidade</option>
-            <option value="Construção">Construção</option>
-            <option value="Pintura">Pintura</option>
-          </select>
-          <select
-            value={selectedFilters.priority}
-            onChange={(e) => setSelectedFilters({...selectedFilters, priority: e.target.value})}
-          >
-            <option value="">Prioridade</option>
-            <option value="Baixa">Baixa</option>
-            <option value="Média">Média</option>
-            <option value="Alta">Alta</option>
-          </select>
-        </div>
+        <SearchFilters 
+          searchTerm={searchTerm}
+          setSearchTerm={setSearchTerm}
+          selectedFilters={selectedFilters}
+          setSelectedFilters={setSelectedFilters}
+        />
         <button 
           className={`calendar-toggle-btn ${showCalendar ? 'active' : ''}`}
           onClick={() => setShowCalendar(!showCalendar)}
         >
           <FiCalendar /> Calendário
         </button>
-        <button className="new-work-btn" onClick={() => setShowNewWorkForm(true)}>
-          <FiPlusCircle /> Nova Obra
-        </button>
+        <NewWorkButton onClick={() => setShowNewWorkForm(true)} />
       </section>
 
       {showCalendar && (
@@ -711,20 +667,7 @@ function DashGestor() {
             <Calendar
               onChange={handleDateClick}
               value={selectedDate}
-              tileContent={({ date }) => {
-                const worksForDate = getWorksForDate(date);
-                return worksForDate.length > 0 ? (
-                  <div className="work-dot-container">
-                    {worksForDate.map(work => (
-                      <span 
-                        key={work.id} 
-                        className={`work-dot ${work.priority.toLowerCase()}`}
-                        title={work.title}
-                      />
-                    ))}
-                  </div>
-                ) : null;
-              }}
+              tileContent={tileContent}
             />
           </div>
           <div className="calendar-works">
@@ -762,576 +705,34 @@ function DashGestor() {
             <LoadingAnimation />
           </div>
         ) : (
-          <table className="works-table">
-            <thead>
-              <tr>
-                <th>Título</th>
-                <th>Data</th>
-                <th>Categoria</th>
-                <th>Prioridade</th>
-                <th>Status</th>
-                <th>Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredWorks.map((work, index) => (
-                <React.Fragment key={`${work.id}-${index}`}>
-                  <tr 
-                    className={`work-row ${work.status === 'Concluído' ? 'concluida' : ''} ${unviewedOrcamentos[work.id] ? 'work-row-with-notification' : ''}`}
-                    onClick={() => handleViewDetails(work.id)}
-                  >
-                    <td>
-                      <div className="title-with-notification">
-                        <span className="work-title">{work.title}</span>
-                        {Array.isArray(work.orcamentos) && work.orcamentos.length > 0 && (
-                          <span className="orcamentos-count" title={`${work.orcamentos.length} orçamento(s) disponível(is)`}>
-                            {work.orcamentos.length}
-                          </span>
-                        )}
-                        {unviewedOrcamentos[work.id] && (
-                          <span 
-                            className="orcamento-notification" 
-                            title={`${unviewedOrcamentos[work.id]} novo(s) orçamento(s)`}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleViewDetails(work.id);
-                            }}
-                          >
-                            <FiAlertCircle />
-                            <span className="notification-count">{unviewedOrcamentos[work.id]}</span>
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    <td>{new Date(work.date).toLocaleDateString()}</td>
-                    <td>
-                      <span className={`category-badge ${work.category.toLowerCase()}`}>
-                        {work.category}
-                      </span>
-                    </td>
-                    <td>
-                      <span className={`priority-badge ${work.priority.toLowerCase()}`}>
-                        {work.priority}
-                      </span>
-                    </td>
-                    <td>
-                      <span className={`status-badge ${work.status.toLowerCase().replace(' ', '-')}`}>
-                        {work.status}
-                      </span>
-                    </td>
-                    <td className="actions-cell" onClick={e => e.stopPropagation()}>
-                      <button 
-                        className="action-btn" 
-                        title="Editar"
-                        onClick={() => handleEdit(work)}
-                      >
-                        <FiEdit2 />
-                      </button>
-                      <button 
-                        className="action-btn" 
-                        title="Marcar como concluído"
-                        onClick={() => handleComplete(work.id)}
-                      >
-                        <FiCheck />
-                      </button>
-                      <button 
-                        className="action-btn delete-btn" 
-                        title="Excluir obra"
-                        onClick={(e) => {
-                          e.stopPropagation(); // Previne a propagação do evento
-                          handleDelete(work.id);
-                        }}
-                      >
-                        <FiX />
-                      </button>
-                    </td>
-                  </tr>
-                  {expandedWorks.has(work.id) && (
-                    <tr className="details-row">
-                      <td colSpan="6">
-                        <div className="work-details-container">
-                          <div className="work-details-main">
-                            <div className="description-section">
-                              <h3>Descrição</h3>
-                              <p>{work.description}</p>
-                            </div>
-                            <div className="details-section">
-                              <h4>Localização</h4>
-                              <p>
-                                {work.location.morada}<br />
-                                {work.location.codigoPostal} - {work.location.cidade}
-                                {work.location.andar && <><br />{work.location.andar}</>}
-                              </p>
-                            </div>
-
-                            {work.files && work.files.length > 0 && (
-                              <div className="files-preview-sections">
-                                {/* Seção de Fotografias */}
-                                {work.files.filter(file => file.type === 'image').length > 0 && (
-                                  <div className="files-section">
-                                    <h4>Fotografias</h4>
-                                    <div className="files-grid">
-                                      {work.files
-                                        .filter(file => file.type === 'image')
-                                        .map((file, index) => (
-                                          <div key={`image-${index}`} className="file-preview-item">
-                                            <img src={file.url} alt={file.name} />
-                                            <div className="file-preview-overlay">
-                                              <span className="file-name">{file.name}</span>
-                                              <button 
-                                                className="download-btn"
-                                                onClick={(e) => {
-                                                  e.stopPropagation();
-                                                  handleFileDownload(file, file.name);
-                                                }}
-                                              >
-                                                <FiDownload /> Download
-                                              </button>
-                                            </div>
-                                          </div>
-                                        ))}
-                                    </div>
-                                  </div>
-                                )}
-
-                                {/* Seção de Vídeos */}
-                                {work.files.filter(file => file.type === 'video').length > 0 && (
-                                  <div className="files-section">
-                                    <h4>Vídeos</h4>
-                                    <div className="files-grid">
-                                      {work.files
-                                        .filter(file => file.type === 'video')
-                                        .map((file, index) => (
-                                          <div key={`video-${index}`} className="file-preview-item">
-                                            <video src={file.url} controls />
-                                            <div className="file-preview-overlay">
-                                              <span className="file-name">{file.name}</span>
-                                              <button 
-                                                className="download-btn"
-                                                onClick={(e) => {
-                                                  e.stopPropagation();
-                                                  handleFileDownload(file, file.name);
-                                                }}
-                                              >
-                                                <FiDownload /> Download
-                                              </button>
-                                            </div>
-                                          </div>
-                                        ))}
-                                    </div>
-                                  </div>
-                                )}
-
-                                {/* Seção de Documentos */}
-                                {work.files.filter(file => file.type !== 'image' && file.type !== 'video').length > 0 && (
-                                  <div className="files-section">
-                                    <h4>Documentos</h4>
-                                    <div className="files-grid">
-                                      {work.files
-                                        .filter(file => file.type !== 'image' && file.type !== 'video')
-                                        .map((file, index) => (
-                                          <div key={`doc-${index}`} className="file-preview-item document">
-                                            <FiFile size={24} />
-                                            <span className="file-name">{file.name}</span>
-                                            <button 
-                                              className="download-btn"
-                                              onClick={(e) => {
-                                                e.stopPropagation();
-                                                handleFileDownload(file, file.name);
-                                              }}
-                                            >
-                                              <FiDownload /> Download
-                                            </button>
-                                          </div>
-                                        ))}
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            )}
-                          </div>
-
-                          <div className="orcamentos-sidebar">
-                            <div className="orcamentos-header">
-                              <h3>Orçamentos Disponíveis</h3>
-                            </div>
-                            <div className="orcamentos-list">
-                              {Array.isArray(work.orcamentos) && work.orcamentos.length > 0 ? (
-                                work.orcamentos.map((orcamento, index) => (
-                                  <div key={index} className={`orcamento-card ${orcamento.aceito ? 'orcamento-aceito' : ''}`}>
-                                    <div className="orcamento-info">
-                                      <h4>{orcamento.empresa}</h4>
-                                      <span className="orcamento-date">
-                                        {new Date(orcamento.data).toLocaleDateString()}
-                                      </span>
-                                    </div>
-                                    <div className="orcamento-value">
-                                      {orcamento.valor}€
-                                    </div>
-                                    <div className="orcamento-actions">
-                                      {orcamento.documento && (
-                                        <button 
-                                          className="orcamento-download"
-                                          onClick={() => handleFileDownload(orcamento.documento, orcamento.documento.nome)}
-                                        >
-                                          <FiDownload /> Download 
-                                        </button>
-                                      )}
-                                      {!orcamento.aceito && (
-                                        <button 
-                                          className="orcamento-aceitar"
-                                          onClick={() => handleAceitarOrcamento(work.id, index)}
-                                        >
-                                          <FiCheck /> Aceitar
-                                        </button>
-                                      )}
-                                      {orcamento.aceito && (
-                                        <span className="orcamento-aceito-badge">Aceito</span>
-                                      )}
-                                    </div>
-                                  </div>
-                                ))
-                              ) : (
-                                <p className="no-orcamentos">Nenhum orçamento disponível</p>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                </React.Fragment>
-              ))}
-            </tbody>
-          </table>
+          <WorksTable 
+            filteredWorks={filteredWorks}
+            expandedWorks={expandedWorks}
+            handleViewDetails={handleViewDetails}
+            handleEdit={handleEdit}
+            handleComplete={handleComplete}
+            handleDelete={handleDelete}
+            unviewedOrcamentos={unviewedOrcamentos}
+            handleFileDownload={handleFileDownload}
+            handleAceitarOrcamento={handleAceitarOrcamento}
+            markOrcamentosAsViewed={markOrcamentosAsViewed}
+          />
         )}
       </section>
 
       {showNewWorkForm && (
-        <div className="modal-overlay">
-          <div className="modal-content">
-            <div className="modal-header">
-              <h2>{editingWork ? 'Editar Obra' : 'Nova Obra'}</h2>
-              <button className="close-btn" onClick={() => {
-                setShowNewWorkForm(false);
-                setEditingWork(null);
-              }}>
-                <FiX />
-              </button>
-            </div>
-            <form className="new-work-form" onSubmit={handleSubmit}>
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Título da Obra</label>
-                  <input
-                    type="text"
-                    required
-                    value={newWork.title}
-                    onChange={(e) => setNewWork({...newWork, title: e.target.value})}
-                    placeholder="Ex: Reparo no Sistema Elétrico"
-                  />
-                </div>
-              </div>
-
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Descrição</label>
-                  <textarea
-                    required
-                    value={newWork.description}
-                    onChange={(e) => setNewWork({...newWork, description: e.target.value})}
-                    placeholder="Descreva os detalhes da obra"
-                  />
-                </div>
-              </div>
-
-              <div className="form-row two-columns">
-                <div className="form-group">
-                  <label>Categoria</label>
-                  <select
-                    required
-                    value={newWork.category}
-                    onChange={(e) => setNewWork({...newWork, category: e.target.value})}
-                  >
-                    <option value="">Selecione uma categoria</option>
-                    <option value="Infiltração">Infiltração</option>
-                    <option value="Fissuras e rachaduras">Fissuras e rachaduras</option>
-                    <option value="Canalização">Canalização</option>
-                    <option value="Manutenção">Manutenção</option>
-                    <option value="Jardinagem">Jardinagem</option>
-                    <option value="Fiscalização">Fiscalização</option>
-                    <option value="Reabilitação de Fachada">Reabilitação de Fachada</option>
-                    <option value="Eletricidade">Eletricidade</option>
-                    <option value="Construção">Construção</option>
-                    <option value="Pintura">Pintura</option>
-                  </select>
-                </div>
-
-                <div className="form-group">
-                  <label>Prioridade</label>
-                  <select
-                    required
-                    value={newWork.priority}
-                    onChange={(e) => setNewWork({...newWork, priority: e.target.value})}
-                  >
-                    <option value="">Selecione a prioridade</option>
-                    <option value="Baixa">Baixa</option>
-                    <option value="Média">Média</option>
-                    <option value="Alta">Alta</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Localização</label>
-                  <div className="location-fields-container">
-                    <input
-                      type="text"
-                      required
-                      value={newWork.location.morada}
-                      onChange={(e) => setNewWork({
-                        ...newWork,
-                        location: {
-                          ...newWork.location,
-                          morada: e.target.value
-                        }
-                      })}
-                      placeholder="Morada"
-                      className="morada-input"
-                    />
-                    <div className="postal-cidade-container">
-                      <input
-                        type="text"
-                        required
-                        value={newWork.location.codigoPostal}
-                        onChange={(e) => setNewWork({
-                          ...newWork,
-                          location: {
-                            ...newWork.location,
-                            codigoPostal: e.target.value
-                          }
-                        })}
-                        placeholder="Código Postal"
-                      />
-                      <input
-                        type="text"
-                        required
-                        value={newWork.location.cidade}
-                        onChange={(e) => setNewWork({
-                          ...newWork,
-                          location: {
-                            ...newWork.location,
-                            cidade: e.target.value
-                          }
-                        })}
-                        placeholder="Cidade"
-                      />
-                    </div>
-                    <input
-                      type="text"
-                      value={newWork.location.andar}
-                      onChange={(e) => setNewWork({
-                        ...newWork,
-                        location: {
-                          ...newWork.location,
-                          andar: e.target.value
-                        }
-                      })}
-                      placeholder="Andar/Sítio no Condomínio (opcional)"
-                      className="andar-input"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="form-row two-columns">
-                <div className="form-group">
-                  <label>Orçamentos desejados</label>
-                  <div className="orcamentos-container">
-                    <input
-                      type="number"
-                      min="1"
-                      required
-                      value={newWork.orcamentos.minimo}
-                      onChange={(e) => setNewWork({
-                        ...newWork,
-                        orcamentos: {
-                          ...newWork.orcamentos,
-                          minimo: e.target.value
-                        }
-                      })}
-                      placeholder="Mínimo"
-                    />
-                    <input
-                      type="number"
-                      min={newWork.orcamentos.minimo || 1}
-                      required
-                      value={newWork.orcamentos.maximo}
-                      onChange={(e) => setNewWork({
-                        ...newWork,
-                        orcamentos: {
-                          ...newWork.orcamentos,
-                          maximo: e.target.value
-                        }
-                      })}
-                      placeholder="Máximo"
-                    />
-                  </div>
-                </div>
-                <div className="form-group">
-                  <label>Prazo para Orçamentos</label>
-                  <input
-                    type="date"
-                    required
-                    min={new Date().toISOString().split('T')[0]}
-                    value={newWork.prazoOrcamentos}
-                    onChange={(e) => setNewWork({
-                      ...newWork,
-                      prazoOrcamentos: e.target.value
-                    })}
-                  />
-                </div>
-              </div>
-
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Arquivos</label>
-                  <div className="files-container">
-                    {newWork.files && newWork.files.length > 0 && (
-                      <div className="files-preview-sections">
-                        {/* Seção de Fotografias */}
-                        {groupFilesByType(newWork.files).images.length > 0 && (
-                          <div className="files-section">
-                            <h4>Fotografias</h4>
-                            <div className="files-grid">
-                              {groupFilesByType(newWork.files).images.map((file, index) => (
-                                <div key={`image-${index}`} className="file-preview-item">
-                                  <button 
-                                    type="button" 
-                                    className="remove-file-btn"
-                                    onClick={() => handleRemoveFile(file)}
-                                  >
-                                    <FiX />
-                                  </button>
-                                  <div className="file-preview">
-                                    <img src={file.url} alt={file.name} />
-                                    <div className="file-preview-overlay">
-                                      <span className="file-name">{file.name}</span>
-                                    </div>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Seção de Vídeos */}
-                        {groupFilesByType(newWork.files).videos.length > 0 && (
-                          <div className="files-section">
-                            <h4>Vídeos</h4>
-                            <div className="files-grid">
-                              {groupFilesByType(newWork.files).videos.map((file, index) => (
-                                <div key={`video-${index}`} className="file-preview-item">
-                                  <button 
-                                    type="button" 
-                                    className="remove-file-btn"
-                                    onClick={() => handleRemoveFile(file)}
-                                  >
-                                    <FiX />
-                                  </button>
-                                  <div className="file-preview">
-                                    <video src={file.url} controls />
-                                    <div className="file-preview-overlay">
-                                      <span className="file-name">{file.name}</span>
-                                    </div>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Seção de Documentos */}
-                        {groupFilesByType(newWork.files).documents.length > 0 && (
-                          <div className="files-section">
-                            <h4>Documentos</h4>
-                            <div className="files-grid">
-                              {groupFilesByType(newWork.files).documents.map((file, index) => (
-                                <div key={`doc-${index}`} className="file-preview-item document">
-                                  <button 
-                                    type="button" 
-                                    className="remove-file-btn"
-                                    onClick={() => handleRemoveFile(file)}
-                                  >
-                                    <FiX />
-                                  </button>
-                                  <FiFile size={24} />
-                                  <span className="file-name">{file.name}</span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                    <input
-                      type="file"
-                      multiple
-                      accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx"
-                      onChange={handleFileUpload}
-                      className="file-input"
-                    />
-                    <div className="file-input-text">
-                      <FiUpload />
-                      <p>Clique ou arraste arquivos aqui</p>
-                      <span>Máximo 10MB por arquivo</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Adicionar campo de status quando estiver editando */}
-              {editingWork && (
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>Status</label>
-                    <select
-                      value={newWork.status}
-                      onChange={(e) => setNewWork({...newWork, status: e.target.value})}
-                      required
-                    >
-                      <option value="Pendente">Pendente</option>
-                      <option value="Em Andamento">Em Andamento</option>
-                      <option value="Concluído">Concluído</option>
-                    </select>
-                  </div>
-                </div>
-              )}
-
-              <div className="form-actions">
-                <button 
-                  type="submit" 
-                  className="submit-btn"
-                  disabled={isSubmitting}
-                >
-                  {isSubmitting ? <LoadingAnimation /> : (editingWork ? 'Atualizar Obra' : 'Criar Obra')}
-                </button>
-                <button
-                  type="button"
-                  className="cancel-btn"
-                  onClick={() => {
-                    setShowNewWorkForm(false);
-                    setEditingWork(null);
-                  }}
-                  disabled={isSubmitting}
-                >
-                  Cancelar
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+        <WorkForm 
+          showNewWorkForm={showNewWorkForm}
+          setShowNewWorkForm={setShowNewWorkForm}
+          newWork={newWork}
+          setNewWork={setNewWork}
+          handleSubmit={handleSubmit}
+          handleFileUpload={handleFileUpload}
+          handleRemoveFile={handleRemoveFile}
+          editingWork={editingWork}
+          setEditingWork={setEditingWork}
+          isSubmitting={isSubmitting}
+        />
       )}
     </div>
   );

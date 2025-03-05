@@ -1,0 +1,520 @@
+/* Works Table */
+.works-table-container {
+  background-color: var(--card-background);
+  border-radius: 0.75rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  overflow: visible;
+  margin-bottom: 2rem;
+}
+
+.works-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.works-table th,
+.works-table td {
+  padding: 1rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.works-table th {
+  background-color: #f8fafc;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.works-table td {
+  color: var(--text-color);
+}
+
+.category-badge,
+.priority-badge,
+.status-badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.status-badge {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.9em;
+  font-weight: 500;
+}
+
+.status-badge.pendente {
+  background-color: #FEF3C7;
+  color: #92400E;
+}
+
+.status-badge.em-andamento {
+  background-color: #DBEAFE;
+  color: #1E40AF;
+}
+
+.status-badge.concluído {
+  background-color: #dcfce7;
+  color: #15803d;
+}
+
+.work-row {
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.work-row:hover {
+  background-color: #f5f5f5;
+}
+
+/* Previne que o hover afete obras concluídas */
+.work-row.concluida:hover {
+  background-color: rgba(0, 128, 0, 0.1);
+}
+
+/* Garante que os botões de ação não disparem o evento da linha */
+.actions-cell {
+  position: relative;
+  z-index: 1;
+}
+
+.action-btn {
+  padding: 0.5rem;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: color 0.2s ease;
+}
+
+.action-btn:hover {
+  color: var(--primary-color);
+}
+
+/* Details Row Styles */
+.details-row {
+  background-color: #f8fafc;
+}
+
+.work-details {
+  padding: 1.5rem;
+  animation: slideDown 0.3s ease-out;
+}
+
+.details-content {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.details-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.details-section h4 {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.details-section p {
+  margin: 0;
+  color: var(--text-color);
+  line-height: 1.5;
+}
+
+.status-selector {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.status-btn {
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: white;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.status-btn:hover {
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+}
+
+.status-btn.active {
+  background-color: var(--primary-color);
+  color: white;
+  border-color: var(--primary-color);
+}
+
+/* Estilos para notificação de orçamentos */
+.title-with-notification {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  position: relative;
+}
+
+.work-title {
+  font-weight: 500;
+}
+
+.orcamentos-count {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-left: 5px;
+  font-weight: normal;
+  background-color: #f0f0f0;
+  padding: 2px 6px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.orcamento-notification {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  color: var(--warning-color);
+  cursor: pointer;
+  transition: transform 0.2s ease;
+  margin-left: 8px;
+  background-color: rgba(245, 158, 11, 0.15);
+  padding: 5px;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  border: 2px solid rgba(245, 158, 11, 0.3);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.orcamento-notification:hover {
+  transform: scale(1.1);
+  background-color: rgba(245, 158, 11, 0.25);
+}
+
+.orcamento-notification svg {
+  font-size: 1.3rem;
+  animation: pulse 1.5s infinite;
+}
+
+.notification-count {
+  position: absolute;
+  top: -10px;
+  right: -10px;
+  background-color: var(--danger-color);
+  color: white;
+  border-radius: 50%;
+  min-width: 20px;
+  height: 20px;
+  font-size: 0.8rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  padding: 0 3px;
+  z-index: 3;
+  border: 2px solid white;
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.1);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Estilo para a linha da tabela quando há novos orçamentos */
+.work-row:has(.orcamento-notification) {
+  background-color: rgba(245, 158, 11, 0.05);
+}
+
+.work-row:has(.orcamento-notification):hover {
+  background-color: rgba(245, 158, 11, 0.1);
+}
+
+/* Estilo para a linha da tabela quando há novos orçamentos - compatibilidade */
+.work-row-with-notification {
+  background-color: rgba(245, 158, 11, 0.05);
+}
+
+.work-row-with-notification:hover {
+  background-color: rgba(245, 158, 11, 0.1);
+}
+
+/* Estilos para os arquivos na visualização detalhada */
+.files-preview-sections {
+  margin-bottom: 20px;
+}
+
+.file-type-section {
+  margin-bottom: 20px;
+}
+
+.file-type-section h4 {
+  margin-bottom: 10px;
+  color: #333;
+  font-size: 1.1em;
+}
+
+.files-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 15px;
+}
+
+.file-preview-item {
+  position: relative;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.file-preview-item.document {
+  padding: 15px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  background: #f8f9fa;
+}
+
+.file-preview img,
+.file-preview video {
+  width: 100%;
+  height: 150px;
+  object-fit: cover;
+}
+
+.file-preview-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(0, 0, 0, 0.7);
+  padding: 10px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.file-preview-item:hover .file-preview-overlay {
+  opacity: 1;
+}
+
+.download-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  background: var(--primary-color);
+  color: white;
+  padding: 6px 12px;
+  border-radius: 4px;
+  text-decoration: none;
+  font-size: 0.875rem;
+  margin-top: 8px;
+  transition: background-color 0.2s ease;
+}
+
+.download-btn:hover {
+  background: var(--primary-hover);
+}
+
+.file-name {
+  color: white;
+  font-size: 0.875rem;
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.document .file-name {
+  color: var(--text-primary);
+  text-align: center;
+}
+
+.document .download-btn {
+  width: 100%;
+}
+
+/* Estilos para a barra lateral de orçamentos */
+.work-details-container {
+  display: flex;
+  gap: 24px;
+}
+
+.work-details-main {
+  flex: 1;
+}
+
+.orcamentos-sidebar {
+  width: 300px;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  padding: 16px;
+}
+
+.orcamentos-header {
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #eee;
+}
+
+.orcamentos-header h3 {
+  color: #333;
+  font-size: 18px;
+  margin: 0;
+}
+
+.orcamentos-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.orcamento-card {
+  position: relative;
+  padding: 16px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  margin-bottom: 8px;
+  transition: all 0.3s ease;
+  border-left: 3px solid transparent;
+}
+
+.orcamento-card.orcamento-aceito {
+  background-color: #d4edda;
+  border-left: 3px solid #28a745;
+}
+
+.orcamento-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.orcamento-info h4 {
+  margin: 0;
+  color: #333;
+  font-size: 16px;
+}
+
+.orcamento-date {
+  color: #666;
+  font-size: 14px;
+}
+
+.orcamento-value {
+  font-size: 1.2em;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 8px;
+}
+
+.orcamento-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+}
+
+.orcamento-download {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 6px 12px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.2s;
+  min-width: 100px;
+  height: 36px;
+}
+
+.orcamento-download:hover {
+  background-color: #0069d9;
+}
+
+.orcamento-aceitar {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 6px 12px;
+  background-color: #28a745;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.2s;
+  min-width: 10px;
+  height: 36px;
+}
+
+.orcamento-card:hover .orcamento-aceitar {
+  display: inline-flex;
+}
+
+.orcamento-aceitar:hover {
+  background-color: #218838;
+}
+
+.orcamento-aceito-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 6px 12px;
+  background-color: #28a745;
+  color: white;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 500;
+  min-width: 100px;
+  height: 36px;
+}
+
+.no-orcamentos {
+  color: #6c757d;
+  font-style: italic;
+  text-align: center;
+  padding: 10px;
+}
+
+/* Animação para a linha de detalhes */
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+} 
