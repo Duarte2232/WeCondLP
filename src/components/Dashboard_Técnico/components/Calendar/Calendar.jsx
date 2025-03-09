@@ -1,12 +1,71 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiArrowLeft, FiClock } from 'react-icons/fi';
 import './Calendar.css';
 
-const Calendar = () => {
+const Calendar = ({ obras, loading }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [view, setView] = useState('month'); // 'month', 'week', 'day'
+  const [events, setEvents] = useState([]);
   const navigate = useNavigate();
+
+  // Converter obras para eventos do calendário quando as obras mudarem
+  useEffect(() => {
+    if (obras && obras.length > 0) {
+      const convertedEvents = obras.map(obra => {
+        // Determinar o tipo de evento baseado na categoria
+        let eventType = 'blue'; // Padrão
+        if (obra.category) {
+          const category = obra.category.toLowerCase();
+          if (category.includes('eletricidade') || category.includes('eletr')) {
+            eventType = 'yellow';
+          } else if (category.includes('canalizacao') || category.includes('canal')) {
+            eventType = 'blue';
+          } else {
+            eventType = 'green';
+          }
+        }
+        
+        // Extrair a data e hora da obra
+        // Formato padrão da data: 'YYYY-MM-DD'
+        const date = obra.date || new Date().toISOString().split('T')[0];
+        
+        // Determinar hora de início e fim (padrão: 2 horas de duração)
+        let startHour = 9; // Padrão: 9h
+        let endHour = 11;  // Padrão: 11h
+        
+        if (obra.time) {
+          // Se a obra tiver um horário específico no formato "HH:MM - HH:MM"
+          const timeParts = obra.time.split(' - ');
+          if (timeParts.length === 2) {
+            const startTime = timeParts[0].trim();
+            const endTime = timeParts[1].trim();
+            
+            startHour = parseInt(startTime.split(':')[0], 10) || 9;
+            endHour = parseInt(endTime.split(':')[0], 10) || (startHour + 2);
+          }
+        }
+        
+        return {
+          id: obra.id,
+          title: obra.title || 'Obra sem título',
+          date: date,
+          time: obra.time || `${startHour}:00 - ${endHour}:00`,
+          startHour: startHour,
+          endHour: endHour,
+          type: eventType,
+          location: obra.location?.cidade || '',
+          description: obra.description || '',
+          status: obra.status || 'disponivel'
+        };
+      });
+      
+      setEvents(convertedEvents);
+    } else {
+      // Se não houver obras, usar um array vazio para os eventos
+      setEvents([]);
+    }
+  }, [obras]);
 
   // Função para formatar o mês e ano
   const formatMonthYear = (date) => {
@@ -48,17 +107,17 @@ const Calendar = () => {
     setCurrentDate(prevDate => {
       const newDate = new Date(prevDate);
       if (view === 'month') {
-        newDate.setMonth(prevDate.getMonth() + direction);
+        newDate.setMonth(newDate.getMonth() + direction);
       } else if (view === 'week') {
-        newDate.setDate(prevDate.getDate() + (7 * direction));
+        newDate.setDate(newDate.getDate() + direction * 7);
       } else if (view === 'day') {
-        newDate.setDate(prevDate.getDate() + direction);
+        newDate.setDate(newDate.getDate() + direction);
       }
       return newDate;
     });
   };
 
-  // Função para ir para hoje
+  // Função para voltar para a data atual
   const goToToday = () => {
     setCurrentDate(new Date());
   };
@@ -137,46 +196,6 @@ const Calendar = () => {
            date.getFullYear() === today.getFullYear();
   };
 
-  // Eventos de exemplo (você pode substituir por dados reais do Firebase)
-  const events = [
-    {
-      id: 1,
-      title: 'Reparação de Canalização',
-      date: '2024-03-05',
-      time: '09:00 - 11:00',
-      startHour: 9,
-      endHour: 11,
-      type: 'yellow'
-    },
-    {
-      id: 2,
-      title: 'Reparação Elétrica',
-      date: '2024-03-06',
-      time: '13:00 - 15:00',
-      startHour: 13,
-      endHour: 15,
-      type: 'blue'
-    },
-    {
-      id: 3,
-      title: 'Manutenção de AVAC',
-      date: '2024-03-07',
-      time: '10:00 - 12:00',
-      startHour: 10,
-      endHour: 12,
-      type: 'green'
-    },
-    {
-      id: 4,
-      title: 'Substituição de Janela',
-      date: '2024-03-08',
-      time: '14:00 - 17:00',
-      startHour: 14,
-      endHour: 17,
-      type: 'yellow'
-    }
-  ];
-
   // Função para verificar se um evento ocorre em uma determinada data e hora
   const getEventsForDateAndHour = (date, hour) => {
     return events.filter(event => {
@@ -189,6 +208,40 @@ const Calendar = () => {
       );
     });
   };
+
+  // Função para verificar se há eventos em uma data específica do mês
+  const getEventsForDay = (day) => {
+    if (!day) return [];
+    
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
+    const date = new Date(year, month, day);
+    
+    return events.filter(event => {
+      const eventDate = new Date(event.date);
+      return (
+        eventDate.getDate() === date.getDate() &&
+        eventDate.getMonth() === date.getMonth() &&
+        eventDate.getFullYear() === date.getFullYear()
+      );
+    });
+  };
+
+  // Mostrar mensagem de carregamento se necessário
+  if (loading) {
+    return (
+      <div className="main-content calendar-page">
+        <div className="page-header-container">
+          <button className="back-button" onClick={goBackToDashboard}>
+            <FiArrowLeft />
+            <span>Voltar</span>
+          </button>
+          <h1 className="page-title">Calendário</h1>
+        </div>
+        <div className="loading">Carregando obras...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="main-content calendar-page">
@@ -240,8 +293,8 @@ const Calendar = () => {
         {view === 'month' && (
           <div className="calendar-grid">
             <div className="weekdays">
-              {weekDays.map(day => (
-                <div key={day} className="weekday">{day}</div>
+              {weekDays.map((day, index) => (
+                <div key={index} className="weekday">{day}</div>
               ))}
             </div>
             <div className="days">
@@ -249,32 +302,23 @@ const Calendar = () => {
                 <div key={weekIndex} className="week">
                   {week.map((day, dayIndex) => (
                     <div 
-                      key={`${weekIndex}-${dayIndex}`} 
-                      className={`day ${day ? '' : 'empty'}`}
+                      key={dayIndex} 
+                      className={`day ${!day ? 'empty' : ''} ${day && isToday(new Date(currentDate.getFullYear(), currentDate.getMonth(), day)) ? 'today' : ''}`}
                     >
                       {day && (
                         <>
-                          <span className="day-number">{day}</span>
+                          <div className="day-number">{day}</div>
                           <div className="events">
-                            {events
-                              .filter(event => {
-                                const eventDate = new Date(event.date);
-                                return (
-                                  eventDate.getDate() === day &&
-                                  eventDate.getMonth() === currentDate.getMonth() &&
-                                  eventDate.getFullYear() === currentDate.getFullYear()
-                                );
-                              })
-                              .map(event => (
-                                <div 
-                                  key={event.id} 
-                                  className={`event ${event.type}`}
-                                >
-                                  <span className="event-title">{event.title}</span>
-                                  <span className="event-time">{event.time}</span>
-                                </div>
-                              ))
-                            }
+                            {getEventsForDay(day).slice(0, 3).map(event => (
+                              <div 
+                                key={event.id} 
+                                className={`event ${event.type}`}
+                                title={event.title}
+                              >
+                                <div className="event-title">{event.title}</div>
+                                <div className="event-time">{event.time}</div>
+                              </div>
+                            ))}
                           </div>
                         </>
                       )}

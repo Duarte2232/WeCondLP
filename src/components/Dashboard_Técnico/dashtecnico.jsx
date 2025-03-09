@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, getDoc, writeBatch } from 'firebase/firestore';
 import { db } from '../../services/firebase.jsx';
 import { getAuth } from 'firebase/auth';
 import { useNavigate, Routes, Route, useLocation } from 'react-router-dom';
@@ -95,15 +95,92 @@ const DashTecnico = () => {
   useEffect(() => {
     const fetchObras = async () => {
       try {
-        const obrasRef = collection(db, 'works');
-        const q = query(obrasRef, where("status", "==", "disponivel"));
-        const querySnapshot = await getDocs(q);
+        setLoading(true);
         
+        if (!auth.currentUser) {
+          console.log("Usuário não autenticado");
+          setObras([]);
+          setLoading(false);
+          return;
+        }
+
+        // Buscar os dados do usuário para obter especialidades
+        const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
+        const userData = userDoc.data();
+        
+        console.log("Especialidades do técnico:", userData?.especialidades);
+        
+        if (!userData || !userData.especialidades || userData.especialidades.length === 0) {
+          console.log("Técnico sem especialidades definidas");
+          setObras([]);
+          setLoading(false);
+          return;
+        }
+
+        // Normalizar as especialidades do técnico (converter para minúsculas e remover acentos)
+        const especialidadesNormalizadas = userData.especialidades.map(esp => 
+          esp.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+        );
+        
+        console.log("Especialidades normalizadas:", especialidadesNormalizadas);
+
+        // Buscar todas as obras, mesmo que não tenham status explicitamente definido
+        const obrasRef = collection(db, 'works');
+        
+        // Não vamos mais filtrar apenas por status "disponivel" para garantir que
+        // vemos todas as obras potencialmente relevantes
+        const querySnapshot = await getDocs(obrasRef);
+        
+        console.log("Total de obras encontradas:", querySnapshot.size);
+        
+        // Filtrar obras com base nas especialidades do técnico
         const obrasData = [];
         querySnapshot.forEach((doc) => {
-          obrasData.push({ id: doc.id, ...doc.data() });
+          const obraData = { id: doc.id, ...doc.data() };
+          console.log("Obra encontrada:", obraData.title, "Categoria:", obraData.category, "Status:", obraData.status);
+          
+          // Se a obra já tiver um técnico atribuído que não seja o usuário atual, pular
+          if (obraData.technicianId && obraData.technicianId !== auth.currentUser.uid) {
+            console.log("Obra já atribuída a outro técnico:", obraData.title);
+            return;
+          }
+          
+          // Se a obra não tiver status ou não for "disponivel", mas tiver técnico atribuído igual ao usuário atual, mostrar
+          const statusCompativel = !obraData.status || 
+                                  obraData.status === "disponivel" || 
+                                  (obraData.technicianId === auth.currentUser.uid);
+          
+          if (!statusCompativel) {
+            console.log("Status incompatível:", obraData.status);
+            return;
+          }
+          
+          // Normalizar categoria da obra
+          const categoriaNormalizada = obraData.category 
+            ? obraData.category.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+            : "";
+          
+          // Verificações especiais para categorias importantes
+          if (categoriaNormalizada.includes("eletr")) {
+            // Caso especial para Eletricidade/Eletrecidade
+            if (especialidadesNormalizadas.some(esp => esp.includes("eletr"))) {
+              console.log("Correspondência encontrada para Eletricidade:", obraData.title);
+              obrasData.push(obraData);
+            }
+          } else {
+            // Para outras categorias, verificação normal
+            const correspondeEspecialidade = especialidadesNormalizadas.some(esp => 
+              categoriaNormalizada.includes(esp) || esp.includes(categoriaNormalizada)
+            );
+            
+            if (correspondeEspecialidade) {
+              console.log("Obra corresponde à especialidade:", obraData.title);
+              obrasData.push(obraData);
+            }
+          }
         });
 
+        console.log("Obras filtradas para exibição:", obrasData.length);
         setObras(obrasData);
       } catch (error) {
         console.error("Erro ao buscar obras:", error);
@@ -113,6 +190,62 @@ const DashTecnico = () => {
     };
 
     fetchObras();
+  }, [auth.currentUser, userData]);
+
+  // Executar uma vez para corrigir categorias de obras (isso não afeta a interface do usuário)
+  useEffect(() => {
+    const corrigirCategoriasObras = async () => {
+      try {
+        console.log("Verificando e corrigindo categorias de obras...");
+        const obrasRef = collection(db, 'works');
+        const querySnapshot = await getDocs(obrasRef);
+        
+        const batch = writeBatch(db);
+        let contadorAtualizacoes = 0;
+        
+        querySnapshot.forEach((docSnapshot) => {
+          const obraData = docSnapshot.data();
+          let precisaAtualizar = false;
+          const atualizacoes = {};
+          
+          // Corrigir categoria para variações de "Eletricidade"
+          if (obraData.category && typeof obraData.category === 'string') {
+            const categoriaNormalizada = obraData.category.toLowerCase()
+              .normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+            
+            if (categoriaNormalizada.includes("eletr") && obraData.category !== "Eletricidade") {
+              atualizacoes.category = "Eletricidade";
+              precisaAtualizar = true;
+              console.log(`Corrigindo categoria de obra ${docSnapshot.id} para "Eletricidade"`);
+            }
+          }
+          
+          // Se não tiver status, adicionar como "disponivel"
+          if (!obraData.status) {
+            atualizacoes.status = "disponivel";
+            precisaAtualizar = true;
+            console.log(`Adicionando status "disponivel" à obra ${docSnapshot.id}`);
+          }
+          
+          if (precisaAtualizar) {
+            const obraRef = doc(db, 'works', docSnapshot.id);
+            batch.update(obraRef, atualizacoes);
+            contadorAtualizacoes++;
+          }
+        });
+        
+        if (contadorAtualizacoes > 0) {
+          await batch.commit();
+          console.log(`${contadorAtualizacoes} obras foram atualizadas.`);
+        } else {
+          console.log("Nenhuma obra precisou ser atualizada.");
+        }
+      } catch (error) {
+        console.error("Erro ao corrigir categorias:", error);
+      }
+    };
+    
+    corrigirCategoriasObras();
   }, []);
 
   const metrics = {
@@ -167,7 +300,7 @@ const DashTecnico = () => {
         <Routes>
           <Route path="/" element={renderHomePage()} />
           <Route path="/obras" element={<Jobs jobs={obras} loading={loading} />} />
-          <Route path="/calendario" element={<Calendar />} />
+          <Route path="/calendario" element={<Calendar obras={obras} loading={loading} />} />
           <Route path="/mensagens" element={<Messages />} />
           <Route path="/perfil" element={<PerfilTecnico />} />
         </Routes>

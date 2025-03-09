@@ -32,17 +32,15 @@ body, html, #root {
 }
 
 .login-container {
-  background: linear-gradient(45deg, #1a2a6c 0%, #b21f1f 50%, #fdbb2d 100%);
   display: flex;
   justify-content: center;
   align-items: center;
-  height: 100vh;
+  min-height: 100vh;
   position: relative;
-  left: 0;
-  top: 0;
-  width: 100vw;
-  color: var(--text-color);
+  background: linear-gradient(to bottom left, #ffffff, #6b8ebce3, #3b6fa2, #1b4c7c);
   overflow: hidden;
+  font-family: 'Poppins', sans-serif;
+  padding: 1rem;
 }
 
 /* Gradiente de fundo com efeito de movimento */
@@ -52,9 +50,9 @@ body, html, #root {
   width: 200%;
   height: 200%;
   background: 
-    radial-gradient(circle at center, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
-    radial-gradient(circle at top left, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
-    radial-gradient(circle at bottom right, rgba(255, 255, 255, 0.1) 0%, transparent 50%);
+    radial-gradient(circle at top right, rgba(224, 216, 216, 0.2) 0%, transparent 60%),
+    radial-gradient(circle at center, rgba(183, 194, 209, 0.15) 0%, transparent 60%),
+    radial-gradient(circle at bottom left, rgba(171, 178, 187, 0.1) 0%, transparent 60%);
   animation: moveBackground 15s ease infinite;
 }
 
@@ -74,27 +72,34 @@ body, html, #root {
   0%, 100% {
     transform: translate(-50%, -50%) scale(1);
   }
+  25% {
+    transform: translate(-49%, -51%) scale(1.1);
+  }
   50% {
     transform: translate(-50%, -50%) scale(1.2);
+  }
+  75% {
+    transform: translate(-51%, -49%) scale(1.1);
   }
 }
 
 .login-box {
   position: relative;
   z-index: 2;
-  background-color: rgba(255, 255, 255, 0.95);
+  background-color: rgba(255, 255, 255, 0.9);
   padding: 2rem;
   border-radius: 12px;
   width: 30%;
   min-width: 320px;
-  color: #2c3e50;
+  color: #333;
   transition: all 0.3s ease;
-  backdrop-filter: blur(10px);
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(5px);
 }
 
 .login-box:hover {
-  transform: translateY(-2px);
+  transform: translateY(-5px);
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.25);
 }
 
 h2 {
@@ -354,21 +359,24 @@ button:hover, .button:hover {
 /* Ajuste para o botão de submit */
 .submit-btn {
   width: 100%;
-  background-color: #4a90e2;
+  padding: 10px 0;
+  margin-top: 20px;
+  background: linear-gradient(to right, #3a506b, #5d6d7e);
   color: white;
   border: none;
-  border-radius: 8px;
-  padding: 0.75rem;
-  font-size: 1rem;
-  font-weight: 600;
+  border-radius: 6px;
   cursor: pointer;
+  font-weight: 600;
+  letter-spacing: 0.5px;
   transition: all 0.3s ease;
-  margin-top: 1rem;
+  position: relative;
+  overflow: hidden;
 }
 
 .submit-btn:hover {
-  background-color: #3a7bc8;
+  background: linear-gradient(to right, #2c3e50, #3a506b);
   transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(58, 80, 107, 0.3);
 }
 
 .role-option.selected {

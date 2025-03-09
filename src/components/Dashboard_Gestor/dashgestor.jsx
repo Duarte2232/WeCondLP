@@ -176,6 +176,67 @@ function DashGestor() {
     console.log('Obras atuais:', works.map(w => ({ id: w.id, title: w.title })));
   }, [works]);
 
+  useEffect(() => {
+    // Esta função será chamada apenas uma vez quando o componente for montado
+    const normalizarObrasExistentes = async () => {
+      try {
+        console.log("Iniciando normalização de obras existentes...");
+        const obrasRef = collection(db, 'works');
+        const q = query(obrasRef);
+        const querySnapshot = await getDocs(q);
+        
+        const batch = writeBatch(db);
+        let contadorAtualizacoes = 0;
+        
+        querySnapshot.forEach((docSnapshot) => {
+          const obraData = docSnapshot.data();
+          let precisaAtualizar = false;
+          const atualizacoes = {};
+          
+          // Verificar e corrigir a categoria para "Eletricidade"
+          if (obraData.category && typeof obraData.category === 'string') {
+            const categoriaLower = obraData.category.toLowerCase();
+            if (categoriaLower.includes("eletr") && obraData.category !== "Eletricidade") {
+              atualizacoes.category = "Eletricidade";
+              precisaAtualizar = true;
+              console.log(`Obra ${docSnapshot.id}: Categoria corrigida para "Eletricidade"`);
+            }
+          }
+          
+          // Verificar se o status está como "disponivel" para obras que ainda não têm técnico atribuído
+          if (!obraData.technicianId && obraData.status !== "disponivel") {
+            atualizacoes.status = "disponivel";
+            precisaAtualizar = true;
+            console.log(`Obra ${docSnapshot.id}: Status atualizado para "disponivel"`);
+          }
+          
+          // Se precisar atualizar, adiciona ao batch
+          if (precisaAtualizar) {
+            const obraRef = doc(db, 'works', docSnapshot.id);
+            batch.update(obraRef, atualizacoes);
+            contadorAtualizacoes++;
+          }
+        });
+        
+        // Executar o batch se houver atualizações
+        if (contadorAtualizacoes > 0) {
+          await batch.commit();
+          console.log(`${contadorAtualizacoes} obras foram atualizadas com sucesso!`);
+          // Atualizar as obras localmente depois do batch
+          loadWorks();
+        } else {
+          console.log("Nenhuma obra precisou ser atualizada.");
+        }
+        
+      } catch (error) {
+        console.error("Erro ao normalizar obras existentes:", error);
+      }
+    };
+    
+    // Executar a normalização
+    normalizarObrasExistentes();
+  }, []); // Este efeito será executado apenas uma vez na montagem
+
   const handleViewDetails = (workId) => {
     setExpandedWorks(prev => {
       const newSet = new Set(prev);
@@ -300,10 +361,19 @@ function DashGestor() {
           userEmail: user.email,
           userId: user.uid,
           createdAt: serverTimestamp(),
-          date: newWork.date || new Date().toISOString().split('T')[0]
+          date: newWork.date || new Date().toISOString().split('T')[0],
+          status: "disponivel" // Garantir que o status seja sempre "disponivel"
         };
 
+        // Corrigir categoria para formatos conhecidos
+        if (workData.category && workData.category.toLowerCase().includes("eletr")) {
+          workData.category = "Eletricidade"; // Normalizar para o formato correto
+          console.log("Categoria normalizada para 'Eletricidade'");
+        }
+
+        console.log("Criando nova obra:", workData);
         const workRef = await addDoc(collection(db, 'works'), workData);
+        console.log("Obra criada com sucesso, ID:", workRef.id);
         setWorks(prevWorks => [...prevWorks, { ...workData, id: workRef.id }]);
         alert('Obra criada com sucesso!');
       } else {
@@ -652,6 +722,16 @@ function DashGestor() {
           selectedFilters={selectedFilters}
           setSelectedFilters={setSelectedFilters}
         />
+        <select
+          className="priority-filter"
+          value={selectedFilters.priority}
+          onChange={(e) => setSelectedFilters({...selectedFilters, priority: e.target.value})}
+        >
+          <option value="">Prioridade</option>
+          <option value="Baixa">Baixa</option>
+          <option value="Média">Média</option>
+          <option value="Alta">Alta</option>
+        </select>
         <button 
           className={`calendar-toggle-btn ${showCalendar ? 'active' : ''}`}
           onClick={() => setShowCalendar(!showCalendar)}

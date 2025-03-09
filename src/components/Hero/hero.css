@@ -1,7 +1,7 @@
 html {
     scroll-behavior: smooth;
-  }
-  
+}
+
 .component-container {
     position: relative;
     background-color: #f9fafb;
@@ -20,18 +20,18 @@ html {
 }
 
 .header {
+    padding: 1rem 1rem;
+    border-bottom: 1px solid transparent;
     position: relative;
-    padding: 1rem 0;
-    margin-top: -1vw;
+    z-index: 2;
 }
 
 .header-container {
-    max-width: 1900px;
-    margin: 0 auto;
     display: flex;
-    align-items: center;
     justify-content: space-between;
-    padding: 0 1rem;
+    align-items: center;
+    max-width: 1280px;
+    margin: 0 auto;
 }
 
 .logo-image {
@@ -40,38 +40,36 @@ html {
 
 .nav-links {
     display: flex;
+    gap: 1.5rem;
     align-items: center;
-    gap: 2.5rem;
 }
 
 .nav-item {
+    color: #374151;
     text-decoration: none;
-    font-size: 1rem;
-    color: #1f2937;
+    font-weight: 500;
     transition: color 0.2s;
-    scroll-behavior: smooth;
-    transition: transform 0.3s, background-color 0.3s, color 0.3s, padding 0.3s;
 }
+
 .hamburger-menu{
     display: none;
 }
 
 .nav-item:hover {
-    color: rgba(31, 41, 55, 0.5);
+    color: #1f2937;
 }
 
 .nav-cta {
     padding: 0.5rem 1rem;
-    border: 1px solid #1f2937;
-    border-radius: 1rem;
-    color: #1f2937;
-    font-weight: bold;
-    transition: all 0.2s;
+    background-color: #1f2937;
+    color: #ffffff;
+    border-radius: 0.5rem;
+    font-weight: 500;
+    transition: background-color 0.2s;
 }
 
 .nav-cta:hover {
-    background-color: #1f2937;
-    color: #ffffff;
+    background-color: #111827;
 }
 
 .hero {
@@ -89,6 +87,8 @@ html {
     justify-content: space-between; /* Space out content and image */
     align-items: center; /* Vertically align the items */
     gap: 2rem;
+    position: relative;
+    z-index: 1;
 }
 
 .hero-content {
@@ -96,16 +96,16 @@ html {
 }
 
 .hero-title {
-    font-size: 2.5rem;
-    font-weight: bold;
+    font-size: 2.25rem;
+    font-weight: 800;
     color: #1f2937;
+    margin-bottom: 1rem;
 }
 
 .hero-stats {
-    margin-top: 1rem;
+    margin-top: 1.5rem;
     display: flex;
     flex-direction: column;
-    align-items: center;
     gap: 0.5rem;
 }
 
@@ -192,144 +192,115 @@ html {
         justify-content: flex-start;
         width: 80vw;
     }
-.background-image{
-    margin: 0;
-    z-index: 0;
-    right: 0;
-    display: none;
-}
+    
+    .background-image{
+        margin: 0;
+        z-index: 0;
+        right: 0;
+        display: none;
+    }
+    
     .header {
         display: flex;
+        flex-direction: column;
         align-items: center;
-        justify-content: space-between;
-        align-content: center;
-        position: fixed;
-        top: 0em;
-        height: 4vh;
-        left: 0;
-        width: 100vw;
-        background-color: #f9fafb;
-        padding-top: 1.5rem;
-        z-index: 100000000000;
+        width: 100%;
+        padding: 1rem 0;
+        border-bottom: none;
+        position: relative;
     }
+
     .header-container{
-        width: 95vw;
-        
         display: flex;
-        flex-direction: row;
+        justify-content: space-between;
         align-items: center;
+        width: 100%;
     }
+
     .logo{
-        height: 2em;
-        right: 0;
+        font-size: 1.2rem;
+        font-weight: bold;
     }
 
     .hamburger-menu {
+        display: block;
         font-size: 1.5rem;
         cursor: pointer;
-        z-index: 1100;
-        display: block;
-        color: black;
-        position: absolute;
-        top: 1rem; /* Adjust as needed */
-        right: 1rem; /* Place it at the top-left corner */
-    }
-    
-    .nav-links {
-        display: flex;
-        flex-direction: column; /* Stack items vertically */
-        position: absolute;
-        top: 3rem; /* Align just below the hamburger menu */
-        right: 0.5rem; /* Align left to the hamburger menu */
-        background-color: rgba(255, 255, 255, 0); /* Semi-transparent background */
-        border-radius: 0.5rem; /* Smooth rounded edges */
-        padding: 0.2rem 0;
-        width: 200px; /* Menu width */
-        box-shadow: 0px 4px 6px rgba(0, 0, 0, 0); /* Subtle shadow for depth */
         z-index: 1000;
-        gap: 03px;
-        text-align: right;
-        align-items: end;
-        justify-content: flex-end;
-        opacity: 0; /* Fully hidden initially */
-        pointer-events: none; /* Disable clicks when hidden */
-        transform: translateY(-10px); /* Slight offset for animation */
-        transition: opacity 0.3s ease, transform 0.3s ease; /* Smooth fade/slide */
-    }
-    
-    .nav-links.open {
-        opacity: 1; /* Fully visible when open */
-        pointer-events: auto; /* Enable clicks */
-        transform: translateY(0); /* Slide into position */
-    }
-    
-    .nav-item {
-        padding: 0.2rem 0.6rem;
-        border-radius:25px;
-        font-size: 0.9rem;
         color: #1f2937;
-        text-align: right; /* Align text to the left */
-        text-decoration: none;
-        background-color: white
-        ; /* Transparent by default */
-        transition: background-color 0.2s ease, color 0.2s ease; /* Smooth hover effects */
     }
-    
+
+    .nav-links {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: #fff;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 2rem;
+        transition: transform 0.3s ease;
+        transform: translateX(-100%);
+        z-index: 999;
+    }
+
+    .nav-links.open {
+        transform: translateX(0);
+    }
+
+    .nav-item {
+        font-size: 1.25rem;
+        padding: 0.5rem 1rem;
+        border-radius: 0.5rem;
+        transition: background-color 0.2s;
+    }
+
     .nav-item:hover {
-        background-color: rgba(0, 0, 0, 0.05); /* Subtle background on hover */
-        color: rgba(31, 41, 55, 0.7); /* Slightly lighter text */
+        background-color: #f3f4f6;
     }
-    
-    
 
     .hero {
+        padding: 1rem 0;
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
+        gap: 2rem;
         text-align: center;
-        padding: 2rem;
-        margin-top: 3rem; /* Adjust for fixed header */
-        width: 100%;
-        overflow: hidden; /* Ensure no hidden content overflows */
     }
 
     .hero-container {
         display: flex;
         flex-direction: column;
+        align-items: center;
         justify-content: center;
-        gap: 1rem;
-        width: 100%;
+        gap: 2rem;
     }
 
     .hero-title {
-        font-size: 1.6rem; /* Adjust font size for phones */
-        margin: 0;
-        font-weight: bold;
-        color: #1f2937;
-        line-height: 4 rem !important;
+        font-size: 1.75rem;
         text-align: center;
-        margin-bottom: 60px;
+        margin-bottom: 1rem;
     }
+
     .ui{
-        font-size: 1.9 rem !important;
+        color: #6c27bc;
     }
     .hero-imagetwo {
         background-image: url("../../assets/gajo.png");
-        width: 62%;
-        height: 240px; /* Example height */
-        background-size: cover;
+        width: 100%;
+        height: 300px;
+        background-size: contain;
         background-position: center;
-    margin: auto;
-        z-index: 200000;
-        margin-top: 3 rem;
+        background-repeat: no-repeat;
     }
+
     .hero-stats {
-        font-size: 1rem;
-        margin-bottom: 1rem;
-        width: 85vw;
-        color: #4b5563;
-        text-align: center;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
     }
 
     .hero-imageone {
@@ -337,97 +308,95 @@ html {
     }
 
     .primary-action, .secondary-action {
-        font-size: 1rem;
-        padding: 1rem 2rem;
-        width: 30%; /* Center buttons and allow some spacing */
-        max-width: 300px; /* Prevent overly large buttons */
+        width: 100%;
         text-align: center;
+        justify-content: center;
+        margin-top: 0;
     }
 
     .primary-action:hover {
-        background-color: #4b5563;
+        background-color: #1f2937;
     }
 
     .secondary-action:hover {
-        background-color: #e5e7eb;
+        background-color: transparent;
     }
 
     .nav-item.login-button {
         background-color: #1f2937;
         color: white;
-        margin-top: 0.5rem;
+        padding: 0.5rem 1rem;
+        border-radius: 0.5rem;
     }
 }
 
 .nav-wrapper {
-  width: 100%;
-  padding: 1rem 2rem;
-  position: relative;
-  z-index: 10;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
 }
 
 .nav-content {
-  max-width: 1200px;
-  margin: 0 auto;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    padding: 0 20px;
 }
 
 .nav-buttons {
-  display: flex;
-  gap: 1rem;
-  align-items: center;
+    display: flex;
+    gap: 20px;
+    align-items: center;
 }
 
 .login-btn {
-  background: var(--primary-color);
-  color: white;
-  padding: 0.5rem 1.5rem;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-  font-weight: 500;
-  transition: background-color 0.2s ease;
-  display: inline-block;
+    background-color: #6c27bc;
+    color: white;
+    padding: 8px 24px;
+    border-radius: 30px;
+    text-decoration: none;
+    font-weight: 600;
+    border: 2px solid #6c27bc;
+    transition: all 0.3s ease;
 }
 
 .login-btn:hover {
-  background: var(--primary-color-dark);
+    background-color: #5a1e9e;
 }
 
 .learn-more-btn {
-  padding: 0.5rem 1.5rem;
-  border: 1px solid var(--primary-color);
-  border-radius: 5px;
-  background: transparent;
-  color: var(--primary-color);
-  cursor: pointer;
-  font-weight: 500;
-  transition: all 0.2s ease;
+    display: inline-block;
+    padding: 8px 24px;
+    color: #333;
+    text-decoration: none;
+    font-weight: 600;
+    border: 2px solid #e0e0e0;
+    border-radius: 30px;
+    transition: all 0.3s ease;
 }
 
 .learn-more-btn:hover {
-  background: var(--primary-color);
-  color: white;
+    border-color: #6c27bc;
+    color: #6c27bc;
 }
 
 .hero {
-  min-height: 100vh;
-  width: 100%;
-  position: relative;
+    padding-top: 100px;
 }
 
 .nav-item.login-button {
     background-color: #1f2937;
     color: white;
-    padding: 0.5rem 1.5rem;
+    padding: 0.5rem 1rem;
     border-radius: 0.5rem;
-    font-weight: 500;
-    transition: background-color 0.2s ease;
+    display: flex;
+    align-items: center;
 }
 
 .nav-item.login-button:hover {
-    background-color: #4b5563;
-    color: white;
+    background-color: #0f172a;
 }

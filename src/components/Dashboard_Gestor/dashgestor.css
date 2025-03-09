@@ -917,11 +917,13 @@
 .actions-bar {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  padding: 1rem;
+  justify-content: center;
+  gap: 1.5rem;
+  padding: 1.5rem;
   background: var(--background-secondary);
   border-radius: 8px;
-  margin: 1rem 0;
+  margin: 1rem auto;
+  max-width: 900px;
 }
 
 .calendar-toggle-btn {
@@ -1042,11 +1044,13 @@
 .actions-bar {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  padding: 1rem;
+  justify-content: center;
+  gap: 1.5rem;
+  padding: 1.5rem;
   background: var(--background-secondary);
   border-radius: 8px;
-  margin: 1rem 0;
+  margin: 1rem auto;
+  max-width: 900px;
 }
 
 .filters-container {
@@ -1071,4 +1075,43 @@
 .new-work-btn {
   width: 150px; /* Largura fixa para o botão nova obra */
   justify-content: center;
+}
+
+/* Media query para telas menores */
+@media (max-width: 768px) {
+  .actions-bar {
+    flex-direction: column;
+    padding: 1rem;
+    gap: 10px;
+  }
+
+  .actions-bar .search-container {
+    width: 100%;
+  }
+
+  .actions-bar button {
+    width: 100%;
+  }
+  
+  .priority-filter {
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+  }
+}
+
+.priority-filter {
+  padding: 0.5rem;
+  border-radius: 4px;
+  border: 1px solid #e0e0e0;
+  background-color: white;
+  width: 140px;
+  height: 38px;
+  flex-shrink: 0;
+  font-size: 0.9rem;
+}
+
+.priority-filter:focus {
+  outline: none;
+  border-color: #007bff;
 }

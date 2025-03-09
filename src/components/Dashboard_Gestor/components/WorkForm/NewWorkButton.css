@@ -13,8 +13,9 @@
 }
 
 .new-work-btn:hover {
-  background: var(--primary-color-dark);
+  background: #4c87ff; /* Azul mais claro */
   transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(37, 99, 235, 0.2);
 }
 
 .new-work-btn svg {

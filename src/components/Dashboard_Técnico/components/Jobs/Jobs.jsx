@@ -1,13 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiMapPin, FiClock, FiPhone, FiArrowLeft } from 'react-icons/fi';
+import { FiMapPin, FiClock, FiPhone, FiArrowLeft, FiTag, FiInfo, FiAlertCircle } from 'react-icons/fi';
 import './Jobs.css';
 
 const Jobs = ({ jobs, loading }) => {
   const navigate = useNavigate();
-
+  
+  // Depurar as obras recebidas
+  console.log("Jobs recebidos no componente:", jobs);
+  
   if (loading) {
-    return <div className="loading">Carregando...</div>;
+    return <div className="loading">Carregando obras...</div>;
   }
 
   // Função para voltar ao painel
@@ -31,25 +34,32 @@ const Jobs = ({ jobs, loading }) => {
             <div key={job.id} className="job-card">
               <div className="job-header">
                 <h2>{job.title}</h2>
-                <span className={`status-badge ${job.status}`}>
-                  {job.status === "disponivel" ? "Pendente" : 
+                <span className={`status-badge ${job.status || 'disponivel'}`}>
+                  {!job.status ? "Disponível" :
+                   job.status === "disponivel" ? "Disponível" : 
                    job.status === "confirmada" ? "Confirmada" : 
-                   job.status === "concluida" ? "Concluída" : job.status}
+                   job.status === "concluida" ? "Concluída" : 
+                   job.status === "em-andamento" ? "Em Andamento" :
+                   job.status}
                 </span>
               </div>
               
               <div className="job-details">
+                <div className="job-category">
+                  <FiTag />
+                  <span>{job.category}</span>
+                </div>
                 <div className="job-location">
                   <FiMapPin />
-                  <span>{job.location.cidade}</span>
+                  <span>{job.location?.cidade || 'Localização não especificada'}</span>
                 </div>
                 <div className="job-time">
                   <FiClock />
-                  <span>{job.date} • {job.time}</span>
+                  <span>{job.date} • {job.time || 'Horário não especificado'}</span>
                 </div>
                 <div className="job-contact">
                   <FiPhone />
-                  <span>{job.contact}</span>
+                  <span>{job.contact || 'Contato não especificado'}</span>
                 </div>
                 <p className="job-description">{job.description}</p>
               </div>
@@ -62,7 +72,19 @@ const Jobs = ({ jobs, loading }) => {
           ))
         ) : (
           <div className="no-jobs-message">
-            <p>Nenhuma obra disponível no momento.</p>
+            <div className="no-jobs-icon">
+              <FiAlertCircle />
+            </div>
+            <h3>Nenhuma obra disponível para suas especialidades no momento</h3>
+            <p>As obras aparecerão aqui quando:</p>
+            <ul className="no-jobs-list">
+              <li><FiInfo /> Gestores criarem obras com categorias que correspondam às suas especialidades</li>
+              <li><FiInfo /> As obras estiverem com status "disponível" no sistema</li>
+              <li><FiInfo /> Seu perfil estiver completo com todas as especialidades desejadas</li>
+            </ul>
+            <button className="check-profile-btn" onClick={() => navigate('/dashtecnico/perfil')}>
+              Verificar meu perfil
+            </button>
           </div>
         )}
       </div>
