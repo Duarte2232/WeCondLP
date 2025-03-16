@@ -261,6 +261,631 @@
   }
 }
 
+/* Estilos específicos para mobile */
+@media (max-width: 768px) {
+  .admin-dashboard-container {
+    padding: 2px;
+    width: 100%;
+    max-width: 100vw;
+    overflow-x: hidden;
+  }
+
+  .admin-top-nav {
+    margin-bottom: 10px;
+    padding: 10px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    border-radius: 0 0 10px 10px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  }
+
+  .nav-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .nav-left h1 {
+    font-size: 1.2rem;
+    margin: 0;
+    background: linear-gradient(90deg, #6a0dad, #9370db);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    font-weight: 700;
+  }
+
+  .back-button {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #6a0dad, #9370db);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    font-size: 1rem;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(106, 13, 173, 0.2);
+    transition: all 0.3s ease;
+  }
+
+  .admin-section {
+    margin: 0 2px 8px;
+    padding: 8px 5px;
+    border-radius: 8px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  }
+
+  .filters-section {
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 10px;
+    padding: 0 5px;
+  }
+
+  .search-bar {
+    width: 100%;
+    padding: 3px 10px;
+    border-radius: 8px;
+    box-shadow: 0 1px 5px rgba(0, 0, 0, 0.05);
+  }
+
+  .search-bar input {
+    padding: 8px;
+    font-size: 0.95rem;
+  }
+
+  .search-bar svg {
+    font-size: 1.1rem;
+    margin-right: 8px;
+  }
+
+  .filter-select {
+    width: 100%;
+    padding: 8px 10px;
+    font-size: 0.95rem;
+    border-radius: 8px;
+    background-color: white;
+    box-shadow: 0 1px 5px rgba(0, 0, 0, 0.05);
+  }
+
+  /* Tabela responsiva */
+  .users-table {
+    display: block;
+    width: 100%;
+    overflow-x: auto;
+    font-size: 0.9rem;
+  }
+
+  .users-table th,
+  .users-table td {
+    padding: 6px 4px;
+    font-size: 0.85rem;
+  }
+
+  .users-table th {
+    font-weight: 600;
+  }
+
+  /* Esconder a coluna de email na versão mobile */
+  .users-table th:nth-child(2),
+  .users-table td:nth-child(2) {
+    display: none;
+  }
+
+  /* Reduzir o tamanho dos botões na tabela */
+  .users-table .action-button {
+    padding: 6px 8px;
+    font-size: 0.85rem;
+    min-width: auto;
+  }
+
+  /* Detalhes do usuário expandido */
+  .user-works {
+    padding: 10px 8px;
+    border-radius: 8px;
+  }
+
+  .user-works h3 {
+    font-size: 1.1rem;
+    margin-bottom: 10px;
+    color: #333;
+    text-align: center;
+    font-weight: 700;
+  }
+
+  .work-card {
+    padding: 10px 8px;
+    margin-bottom: 10px;
+  }
+
+  .work-header {
+    margin-bottom: 10px;
+  }
+
+  .work-title {
+    font-size: 0.95rem;
+  }
+
+  .work-status {
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+
+  .work-details {
+    font-size: 0.85rem;
+    line-height: 1.3;
+  }
+
+  .work-details p {
+    margin: 5px 0;
+  }
+
+  .work-actions {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 5px;
+  }
+
+  .work-actions .action-button {
+    padding: 6px 8px;
+    font-size: 0.8rem;
+    min-width: 0;
+  }
+
+  /* Reduzir o tamanho dos ícones */
+  .action-button svg {
+    font-size: 0.9rem;
+  }
+
+  /* Arquivos na obra */
+  .work-files {
+    margin: 12px 0;
+    padding: 10px;
+    border-radius: 8px;
+  }
+
+  .work-files h4 {
+    font-size: 1rem;
+    margin-bottom: 10px;
+    text-align: center;
+  }
+
+  .files-grid {
+    grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+    gap: 6px;
+  }
+
+  /* Melhorias nos cards de orçamento */
+  .orcamento-card {
+    padding: 10px 8px;
+  }
+
+  .orcamento-info {
+    margin-bottom: 8px;
+  }
+
+  .orcamento-info h4 {
+    font-size: 1rem;
+    margin-bottom: 5px;
+    color: #333;
+    font-weight: 700;
+  }
+
+  .orcamento-date {
+    font-size: 0.8rem;
+    color: #6c757d;
+    font-weight: 500;
+  }
+
+  .orcamento-value {
+    font-size: 1.1rem;
+    margin: 6px 0;
+  }
+
+  .orcamento-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+  }
+
+  .orcamento-download,
+  .remove-orcamento-btn {
+    flex: 1;
+    min-width: 100px;
+    height: 34px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    border-radius: 6px;
+    transition: all 0.3s ease;
+  }
+
+  .orcamento-aceito-badge {
+    height: 34px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    background-color: #28a745;
+    box-shadow: 0 2px 6px rgba(40, 167, 69, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Melhorias nos status das obras */
+  .status-pendente,
+  .status-andamento,
+  .status-concluido {
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    display: inline-block;
+    text-align: center;
+    min-width: 90px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  }
+
+  /* Melhorias nos arquivos */
+  .file-preview-item {
+    height: 100px;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+    transition: all 0.3s ease;
+    border: 1px solid #eee;
+  }
+
+  .file-preview-overlay {
+    padding: 8px;
+    background: rgba(0, 0, 0, 0.75);
+  }
+
+  .file-preview-overlay .file-name {
+    font-size: 0.8rem;
+    margin-bottom: 6px;
+    color: white;
+    font-weight: 500;
+  }
+
+  .download-btn {
+    padding: 6px 10px;
+    font-size: 0.85rem;
+    border-radius: 6px;
+    background-color: #2196f3;
+    color: white;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    box-shadow: 0 2px 5px rgba(33, 150, 243, 0.3);
+    transition: all 0.3s ease;
+    border: none;
+  }
+
+  .download-btn svg {
+    font-size: 0.9rem;
+  }
+
+  /* Modal */
+  .modal-overlay {
+    padding: 10px;
+  }
+
+  .modal-content {
+    padding: 15px;
+    border-radius: 10px;
+    max-width: 100%;
+    max-height: 90vh;
+  }
+
+  .modal-header {
+    margin-bottom: 15px;
+  }
+
+  .modal-header h2 {
+    font-size: 1.2rem;
+    background: linear-gradient(90deg, #6a0dad, #9370db);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    font-weight: 700;
+  }
+
+  .close-btn {
+    width: 30px;
+    height: 30px;
+    background-color: #f3f4f6;
+    border: none;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+
+  /* Melhorias no formulário */
+  .form-group {
+    margin-bottom: 12px;
+  }
+
+  .form-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: #333;
+  }
+
+  .form-group input,
+  .form-group textarea,
+  .form-group select {
+    width: 100%;
+    padding: 8px 10px;
+    font-size: 0.9rem;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    background-color: white;
+  }
+
+  .form-group textarea {
+    min-height: 100px;
+  }
+
+  .location-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .location-row {
+    display: flex;
+    gap: 8px;
+  }
+
+  .form-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 15px;
+  }
+
+  .submit-btn,
+  .cancel-btn {
+    padding: 10px;
+    font-size: 0.95rem;
+    border-radius: 8px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+  }
+
+  .submit-btn {
+    background: linear-gradient(90deg, #6a0dad, #9370db);
+    color: white;
+    border: none;
+    padding: 12px;
+    font-size: 1rem;
+    border-radius: 8px;
+    font-weight: 700;
+    box-shadow: 0 3px 8px rgba(106, 13, 173, 0.3);
+    transition: all 0.3s ease;
+  }
+
+  /* Melhorias no upload de arquivos */
+  .file-input-container {
+    padding: 15px 12px;
+    border-radius: 8px;
+    border: 2px dashed #6a0dad;
+    background-color: rgba(106, 13, 173, 0.05);
+    transition: all 0.3s ease;
+  }
+
+  .file-input-text svg {
+    font-size: 24px;
+    color: #6a0dad;
+  }
+
+  .file-input-text p {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #333;
+  }
+
+  .file-type-hint {
+    font-size: 0.8rem;
+    color: #666;
+    margin-top: 5px;
+  }
+
+  /* Restaurar estilos dos botões */
+  .edit-button {
+    background: linear-gradient(90deg, #007bff, #0056b3);
+    color: white;
+    box-shadow: 0 2px 6px rgba(0, 123, 255, 0.3);
+  }
+
+  .edit-button:active {
+    transform: scale(0.95);
+    box-shadow: 0 1px 4px rgba(0, 123, 255, 0.2);
+  }
+
+  .delete-btn {
+    background: linear-gradient(90deg, #dc3545, #c82333);
+    color: white;
+    box-shadow: 0 2px 6px rgba(220, 53, 69, 0.3);
+  }
+
+  .delete-btn:active {
+    transform: scale(0.95);
+    box-shadow: 0 1px 4px rgba(220, 53, 69, 0.2);
+  }
+
+  /* Estilo para botão de marcar em andamento */
+  .action-button[onclick*="Em Andamento"] {
+    background: linear-gradient(90deg, #17a2b8, #138496);
+    color: white;
+    box-shadow: 0 2px 6px rgba(23, 162, 184, 0.3);
+  }
+
+  .action-button[onclick*="Em Andamento"]:active {
+    transform: scale(0.95);
+    box-shadow: 0 1px 4px rgba(23, 162, 184, 0.2);
+  }
+
+  /* Estilo para botão de marcar concluído */
+  .action-button[onclick*="Concluído"] {
+    background: linear-gradient(90deg, #28a745, #218838);
+    color: white;
+    box-shadow: 0 2px 6px rgba(40, 167, 69, 0.3);
+  }
+
+  .action-button[onclick*="Concluído"]:active {
+    transform: scale(0.95);
+    box-shadow: 0 1px 4px rgba(40, 167, 69, 0.2);
+  }
+
+  /* Estilo para botão de adicionar orçamento */
+  .action-button[onclick*="Orçamento"] {
+    background: linear-gradient(90deg, #6a0dad, #9370db);
+    color: white;
+    box-shadow: 0 2px 6px rgba(106, 13, 173, 0.3);
+  }
+
+  .action-button[onclick*="Orçamento"]:active {
+    transform: scale(0.95);
+    box-shadow: 0 1px 4px rgba(106, 13, 173, 0.2);
+  }
+
+  /* Restaurar estilos dos orçamentos */
+  .orcamento-card:active {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12);
+  }
+
+  .orcamento-download {
+    background: linear-gradient(90deg, #2196f3, #0d8bf2);
+    color: white;
+    box-shadow: 0 2px 6px rgba(33, 150, 243, 0.3);
+  }
+
+  .orcamento-download:active {
+    transform: scale(0.95);
+    box-shadow: 0 1px 4px rgba(33, 150, 243, 0.2);
+  }
+
+  .remove-orcamento-btn {
+    background: linear-gradient(90deg, #dc3545, #c82333);
+    color: white;
+    box-shadow: 0 2px 6px rgba(220, 53, 69, 0.3);
+    border: none;
+  }
+
+  .remove-orcamento-btn:active {
+    transform: scale(0.95);
+    box-shadow: 0 1px 4px rgba(220, 53, 69, 0.2);
+  }
+
+  /* Restaurar estilos dos status */
+  .status-pendente {
+    background-color: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeeba;
+  }
+
+  .status-andamento {
+    background-color: #cce5ff;
+    color: #004085;
+    border: 1px solid #b8daff;
+  }
+
+  .status-concluido {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+  }
+
+  /* Restaurar efeitos de hover/active */
+  .file-preview-item:active {
+    transform: scale(0.98);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+  }
+
+  .download-btn:active {
+    transform: scale(0.95);
+    box-shadow: 0 1px 4px rgba(33, 150, 243, 0.2);
+  }
+
+  .close-btn:active {
+    transform: scale(0.95);
+    background-color: #e5e7eb;
+  }
+
+  .submit-btn:active {
+    transform: scale(0.98);
+    box-shadow: 0 2px 5px rgba(106, 13, 173, 0.2);
+  }
+
+  .cancel-btn {
+    background-color: #f3f4f6;
+    color: #4b5563;
+    border: 1px solid #ddd;
+  }
+
+  .cancel-btn:active {
+    background-color: #e5e7eb;
+  }
+
+  .file-input-container:active {
+    background-color: rgba(106, 13, 173, 0.1);
+    border-color: #9370db;
+  }
+
+  .user-row:active {
+    background-color: #f0f0f0;
+  }
+
+  /* Restaurar outros estilos */
+  .form-group input:focus,
+  .form-group textarea:focus,
+  .form-group select:focus {
+    outline: none;
+    border-color: #6a0dad;
+    box-shadow: 0 0 0 2px rgba(106, 13, 173, 0.2);
+  }
+
+  .orcamento-form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .orcamentos-list {
+    margin-top: 12px;
+  }
+
+  .file-input-text {
+    gap: 8px;
+  }
+
+  .back-button:active {
+    transform: scale(0.95);
+  }
+}
+
 /* Garantir que o conteúdo principal seja scrollável */
 body {
   margin: 0;
