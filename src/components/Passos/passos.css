@@ -132,6 +132,9 @@
   transition: all 0.3s ease;
   position: relative;
   overflow: hidden;
+  opacity: 0;
+  transform: translateY(20px);
+  transition: all 0.8s ease;
 }
 
 .passos-box::before {
@@ -165,6 +168,11 @@
   box-shadow: 0 8px 20px rgba(106, 13, 173, 0.3), 0 0 15px rgba(147, 112, 219, 0.2);
 }
 
+.passos-box.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
 .box-title {
   font-size: 1.5rem;
   font-weight: bold;
@@ -184,6 +192,14 @@
   align-items: flex-start;
   text-align: left;
   gap: 1rem;
+  opacity: 0;
+  transform: translateY(15px);
+  transition: all 0.6s ease;
+}
+
+.box-step.visible {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 .step-number {
@@ -232,28 +248,157 @@
 
 /* Media query para dispositivos móveis */
 @media (max-width: 768px) {
-  .passos-steps {
-    display: flex;
-    flex-direction: column;
-    gap:2vw;
-  }
-  .passos-steps-wrapper{
-    display: flex;
-    flex-direction: row;
-  }
-  .arrow-left {
+  .passos-container {
+    padding: 40px 15px;
+    width: 100%;
+    box-sizing: border-box;
     margin: 0;
-    left: 0;
   }
-  .arrow-right {
-    margin: 0;
-    right: 0;
+  
+  .passos-title {
+    font-size: 22px;
+    margin-bottom: 30px;
   }
+  
+  .passos-title::after {
+    width: 60px;
+    height: 3px;
+    bottom: -8px;
+  }
+  
   .passos-boxes-container {
     flex-direction: column;
+    gap: 20px;
+    width: 100%;
   }
   
   .passos-box {
-    margin-bottom: 1.5rem;
+    width: 100%;
+    padding: 20px 15px;
+    margin-bottom: 0;
+    box-sizing: border-box;
   }
+  
+  .box-title {
+    font-size: 18px;
+    margin-bottom: 20px;
+  }
+  
+  .box-steps {
+    gap: 15px;
+  }
+  
+  .box-step {
+    align-items: flex-start;
+  }
+  
+  .step-number {
+    width: 35px;
+    height: 35px;
+    font-size: 16px;
+    margin-top: 3px;
+  }
+  
+  .step-content {
+    flex: 1;
+  }
+  
+  .step-title {
+    font-size: 16px;
+    margin-bottom: 5px;
+  }
+  
+  .step-description {
+    font-size: 14px;
+    line-height: 1.4;
+  }
+}
+
+@media (max-width: 480px) {
+  .passos-container {
+    padding: 30px 15px;
+  }
+  
+  .passos-title {
+    font-size: 20px;
+    margin-bottom: 25px;
+  }
+  
+  .passos-box {
+    padding: 15px;
+  }
+  
+  .box-title {
+    font-size: 17px;
+    margin-bottom: 15px;
+  }
+  
+  .step-number {
+    width: 30px;
+    height: 30px;
+    font-size: 14px;
+  }
+  
+  .step-title {
+    font-size: 15px;
+  }
+  
+  .step-description {
+    font-size: 13px;
+  }
+}
+
+/* Animation classes for passos component */
+.passos-box {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: all 0.8s ease;
+}
+
+.passos-box.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.box-step {
+  opacity: 0;
+  transform: translateY(15px);
+  transition: all 0.6s ease;
+}
+
+.box-step.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.passos-title.fade-in-element {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.8s ease, transform 0.8s ease;
+}
+
+.passos-title.fade-in-element.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Animation delays */
+.delay-100 {
+  transition-delay: 0.1s;
+}
+
+.delay-200 {
+  transition-delay: 0.2s;
+}
+
+.delay-300 {
+  transition-delay: 0.3s;
+}
+
+.delay-400 {
+  transition-delay: 0.4s;
+}
+
+.delay-500 {
+  transition-delay: 0.5s;
 }

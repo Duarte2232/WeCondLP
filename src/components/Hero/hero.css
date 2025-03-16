@@ -2,6 +2,25 @@ html {
     scroll-behavior: smooth;
 }
 
+/* Estilo para o logo */
+.logo {
+    display: flex;
+    align-items: center;
+    font-weight: 700;
+    color: #1f2937;
+    text-decoration: none;
+    font-size: 1.5rem;
+}
+
+.logo h1.hero-title {
+    font-size: 2rem;
+    margin: 0;
+    background: linear-gradient(90deg, #6a0dad, #9370db);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    font-weight: 800;
+}
+
 .component-container {
     position: relative;
     background-color: #f9fafb;
@@ -20,18 +39,49 @@ html {
 }
 
 .header {
-    padding: 1rem 1rem;
-    border-bottom: 1px solid transparent;
+    width: 100%;
+    padding: 1rem 0;
     position: relative;
-    z-index: 2;
+    z-index: 10;
+    transition: all 0.3s ease;
+}
+
+.header.scrolled {
+    position: fixed;
+    top: 0;
+    left: 0;
+    background-color: rgba(255, 255, 255, 0.95);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    padding: 0.5rem 0;
+    animation: slideDown 0.3s ease-in-out;
+}
+
+.header.hide {
+    transform: translateY(-100%);
+}
+
+@keyframes slideDown {
+    from {
+        transform: translateY(-100%);
+    }
+    to {
+        transform: translateY(0);
+    }
+}
+
+/* Adjust container padding when header is fixed */
+.header.scrolled + .hero {
+    padding-top: 5rem;
 }
 
 .header-container {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    max-width: 1280px;
+    max-width: 1200px;
     margin: 0 auto;
+    padding: 0 1.5rem;
+    position: relative;
 }
 
 .logo-image {
@@ -40,22 +90,51 @@ html {
 
 .nav-links {
     display: flex;
-    gap: 1.5rem;
+    gap: 1rem;
     align-items: center;
+    background-color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .nav-item {
-    color: #374151;
+    font-size: 0.9rem;
+    color: #4b5563;
     text-decoration: none;
-    font-weight: 500;
-    transition: color 0.2s;
-}
-
-.hamburger-menu{
-    display: none;
+    padding: 0.4rem 0.8rem;
+    border-radius: 20px;
+    transition: all 0.3s ease;
 }
 
 .nav-item:hover {
+    background-color: #f3f4f6;
+    color: #1f2937;
+    transform: translateY(-2px);
+}
+
+.nav-item.login-button {
+    background: linear-gradient(90deg, #6a0dad, #9370db);
+    color: white;
+    padding: 0.4rem 1rem;
+    border-radius: 20px;
+    box-shadow: 0 2px 4px rgba(37, 99, 235, 0.3);
+    transition: all 0.3s ease;
+}
+
+.nav-item.login-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(37, 99, 235, 0.4);
+    background: linear-gradient(90deg, #6a0dad, #9370db);
+}
+
+.hamburger-menu {
+    display: none;
+    cursor: pointer;
+}
+
+.hamburger-menu span {
+    font-size: 1.5rem;
     color: #1f2937;
 }
 
@@ -130,17 +209,21 @@ html {
 
 .primary-action {
     padding: 0.75rem 2rem;
-    background-color: #1f2937;
+    background: linear-gradient(90deg, #6a0dad, #9370db);
     color: #ffffff;
-    border-radius: 1rem;
+    border-radius: 30px;
     text-decoration: none;
     font-weight: bold;
-    transition: background-color 0.2s;
-    z-index: 10000;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 10px rgba(106, 13, 173, 0.2);
+    border: none;
+    display: inline-block;
 }
 
 .primary-action:hover {
-    background-color: #4b5563;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 15px rgba(106, 13, 173, 0.3);
+    background: linear-gradient(90deg, #5a0dad, #8360db);
 }
 
 .secondary-action {
@@ -159,6 +242,7 @@ html {
     background-color: #e5e7eb;
 }
 
+/* Estilos para desktop */
 .hero-imageone {
     background-image: url("../../assets/gajo.png");
     width: 50%;
@@ -167,166 +251,267 @@ html {
     background-position: center;
     background-repeat: no-repeat;
     z-index: 2;
+    display: block; /* Garantir que seja exibido em desktop */
 }
+
+.hero-imagetwo {
+    display: none; /* Ocultar em desktop */
+}
+
 .stats-text{
     font-size: 14px;
     color: black;
 }
+
 @media (max-width: 768px) {
     /* Global Reset */
     html, body {
         margin: 0;
         padding: 0;
-        width: 100%; /* Prevent horizontal overflow */
-        height: 100%; /* Allow vertical centering */
-        overflow-x: hidden; /* Remove horizontal scroll */
-        display: flex;
-        flex-direction: column;
-        align-items: center;
+        width: 100%;
+        overflow-x: hidden;
     }
 
     .component-container {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: flex-start;
-        width: 80vw;
+        width: 100%;
+        padding: 0 15px;
+        box-sizing: border-box;
     }
     
-    .background-image{
-        margin: 0;
-        z-index: 0;
-        right: 0;
+    .background-image {
         display: none;
     }
     
     .header {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
         width: 100%;
-        padding: 1rem 0;
-        border-bottom: none;
+        padding: 1rem 15px;
         position: relative;
+        transition: all 0.3s ease;
     }
 
-    .header-container{
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
+    .header.scrolled {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        background-color: rgba(255, 255, 255, 0.95);
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        padding: 0.5rem 15px;
+        z-index: 1000;
+    }
+
+    .header.hide {
+        transform: translateY(-100%);
+    }
+
+    .header.scrolled .logo h1.hero-title {
+        font-size: 1.2rem;
+    }
+
+    .header.scrolled + .hero {
+        padding-top: 4rem;
+    }
+
+    .header-container {
         width: 100%;
     }
 
-    .logo{
+    .logo {
         font-size: 1.2rem;
         font-weight: bold;
     }
 
+    .logo h1.hero-title {
+        font-size: 1.3rem;
+        margin: 0;
+    }
+
     .hamburger-menu {
         display: block;
-        font-size: 1.5rem;
-        cursor: pointer;
-        z-index: 1000;
-        color: #1f2937;
     }
 
     .nav-links {
+        position: absolute;
+        top: calc(100% + 10px);
+        right: 1.5rem;
+        flex-direction: column;
+        background-color: white;
+        min-width: 200px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        border-radius: 12px;
+        padding: 1rem;
+        opacity: 0;
+        visibility: hidden;
+        transform: translateY(-10px);
+        transition: opacity 0.3s ease, transform 0.3s ease, visibility 0.3s ease;
+        z-index: 1000;
+    }
+
+    .nav-links::after {
+        content: '';
+        position: absolute;
+        top: -8px;
+        right: 15px;
+        width: 0;
+        height: 0;
+        border-left: 8px solid transparent;
+        border-right: 8px solid transparent;
+        border-bottom: 8px solid white;
+    }
+
+    .nav-links.open {
+        opacity: 1;
+        visibility: visible;
+        transform: translateY(0);
+        display: flex;
+    }
+
+    .nav-item {
+        width: 100%;
+        text-align: center;
+        padding: 0.6rem 1rem;
+    }
+
+    .nav-item:hover {
+        background-color: #f5f5f5;
+    }
+
+    .nav-item.login-button {
+        background-color: transparent;
+        color: #1f2937;
+        padding: 0.75rem 1.25rem;
+        border-radius: 0;
+        margin-top: 0;
+        width: 100%;
+        justify-content: flex-start;
+        font-weight: bold;
+    }
+
+    .nav-item.login-button:hover {
+        background-color: #f5f5f5;
+        color: #6a0dad;
+    }
+
+    .menu-close {
+        display: none;
+    }
+
+    .menu-overlay {
         position: fixed;
         top: 0;
         left: 0;
         width: 100%;
         height: 100%;
-        background-color: #fff;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        gap: 2rem;
-        transition: transform 0.3s ease;
-        transform: translateX(-100%);
+        background-color: rgba(0, 0, 0, 0.5);
         z-index: 999;
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 0.3s ease, visibility 0.3s ease;
     }
 
-    .nav-links.open {
-        transform: translateX(0);
-    }
-
-    .nav-item {
-        font-size: 1.25rem;
-        padding: 0.5rem 1rem;
-        border-radius: 0.5rem;
-        transition: background-color 0.2s;
-    }
-
-    .nav-item:hover {
-        background-color: #f3f4f6;
+    .menu-overlay.active {
+        opacity: 1;
+        visibility: visible;
+        display: block;
     }
 
     .hero {
-        padding: 1rem 0;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        gap: 2rem;
-        text-align: center;
+        padding: 1rem 15px;
+        width: 100%;
+        box-sizing: border-box;
     }
 
     .hero-container {
         display: flex;
         flex-direction: column;
         align-items: center;
-        justify-content: center;
-        gap: 2rem;
+        width: 100%;
+        gap: 1.5rem;
+    }
+
+    .hero-content {
+        width: 100%;
+        max-width: 500px;
+        margin: 0 auto;
     }
 
     .hero-title {
-        font-size: 1.75rem;
-        text-align: center;
+        font-size: 1.8rem;
+        background: linear-gradient(90deg, #1f2937, #4b5563);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
         margin-bottom: 1rem;
+        line-height: 1.3;
     }
 
-    .ui{
+    .hero-title .ui {
+        background: linear-gradient(90deg, #6a0dad, #9370db);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+
+    .hero-imagetwo {
+        margin: 1.5rem 0;
+        height: 220px;
+        animation: float 6s ease-in-out infinite;
+    }
+
+    @keyframes float {
+        0% {
+            transform: translateY(0px);
+        }
+        50% {
+            transform: translateY(-10px);
+        }
+        100% {
+            transform: translateY(0px);
+        }
+    }
+
+    .stats-text {
+        font-size: 1rem;
+        line-height: 1.5;
+        color: #4b5563;
+    }
+
+    .primary-action {
+        padding: 0.8rem 2rem;
+        font-size: 1rem;
+    }
+
+    .ui {
         color: #6c27bc;
     }
+    
+    /* Mostrar apenas hero-imagetwo em mobile */
+    .hero-imageone {
+        display: none !important;
+    }
+    
     .hero-imagetwo {
         background-image: url("../../assets/gajo.png");
         width: 100%;
-        height: 300px;
+        height: 220px;
         background-size: contain;
         background-position: center;
         background-repeat: no-repeat;
+        display: block !important;
+        margin: 1.5rem 0;
     }
 
     .hero-stats {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-    }
-
-    .hero-imageone {
-        display: none;
-    }
-
-    .primary-action, .secondary-action {
         width: 100%;
-        text-align: center;
-        justify-content: center;
-        margin-top: 0;
+        padding: 0 10px;
     }
 
-    .primary-action:hover {
-        background-color: #1f2937;
+    .hero-actions {
+        width: 100%;
+        margin-top: 1.5rem;
     }
 
-    .secondary-action:hover {
-        background-color: transparent;
-    }
-
-    .nav-item.login-button {
-        background-color: #1f2937;
-        color: white;
-        padding: 0.5rem 1rem;
-        border-radius: 0.5rem;
+    /* Garantir que o menu-overlay cubra toda a tela */
+    .menu-overlay.active {
+        z-index: 999;
     }
 }
 
@@ -384,19 +569,155 @@ html {
     color: #6c27bc;
 }
 
-.hero {
-    padding-top: 100px;
-}
-
-.nav-item.login-button {
-    background-color: #1f2937;
-    color: white;
-    padding: 0.5rem 1rem;
-    border-radius: 0.5rem;
+/* Estilo para o botão de fechar no menu */
+.menu-close {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    width: 30px;
+    height: 30px;
+    cursor: pointer;
     display: flex;
     align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background-color: #f3f4f6;
+    transition: background-color 0.2s;
 }
 
-.nav-item.login-button:hover {
-    background-color: #0f172a;
+.menu-close:hover {
+    background-color: #e5e7eb;
+}
+
+.menu-close::before,
+.menu-close::after {
+    content: '';
+    position: absolute;
+    width: 15px;
+    height: 2px;
+    background-color: #1f2937;
+}
+
+.menu-close::before {
+    transform: rotate(45deg);
+}
+
+.menu-close::after {
+    transform: rotate(-45deg);
+}
+
+/* Overlay para quando o menu estiver aberto */
+.menu-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 999;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.menu-overlay.active {
+    display: block;
+    opacity: 1;
+}
+
+/* Scroll Animation Classes */
+.fade-in-element {
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.8s ease, transform 0.8s ease;
+}
+
+.slide-in-left {
+    opacity: 0;
+    transform: translateX(-50px);
+    transition: opacity 0.8s ease, transform 0.8s ease;
+}
+
+.slide-in-right {
+    opacity: 0;
+    transform: translateX(50px);
+    transition: opacity 0.8s ease, transform 0.8s ease;
+}
+
+.scale-in {
+    opacity: 0;
+    transform: scale(0.8);
+    transition: opacity 0.8s ease, transform 0.8s ease;
+}
+
+/* Visible state for animations */
+.fade-in-element.visible,
+.slide-in-left.visible,
+.slide-in-right.visible,
+.scale-in.visible {
+    opacity: 1;
+    transform: translate(0) scale(1);
+}
+
+/* Animation delays */
+.delay-200 {
+    transition-delay: 0.2s;
+}
+
+.delay-300 {
+    transition-delay: 0.3s;
+}
+
+.delay-400 {
+    transition-delay: 0.4s;
+}
+
+.delay-500 {
+    transition-delay: 0.5s;
+}
+
+/* Scroll to top button */
+.scroll-to-top {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #6a0dad, #9370db);
+    color: white;
+    border: none;
+    font-size: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(20px);
+    transition: all 0.3s ease;
+    z-index: 999;
+    box-shadow: 0 2px 10px rgba(106, 13, 173, 0.3);
+}
+
+.scroll-to-top.show {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.scroll-to-top:hover {
+    background: linear-gradient(135deg, #5a0dad, #8360db);
+    transform: translateY(-3px);
+    box-shadow: 0 4px 15px rgba(106, 13, 173, 0.5);
+}
+
+@media (max-width: 768px) {
+    .scroll-to-top {
+        width: 35px;
+        height: 35px;
+        bottom: 15px;
+        right: 15px;
+        font-size: 18px;
+    }
 }
