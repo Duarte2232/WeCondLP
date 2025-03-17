@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect } from 'react';
 import './passos.css';
 
 const landlordSteps = [
@@ -38,44 +38,66 @@ const tenantSteps = [
 ];
 
 const Passos = () => {
-  const [isLandlord, setIsLandlord] = useState(true);
-
-  const toggleSteps = () => {
-    setIsLandlord(!isLandlord);
-  };
-
-  const steps = isLandlord ? landlordSteps : tenantSteps;
+  useEffect(() => {
+    const animatedElements = document.querySelectorAll(
+      '.fade-in-element, .slide-in-left, .slide-in-right, .scale-in, .passos-box, .box-step'
+    );
+    
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+        }
+      });
+    }, {
+      threshold: 0.2,
+      rootMargin: '0px 0px -50px 0px'
+    });
+    
+    animatedElements.forEach(element => {
+      observer.observe(element);
+    });
+    
+    return () => {
+      animatedElements.forEach(element => {
+        observer.unobserve(element);
+      });
+    };
+  }, []);
 
   return (
     <div className="passos-container" id="passos">
-      <h2 className="passos-title">Como funciona?</h2>
-      <p className="passos-subtitle">
-        {isLandlord
-          ? "Se for gestor de condomínio"
-          : "Se for um técnico."}
-      </p>
-
-      <div className="passos-steps-wrapper">
-        <div className="arrow arrow-left" onClick={toggleSteps}>
-          &#9664;
+      <h2 className="passos-title fade-in-element">Como funciona?</h2>
+      
+      <div className="passos-boxes-container">
+        <div className="passos-box gestor-box slide-in-left">
+          <h3 className="box-title">Para Gestores de Condomínio</h3>
+          <div className="box-steps">
+            {landlordSteps.map((step) => (
+              <div className={`box-step fade-in-element delay-${step.id * 100}`} key={step.id}>
+                <div className="step-number">{step.id}</div>
+                <div className="step-content">
+                  <h4 className="step-title">{step.title}</h4>
+                  <p className="step-description">{step.description}</p>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
-        <div className="passos-steps">
-          <img
-            src="https://cdn.rareblocks.xyz/collection/celebration/images/steps/2/curved-dotted-line.svg"
-            alt="Dotted Line"
-            className="dotted-line-bg"
-          />
-
-          {steps.map((step) => (
-            <div className="step" key={step.id}>
-              <div className="step-icon">{step.id}</div>
-              <h3 className="step-title">{step.title}</h3>
-              <p className="step-description">{step.description}</p>
-            </div>
-          ))}
-        </div>
-        <div className="arrow arrow-right" onClick={toggleSteps}>
-          &#9654;
+        
+        <div className="passos-box tecnico-box slide-in-right">
+          <h3 className="box-title">Para Técnicos</h3>
+          <div className="box-steps">
+            {tenantSteps.map((step) => (
+              <div className={`box-step fade-in-element delay-${step.id * 100 + 200}`} key={step.id}>
+                <div className="step-number">{step.id}</div>
+                <div className="step-content">
+                  <h4 className="step-title">{step.title}</h4>
+                  <p className="step-description">{step.description}</p>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>

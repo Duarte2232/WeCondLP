@@ -1,7 +1,7 @@
 .passos-container {
   text-align: center;
   padding: 2rem 1rem;
-  max-width: 800px;
+  max-width: 1200px;
   margin: 0 auto;
   position: relative;
 }
@@ -9,8 +9,22 @@
 .passos-title {
   font-size: 2rem;
   font-weight: bold;
-  margin-bottom: 0.5rem;
-  color: #000;
+  margin-bottom: 2rem;
+  color: #1f2937;
+  position: relative;
+  display: inline-block;
+}
+
+.passos-title::after {
+  content: '';
+  position: absolute;
+  bottom: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 80px;
+  height: 3px;
+  background: #6a0dad;
+  border-radius: 3px;
 }
 
 .passos-subtitle {
@@ -100,22 +114,291 @@
   top: 50%;
   transform: translateY(-50%);
 }
-@media (max-width: 768px) {
-  .passos-steps {
-    display: flex;
-    flex-direction: column;
-    gap:2vw;
-  }
-.passos-steps-wrapper{
+
+/* Novo layout com caixas */
+.passos-boxes-container {
   display: flex;
-  flex-direction: row;
+  justify-content: space-between;
+  gap: 2rem;
+  margin-top: 2rem;
 }
-.arrow-left {
-  margin: 0;
+
+.passos-box {
+  flex: 1;
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  padding: 2rem;
+  background-color: #fff;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+  opacity: 0;
+  transform: translateY(20px);
+  transition: all 0.8s ease;
+}
+
+.passos-box::before {
+  content: '';
+  position: absolute;
+  top: 0;
   left: 0;
-}
-.arrow-right {
-  margin: 0;
   right: 0;
+  height: 5px;
+  z-index: 1;
 }
+
+.gestor-box::before {
+  background: #6a0dad;
+}
+
+.tecnico-box::before {
+  background: #9370db;
+}
+
+.gestor-box {
+  border-top: none;
+}
+
+.tecnico-box {
+  border-top: none;
+}
+
+.passos-box:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 20px rgba(106, 13, 173, 0.3), 0 0 15px rgba(147, 112, 219, 0.2);
+}
+
+.passos-box.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.box-title {
+  font-size: 1.5rem;
+  font-weight: bold;
+  margin-bottom: 1.5rem;
+  color: #000;
+  text-align: center;
+}
+
+.box-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.box-step {
+  display: flex;
+  align-items: flex-start;
+  text-align: left;
+  gap: 1rem;
+  opacity: 0;
+  transform: translateY(15px);
+  transition: all 0.6s ease;
+}
+
+.box-step.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.step-number {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: #fff;
+  flex-shrink: 0;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.2);
+  transition: all 0.3s ease;
+}
+
+.gestor-box .step-number {
+  background: #6a0dad;
+}
+
+.tecnico-box .step-number {
+  background: #9370db;
+}
+
+.box-step:hover .step-number {
+  transform: scale(1.1);
+}
+
+.step-content {
+  flex: 1;
+}
+
+.step-title {
+  font-size: 1.1rem;
+  font-weight: bold;
+  margin-bottom: 0.5rem;
+  color: #000;
+}
+
+.step-description {
+  font-size: 0.9rem;
+  color: #6b6b6b;
+  line-height: 1.4;
+}
+
+/* Media query para dispositivos móveis */
+@media (max-width: 768px) {
+  .passos-container {
+    padding: 40px 15px;
+    width: 100%;
+    box-sizing: border-box;
+    margin: 0;
+  }
+  
+  .passos-title {
+    font-size: 22px;
+    margin-bottom: 30px;
+  }
+  
+  .passos-title::after {
+    width: 60px;
+    height: 3px;
+    bottom: -8px;
+  }
+  
+  .passos-boxes-container {
+    flex-direction: column;
+    gap: 20px;
+    width: 100%;
+  }
+  
+  .passos-box {
+    width: 100%;
+    padding: 20px 15px;
+    margin-bottom: 0;
+    box-sizing: border-box;
+  }
+  
+  .box-title {
+    font-size: 18px;
+    margin-bottom: 20px;
+  }
+  
+  .box-steps {
+    gap: 15px;
+  }
+  
+  .box-step {
+    align-items: flex-start;
+  }
+  
+  .step-number {
+    width: 35px;
+    height: 35px;
+    font-size: 16px;
+    margin-top: 3px;
+  }
+  
+  .step-content {
+    flex: 1;
+  }
+  
+  .step-title {
+    font-size: 16px;
+    margin-bottom: 5px;
+  }
+  
+  .step-description {
+    font-size: 14px;
+    line-height: 1.4;
+  }
+}
+
+@media (max-width: 480px) {
+  .passos-container {
+    padding: 30px 15px;
+  }
+  
+  .passos-title {
+    font-size: 20px;
+    margin-bottom: 25px;
+  }
+  
+  .passos-box {
+    padding: 15px;
+  }
+  
+  .box-title {
+    font-size: 17px;
+    margin-bottom: 15px;
+  }
+  
+  .step-number {
+    width: 30px;
+    height: 30px;
+    font-size: 14px;
+  }
+  
+  .step-title {
+    font-size: 15px;
+  }
+  
+  .step-description {
+    font-size: 13px;
+  }
+}
+
+/* Animation classes for passos component */
+.passos-box {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: all 0.8s ease;
+}
+
+.passos-box.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.box-step {
+  opacity: 0;
+  transform: translateY(15px);
+  transition: all 0.6s ease;
+}
+
+.box-step.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.passos-title.fade-in-element {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.8s ease, transform 0.8s ease;
+}
+
+.passos-title.fade-in-element.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Animation delays */
+.delay-100 {
+  transition-delay: 0.1s;
+}
+
+.delay-200 {
+  transition-delay: 0.2s;
+}
+
+.delay-300 {
+  transition-delay: 0.3s;
+}
+
+.delay-400 {
+  transition-delay: 0.4s;
+}
+
+.delay-500 {
+  transition-delay: 0.5s;
 }

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import emailjs from "@emailjs/browser";
 import './calltoaction.css';
 
@@ -7,6 +7,7 @@ function CallToAction() {
   const [email, setEmail] = useState("");
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [option, setOption] = useState(""); // State for the selected option
+  
   const handleButtonClick = () => {
     setIsModalVisible(true);
   };
@@ -14,6 +15,33 @@ function CallToAction() {
   const handleCloseModal = () => {
     setIsModalVisible(false);
   };
+
+  useEffect(() => {
+    const animatedElements = document.querySelectorAll(
+      '.fade-in-element, .slide-in-left, .slide-in-right, .scale-in, .landing-page, .feature'
+    );
+    
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+        }
+      });
+    }, {
+      threshold: 0.2,
+      rootMargin: '0px 0px -50px 0px'
+    });
+    
+    animatedElements.forEach(element => {
+      observer.observe(element);
+    });
+    
+    return () => {
+      animatedElements.forEach(element => {
+        observer.unobserve(element);
+      });
+    };
+  }, []);
 
   const handleSendEmail = (e) => {
     e.preventDefault();
@@ -66,20 +94,20 @@ function CallToAction() {
   };
 
   return (
-    <div className="landing-page" id="calltoaction">
+    <div className="landing-page fade-in-element" id="calltoaction">
       <h1 className="brev">Simplifique a Gestão do seu Condomínio com a WeCond</h1>
       <div className="features">
-        <div className="feature">
+        <div className="feature slide-in-left delay-200">
           <span className="checkmark">✔</span> Interface Intuitiva
         </div>
-        <div className="feature">
+        <div className="feature slide-in-left delay-300">
           <span className="checkmark">✔</span> Automático
         </div>
-        <div className="feature">
+        <div className="feature slide-in-left delay-400">
           <span className="checkmark">✔</span> Rápido
         </div>
       </div>
-      <button className="cta-button" onClick={handleButtonClick}>
+      <button className="cta-button scale-in delay-500" onClick={handleButtonClick}>
         Junte-se a Nós
       </button>
 

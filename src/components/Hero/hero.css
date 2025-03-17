@@ -1,7 +1,26 @@
 html {
     scroll-behavior: smooth;
-  }
-  
+}
+
+/* Estilo para o logo */
+.logo {
+    display: flex;
+    align-items: center;
+    font-weight: 700;
+    color: #1f2937;
+    text-decoration: none;
+    font-size: 1.5rem;
+}
+
+.logo h1.hero-title {
+    font-size: 2rem;
+    margin: 0;
+    background: linear-gradient(90deg, #6a0dad, #9370db);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    font-weight: 800;
+}
+
 .component-container {
     position: relative;
     background-color: #f9fafb;
@@ -20,18 +39,49 @@ html {
 }
 
 .header {
-    position: relative;
+    width: 100%;
     padding: 1rem 0;
-    margin-top: -1vw;
+    position: relative;
+    z-index: 10;
+    transition: all 0.3s ease;
+}
+
+.header.scrolled {
+    position: fixed;
+    top: 0;
+    left: 0;
+    background-color: rgba(255, 255, 255, 0.95);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    padding: 0.5rem 0;
+    animation: slideDown 0.3s ease-in-out;
+}
+
+.header.hide {
+    transform: translateY(-100%);
+}
+
+@keyframes slideDown {
+    from {
+        transform: translateY(-100%);
+    }
+    to {
+        transform: translateY(0);
+    }
+}
+
+/* Adjust container padding when header is fixed */
+.header.scrolled + .hero {
+    padding-top: 5rem;
 }
 
 .header-container {
-    max-width: 1900px;
-    margin: 0 auto;
     display: flex;
-    align-items: center;
     justify-content: space-between;
-    padding: 0 1rem;
+    align-items: center;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 1.5rem;
+    position: relative;
 }
 
 .logo-image {
@@ -40,38 +90,65 @@ html {
 
 .nav-links {
     display: flex;
+    gap: 1rem;
     align-items: center;
-    gap: 2.5rem;
+    background-color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .nav-item {
+    font-size: 0.9rem;
+    color: #4b5563;
     text-decoration: none;
-    font-size: 1rem;
-    color: #1f2937;
-    transition: color 0.2s;
-    scroll-behavior: smooth;
-    transition: transform 0.3s, background-color 0.3s, color 0.3s, padding 0.3s;
-}
-.hamburger-menu{
-    display: none;
+    padding: 0.4rem 0.8rem;
+    border-radius: 20px;
+    transition: all 0.3s ease;
 }
 
 .nav-item:hover {
-    color: rgba(31, 41, 55, 0.5);
+    background-color: #f3f4f6;
+    color: #1f2937;
+    transform: translateY(-2px);
+}
+
+.nav-item.login-button {
+    background: linear-gradient(90deg, #6a0dad, #9370db);
+    color: white;
+    padding: 0.4rem 1rem;
+    border-radius: 20px;
+    box-shadow: 0 2px 4px rgba(37, 99, 235, 0.3);
+    transition: all 0.3s ease;
+}
+
+.nav-item.login-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(37, 99, 235, 0.4);
+    background: linear-gradient(90deg, #6a0dad, #9370db);
+}
+
+.hamburger-menu {
+    display: none;
+    cursor: pointer;
+}
+
+.hamburger-menu span {
+    font-size: 1.5rem;
+    color: #1f2937;
 }
 
 .nav-cta {
     padding: 0.5rem 1rem;
-    border: 1px solid #1f2937;
-    border-radius: 1rem;
-    color: #1f2937;
-    font-weight: bold;
-    transition: all 0.2s;
+    background-color: #1f2937;
+    color: #ffffff;
+    border-radius: 0.5rem;
+    font-weight: 500;
+    transition: background-color 0.2s;
 }
 
 .nav-cta:hover {
-    background-color: #1f2937;
-    color: #ffffff;
+    background-color: #111827;
 }
 
 .hero {
@@ -89,6 +166,8 @@ html {
     justify-content: space-between; /* Space out content and image */
     align-items: center; /* Vertically align the items */
     gap: 2rem;
+    position: relative;
+    z-index: 1;
 }
 
 .hero-content {
@@ -96,16 +175,16 @@ html {
 }
 
 .hero-title {
-    font-size: 2.5rem;
-    font-weight: bold;
+    font-size: 2.25rem;
+    font-weight: 800;
     color: #1f2937;
+    margin-bottom: 1rem;
 }
 
 .hero-stats {
-    margin-top: 1rem;
+    margin-top: 1.5rem;
     display: flex;
     flex-direction: column;
-    align-items: center;
     gap: 0.5rem;
 }
 
@@ -130,17 +209,21 @@ html {
 
 .primary-action {
     padding: 0.75rem 2rem;
-    background-color: #1f2937;
+    background: linear-gradient(90deg, #6a0dad, #9370db);
     color: #ffffff;
-    border-radius: 1rem;
+    border-radius: 30px;
     text-decoration: none;
     font-weight: bold;
-    transition: background-color 0.2s;
-    z-index: 10000;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 10px rgba(106, 13, 173, 0.2);
+    border: none;
+    display: inline-block;
 }
 
 .primary-action:hover {
-    background-color: #4b5563;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 15px rgba(106, 13, 173, 0.3);
+    background: linear-gradient(90deg, #5a0dad, #8360db);
 }
 
 .secondary-action {
@@ -159,6 +242,7 @@ html {
     background-color: #e5e7eb;
 }
 
+/* Estilos para desktop */
 .hero-imageone {
     background-image: url("../../assets/gajo.png");
     width: 50%;
@@ -167,267 +251,473 @@ html {
     background-position: center;
     background-repeat: no-repeat;
     z-index: 2;
+    display: block; /* Garantir que seja exibido em desktop */
 }
+
+.hero-imagetwo {
+    display: none; /* Ocultar em desktop */
+}
+
 .stats-text{
     font-size: 14px;
     color: black;
 }
+
 @media (max-width: 768px) {
     /* Global Reset */
     html, body {
         margin: 0;
         padding: 0;
-        width: 100%; /* Prevent horizontal overflow */
-        height: 100%; /* Allow vertical centering */
-        overflow-x: hidden; /* Remove horizontal scroll */
-        display: flex;
-        flex-direction: column;
-        align-items: center;
+        width: 100%;
+        overflow-x: hidden;
     }
 
     .component-container {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: flex-start;
-        width: 80vw;
+        width: 100%;
+        padding: 0 15px;
+        box-sizing: border-box;
     }
-.background-image{
-    margin: 0;
-    z-index: 0;
-    right: 0;
-    display: none;
-}
+    
+    .background-image {
+        display: none;
+    }
+    
     .header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        align-content: center;
+        width: 100%;
+        padding: 1rem 15px;
+        position: relative;
+        transition: all 0.3s ease;
+    }
+
+    .header.scrolled {
         position: fixed;
-        top: 0em;
-        height: 4vh;
+        top: 0;
         left: 0;
-        width: 100vw;
-        background-color: #f9fafb;
-        padding-top: 1.5rem;
-        z-index: 100000000000;
+        width: 100%;
+        background-color: rgba(255, 255, 255, 0.95);
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        padding: 0.5rem 15px;
+        z-index: 1000;
     }
-    .header-container{
-        width: 95vw;
-        
-        display: flex;
-        flex-direction: row;
-        align-items: center;
+
+    .header.hide {
+        transform: translateY(-100%);
     }
-    .logo{
-        height: 2em;
-        right: 0;
+
+    .header.scrolled .logo h1.hero-title {
+        font-size: 1.2rem;
+    }
+
+    .header.scrolled + .hero {
+        padding-top: 4rem;
+    }
+
+    .header-container {
+        width: 100%;
+    }
+
+    .logo {
+        font-size: 1.2rem;
+        font-weight: bold;
+    }
+
+    .logo h1.hero-title {
+        font-size: 1.3rem;
+        margin: 0;
     }
 
     .hamburger-menu {
-        font-size: 1.5rem;
-        cursor: pointer;
-        z-index: 1100;
         display: block;
-        color: black;
-        position: absolute;
-        top: 1rem; /* Adjust as needed */
-        right: 1rem; /* Place it at the top-left corner */
     }
-    
+
     .nav-links {
-        display: flex;
-        flex-direction: column; /* Stack items vertically */
         position: absolute;
-        top: 3rem; /* Align just below the hamburger menu */
-        right: 0.5rem; /* Align left to the hamburger menu */
-        background-color: rgba(255, 255, 255, 0); /* Semi-transparent background */
-        border-radius: 0.5rem; /* Smooth rounded edges */
-        padding: 0.2rem 0;
-        width: 200px; /* Menu width */
-        box-shadow: 0px 4px 6px rgba(0, 0, 0, 0); /* Subtle shadow for depth */
+        top: calc(100% + 10px);
+        right: 1.5rem;
+        flex-direction: column;
+        background-color: white;
+        min-width: 200px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        border-radius: 12px;
+        padding: 1rem;
+        opacity: 0;
+        visibility: hidden;
+        transform: translateY(-10px);
+        transition: opacity 0.3s ease, transform 0.3s ease, visibility 0.3s ease;
         z-index: 1000;
-        gap: 03px;
-        text-align: right;
-        align-items: end;
-        justify-content: flex-end;
-        opacity: 0; /* Fully hidden initially */
-        pointer-events: none; /* Disable clicks when hidden */
-        transform: translateY(-10px); /* Slight offset for animation */
-        transition: opacity 0.3s ease, transform 0.3s ease; /* Smooth fade/slide */
     }
-    
+
+    .nav-links::after {
+        content: '';
+        position: absolute;
+        top: -8px;
+        right: 15px;
+        width: 0;
+        height: 0;
+        border-left: 8px solid transparent;
+        border-right: 8px solid transparent;
+        border-bottom: 8px solid white;
+    }
+
     .nav-links.open {
-        opacity: 1; /* Fully visible when open */
-        pointer-events: auto; /* Enable clicks */
-        transform: translateY(0); /* Slide into position */
+        opacity: 1;
+        visibility: visible;
+        transform: translateY(0);
+        display: flex;
     }
-    
+
     .nav-item {
-        padding: 0.2rem 0.6rem;
-        border-radius:25px;
-        font-size: 0.9rem;
-        color: #1f2937;
-        text-align: right; /* Align text to the left */
-        text-decoration: none;
-        background-color: white
-        ; /* Transparent by default */
-        transition: background-color 0.2s ease, color 0.2s ease; /* Smooth hover effects */
+        width: 100%;
+        text-align: center;
+        padding: 0.6rem 1rem;
     }
-    
+
     .nav-item:hover {
-        background-color: rgba(0, 0, 0, 0.05); /* Subtle background on hover */
-        color: rgba(31, 41, 55, 0.7); /* Slightly lighter text */
+        background-color: #f5f5f5;
     }
-    
-    
+
+    .nav-item.login-button {
+        background-color: transparent;
+        color: #1f2937;
+        padding: 0.75rem 1.25rem;
+        border-radius: 0;
+        margin-top: 0;
+        width: 100%;
+        justify-content: flex-start;
+        font-weight: bold;
+    }
+
+    .nav-item.login-button:hover {
+        background-color: #f5f5f5;
+        color: #6a0dad;
+    }
+
+    .menu-close {
+        display: none;
+    }
+
+    .menu-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5);
+        z-index: 999;
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 0.3s ease, visibility 0.3s ease;
+    }
+
+    .menu-overlay.active {
+        opacity: 1;
+        visibility: visible;
+        display: block;
+    }
 
     .hero {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        text-align: center;
-        padding: 2rem;
-        margin-top: 3rem; /* Adjust for fixed header */
+        padding: 1rem 15px;
         width: 100%;
-        overflow: hidden; /* Ensure no hidden content overflows */
+        box-sizing: border-box;
     }
 
     .hero-container {
         display: flex;
         flex-direction: column;
-        justify-content: center;
-        gap: 1rem;
+        align-items: center;
         width: 100%;
+        gap: 1.5rem;
+    }
+
+    .hero-content {
+        width: 100%;
+        max-width: 500px;
+        margin: 0 auto;
     }
 
     .hero-title {
-        font-size: 1.6rem; /* Adjust font size for phones */
-        margin: 0;
-        font-weight: bold;
-        color: #1f2937;
-        line-height: 4 rem !important;
-        text-align: center;
-        margin-bottom: 60px;
+        font-size: 1.8rem;
+        background: linear-gradient(90deg, #1f2937, #4b5563);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-bottom: 1rem;
+        line-height: 1.3;
     }
-    .ui{
-        font-size: 1.9 rem !important;
+
+    .hero-title .ui {
+        background: linear-gradient(90deg, #6a0dad, #9370db);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
     }
+
+    .hero-imagetwo {
+        margin: 1.5rem 0;
+        height: 220px;
+        animation: float 6s ease-in-out infinite;
+    }
+
+    @keyframes float {
+        0% {
+            transform: translateY(0px);
+        }
+        50% {
+            transform: translateY(-10px);
+        }
+        100% {
+            transform: translateY(0px);
+        }
+    }
+
+    .stats-text {
+        font-size: 1rem;
+        line-height: 1.5;
+        color: #4b5563;
+    }
+
+    .primary-action {
+        padding: 0.8rem 2rem;
+        font-size: 1rem;
+    }
+
+    .ui {
+        color: #6c27bc;
+    }
+    
+    /* Mostrar apenas hero-imagetwo em mobile */
+    .hero-imageone {
+        display: none !important;
+    }
+    
     .hero-imagetwo {
         background-image: url("../../assets/gajo.png");
-        width: 62%;
-        height: 240px; /* Example height */
-        background-size: cover;
+        width: 100%;
+        height: 220px;
+        background-size: contain;
         background-position: center;
-    margin: auto;
-        z-index: 200000;
-        margin-top: 3 rem;
+        background-repeat: no-repeat;
+        display: block !important;
+        margin: 1.5rem 0;
     }
+
     .hero-stats {
-        font-size: 1rem;
-        margin-bottom: 1rem;
-        width: 85vw;
-        color: #4b5563;
-        text-align: center;
+        width: 100%;
+        padding: 0 10px;
     }
 
-    .hero-imageone {
-        display: none;
+    .hero-actions {
+        width: 100%;
+        margin-top: 1.5rem;
     }
 
-    .primary-action, .secondary-action {
-        font-size: 1rem;
-        padding: 1rem 2rem;
-        width: 30%; /* Center buttons and allow some spacing */
-        max-width: 300px; /* Prevent overly large buttons */
-        text-align: center;
-    }
-
-    .primary-action:hover {
-        background-color: #4b5563;
-    }
-
-    .secondary-action:hover {
-        background-color: #e5e7eb;
-    }
-
-    .nav-item.login-button {
-        background-color: #1f2937;
-        color: white;
-        margin-top: 0.5rem;
+    /* Garantir que o menu-overlay cubra toda a tela */
+    .menu-overlay.active {
+        z-index: 999;
     }
 }
 
 .nav-wrapper {
-  width: 100%;
-  padding: 1rem 2rem;
-  position: relative;
-  z-index: 10;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
 }
 
 .nav-content {
-  max-width: 1200px;
-  margin: 0 auto;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    padding: 0 20px;
 }
 
 .nav-buttons {
-  display: flex;
-  gap: 1rem;
-  align-items: center;
+    display: flex;
+    gap: 20px;
+    align-items: center;
 }
 
 .login-btn {
-  background: var(--primary-color);
-  color: white;
-  padding: 0.5rem 1.5rem;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-  font-weight: 500;
-  transition: background-color 0.2s ease;
-  display: inline-block;
+    background-color: #6c27bc;
+    color: white;
+    padding: 8px 24px;
+    border-radius: 30px;
+    text-decoration: none;
+    font-weight: 600;
+    border: 2px solid #6c27bc;
+    transition: all 0.3s ease;
 }
 
 .login-btn:hover {
-  background: var(--primary-color-dark);
+    background-color: #5a1e9e;
 }
 
 .learn-more-btn {
-  padding: 0.5rem 1.5rem;
-  border: 1px solid var(--primary-color);
-  border-radius: 5px;
-  background: transparent;
-  color: var(--primary-color);
-  cursor: pointer;
-  font-weight: 500;
-  transition: all 0.2s ease;
+    display: inline-block;
+    padding: 8px 24px;
+    color: #333;
+    text-decoration: none;
+    font-weight: 600;
+    border: 2px solid #e0e0e0;
+    border-radius: 30px;
+    transition: all 0.3s ease;
 }
 
 .learn-more-btn:hover {
-  background: var(--primary-color);
-  color: white;
+    border-color: #6c27bc;
+    color: #6c27bc;
 }
 
-.hero {
-  min-height: 100vh;
-  width: 100%;
-  position: relative;
+/* Estilo para o botão de fechar no menu */
+.menu-close {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    width: 30px;
+    height: 30px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background-color: #f3f4f6;
+    transition: background-color 0.2s;
 }
 
-.nav-item.login-button {
+.menu-close:hover {
+    background-color: #e5e7eb;
+}
+
+.menu-close::before,
+.menu-close::after {
+    content: '';
+    position: absolute;
+    width: 15px;
+    height: 2px;
     background-color: #1f2937;
-    color: white;
-    padding: 0.5rem 1.5rem;
-    border-radius: 0.5rem;
-    font-weight: 500;
-    transition: background-color 0.2s ease;
 }
 
-.nav-item.login-button:hover {
-    background-color: #4b5563;
+.menu-close::before {
+    transform: rotate(45deg);
+}
+
+.menu-close::after {
+    transform: rotate(-45deg);
+}
+
+/* Overlay para quando o menu estiver aberto */
+.menu-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 999;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.menu-overlay.active {
+    display: block;
+    opacity: 1;
+}
+
+/* Scroll Animation Classes */
+.fade-in-element {
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.8s ease, transform 0.8s ease;
+}
+
+.slide-in-left {
+    opacity: 0;
+    transform: translateX(-50px);
+    transition: opacity 0.8s ease, transform 0.8s ease;
+}
+
+.slide-in-right {
+    opacity: 0;
+    transform: translateX(50px);
+    transition: opacity 0.8s ease, transform 0.8s ease;
+}
+
+.scale-in {
+    opacity: 0;
+    transform: scale(0.8);
+    transition: opacity 0.8s ease, transform 0.8s ease;
+}
+
+/* Visible state for animations */
+.fade-in-element.visible,
+.slide-in-left.visible,
+.slide-in-right.visible,
+.scale-in.visible {
+    opacity: 1;
+    transform: translate(0) scale(1);
+}
+
+/* Animation delays */
+.delay-200 {
+    transition-delay: 0.2s;
+}
+
+.delay-300 {
+    transition-delay: 0.3s;
+}
+
+.delay-400 {
+    transition-delay: 0.4s;
+}
+
+.delay-500 {
+    transition-delay: 0.5s;
+}
+
+/* Scroll to top button */
+.scroll-to-top {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #6a0dad, #9370db);
     color: white;
+    border: none;
+    font-size: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(20px);
+    transition: all 0.3s ease;
+    z-index: 999;
+    box-shadow: 0 2px 10px rgba(106, 13, 173, 0.3);
+}
+
+.scroll-to-top.show {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.scroll-to-top:hover {
+    background: linear-gradient(135deg, #5a0dad, #8360db);
+    transform: translateY(-3px);
+    box-shadow: 0 4px 15px rgba(106, 13, 173, 0.5);
+}
+
+@media (max-width: 768px) {
+    .scroll-to-top {
+        width: 35px;
+        height: 35px;
+        bottom: 15px;
+        right: 15px;
+        font-size: 18px;
+    }
 }
