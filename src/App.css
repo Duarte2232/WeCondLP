@@ -87,7 +87,7 @@ overflow-y: scroll;
     display: flex;
     flex-direction: column;
     gap: 50px; /* Adjust the gap size */
-    width: 80vw;
+    width: 100vw;
   margin-bottom: 4vw;
     
   }
