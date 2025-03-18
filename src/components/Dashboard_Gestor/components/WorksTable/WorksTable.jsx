@@ -41,7 +41,7 @@ function WorksTable({
                   className={`work-row ${work.status === 'Concluído' ? 'concluida' : ''} ${unviewedOrcamentos[work.id] ? 'work-row-with-notification' : ''}`}
                   onClick={() => handleViewDetails(work.id)}
                 >
-                  <td>
+                  <td data-label="Título">
                     <div className="title-with-notification">
                       <span className="work-title">{work.title}</span>
                       {Array.isArray(work.orcamentos) && work.orcamentos.length > 0 && (
@@ -64,23 +64,23 @@ function WorksTable({
                       )}
                     </div>
                   </td>
-                  <td>{new Date(work.date).toLocaleDateString()}</td>
-                  <td>
+                  <td data-label="Data">{new Date(work.date).toLocaleDateString()}</td>
+                  <td data-label="Categoria">
                     <span className={`category-badge ${work.category.toLowerCase()}`}>
                       {work.category}
                     </span>
                   </td>
-                  <td>
+                  <td data-label="Prioridade">
                     <span className={`priority-badge ${work.priority.toLowerCase()}`}>
                       {work.priority}
                     </span>
                   </td>
-                  <td>
+                  <td data-label="Status">
                     <span className={`status-badge ${work.status.toLowerCase().replace(' ', '-')}`}>
                       {work.status}
                     </span>
                   </td>
-                  <td className="actions-cell" onClick={e => e.stopPropagation()}>
+                  <td data-label="Ações" className="actions-cell" onClick={e => e.stopPropagation()}>
                     <button 
                       className="action-btn" 
                       title="Editar"

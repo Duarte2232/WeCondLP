@@ -388,6 +388,32 @@ button:hover, .button:hover {
 
 @media (max-width: 768px) {
   .login-box {
-    width: 80%;
+    width: 90%;
+    min-width: 280px;
+    padding: 1.5rem;
+  }
+
+  .role-options {
+    flex-direction: column;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+  
+  .role-option {
+    padding: 1rem 0.75rem;
+  }
+  
+  .role-icon {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+  }
+  
+  .role-option h4 {
+    font-size: 1rem;
+    margin-bottom: 0.25rem;
+  }
+  
+  .role-option p {
+    font-size: 0.8rem;
   }
 }

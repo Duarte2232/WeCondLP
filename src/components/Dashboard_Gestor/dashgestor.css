@@ -1079,24 +1079,220 @@
 
 /* Media query para telas menores */
 @media (max-width: 768px) {
+  .dashboard-container {
+    padding: 0.75rem;
+    overflow-x: hidden;
+  }
+  
+  .top-nav {
+    margin-bottom: 1rem;
+  }
+  
+  .nav-left h1 {
+    font-size: 1.1rem;
+  }
+  
   .actions-bar {
     flex-direction: column;
     padding: 1rem;
     gap: 10px;
+    margin-bottom: 1rem;
   }
-
-  .actions-bar .search-container {
-    width: 100%;
-  }
-
-  .actions-bar button {
+  
+  .search-bar {
     width: 100%;
   }
   
-  .priority-filter {
+  .actions-bar .filters-container {
+    flex-direction: column;
     width: 100%;
-    max-width: 100%;
-    margin: 0;
+  }
+  
+  .filters select,
+  .priority-filter,
+  .calendar-toggle-btn,
+  .new-work-btn {
+    width: 100%;
+    margin: 5px 0;
+  }
+  
+  .calendar-section {
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  .calendar-container {
+    width: 100%;
+    overflow-x: auto;
+  }
+  
+  .react-calendar {
+    width: 100%;
+    font-size: 0.9rem;
+  }
+  
+  .react-calendar__tile {
+    padding: 8px 6px;
+    font-size: 0.9rem;
+  }
+  
+  .work-dot {
+    width: 6px;
+    height: 6px;
+  }
+  
+  /* Modo de visualização em blocos para tabela de obras */
+  .works-table-container {
+    overflow: visible;
+    background: transparent;
+    box-shadow: none;
+    padding: 0;
+  }
+  
+  /* Estilos para visualização em cards */
+  .works-table {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1rem;
+    width: 100%;
+  }
+  
+  /* Esconder cabeçalho da tabela */
+  .works-table thead {
+    display: none;
+  }
+  
+  /* Transformar tbody e tr em elementos de bloco */
+  .works-table tbody, 
+  .works-table tr {
+    display: block;
+    width: 100%;
+  }
+  
+  /* Estilizar linhas como cards */
+  .works-table tr.work-row {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: white;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    overflow: hidden;
+    margin-bottom: 1rem;
+  }
+  
+  /* Células transformadas em blocos com layout em linha */
+  .works-table tr.work-row td {
+    display: flex;
+    flex-direction: row;
+    padding: 0.75rem;
+    border-bottom: 1px solid var(--border-color);
+    position: relative;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  /* Título da obra como destaque - mantendo em coluna */
+  .works-table tr.work-row td:first-child {
+    background-color: #f8fafc;
+    padding: 1rem;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  /* Remover borda da última célula */
+  .works-table tr.work-row td:last-child {
+    border-bottom: none;
+  }
+  
+  /* Adicionar labels antes do conteúdo como inline-block */
+  .works-table tr.work-row td:not(:first-child)::before {
+    content: attr(data-label);
+    font-weight: 600;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    margin-right: 0.5rem;
+    flex-shrink: 0;
+    width: 30%;
+    text-align: left;
+  }
+  
+  /* Ajustes para células com badges */
+  .works-table .category-badge,
+  .works-table .priority-badge,
+  .works-table .status-badge {
+    margin-left: auto;
+  }
+  
+  /* Layout para a célula de ações */
+  .works-table .actions-cell {
+    justify-content: flex-end;
+    gap: 0.5rem;
+    flex-wrap: nowrap;
+  }
+  
+  /* Formatação para buttons de ação */
+  .works-table .action-btn {
+    padding: 0.5rem;
+    background-color: #f8fafc;
+    border-radius: 6px;
+    flex-shrink: 0;
+  }
+  
+  /* Ajustes para linha de detalhes */
+  .works-table .details-row {
+    margin-top: -1rem;
+    margin-bottom: 1.5rem;
+    border-radius: 0 0 8px 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    border: 1px solid var(--border-color);
+    border-top: none;
+    overflow: hidden;
+  }
+  
+  .works-table .details-row td {
+    padding: 0;
+  }
+  
+  /* Ajustes para o container de detalhes */
+  .work-details-container {
+    flex-direction: column;
+  }
+  
+  .work-details-main {
+    width: 100%;
+  }
+  
+  .orcamentos-sidebar {
+    width: 100%;
+    margin-top: 1rem;
+    border-top: 1px solid var(--border-color);
+    padding-top: 1rem;
+  }
+  
+  .details-scroll-container {
+    padding: 0.5rem;
+  }
+  
+  .details-card {
+    min-width: 100%;
+    padding: 1rem;
+  }
+  
+  .files-grid {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  }
+  
+  .file-preview-item img,
+  .file-preview-item video {
+    height: 120px;
+  }
+  
+  .notifications-dropdown {
+    width: 90%;
+    max-width: 300px;
+    right: 0;
+    left: auto;
   }
 }
 
