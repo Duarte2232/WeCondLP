@@ -1,0 +1,263 @@
+/* Estilos para a seção de contatos */
+.contacts-section {
+  text-align: center;
+  background-color: #ffffff;
+  padding: 50px 30px;
+  border-radius: 15px;
+  font-family: 'Arial', sans-serif;
+  max-width: 100%;
+  width: 90%;
+  margin: 30px auto;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.8s ease, transform 0.8s ease;
+}
+
+.contacts-section.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.contacts-title {
+  font-size: 2.2rem;
+  color: #000000;
+  margin-bottom: 40px;
+  font-weight: 700;
+  position: relative;
+  display: inline-block;
+}
+
+.contacts-title:after {
+  content: '';
+  position: absolute;
+  bottom: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 70px;
+  height: 3px;
+  background: linear-gradient(90deg, #8b5cf6, #6d28d9);
+  border-radius: 3px;
+}
+
+.contacts-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 0;
+  width: 100%;
+}
+
+.contacts-group {
+  flex: 1;
+  padding: 20px;
+  max-width: 500px;
+}
+
+.contacts-group-title {
+  font-size: 1.5rem;
+  color: #4a4a4a;
+  margin-bottom: 25px;
+  font-weight: 600;
+  position: relative;
+  display: inline-block;
+}
+
+.contacts-group-title:after {
+  content: '';
+  position: absolute;
+  bottom: -8px;
+  left: 0;
+  width: 40px;
+  height: 2px;
+  background-color: #8b5cf6;
+  border-radius: 2px;
+}
+
+.contacts-divider {
+  width: 1px;
+  height: auto;
+  background: linear-gradient(to bottom, transparent, #e0e0e0 20%, #e0e0e0 80%, transparent);
+  margin: 20px 40px;
+}
+
+.contacts-container {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 30px;
+}
+
+.contact-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 130px;
+  margin-bottom: 10px;
+  transition: transform 0.2s ease;
+}
+
+.contact-item:hover {
+  transform: translateY(-5px);
+}
+
+.contact-icon-wrapper {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background-color: #8b5cf6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 15px;
+  box-shadow: 0 4px 10px rgba(139, 92, 246, 0.3);
+}
+
+.email-icon {
+  background-color: #8b5cf6;
+}
+
+.phone-icon {
+  background-color: #7c3aed;
+}
+
+.support-icon {
+  background-color: #6d28d9;
+}
+
+.facebook-icon {
+  background-color: #5b21b6;
+}
+
+.linkedin-icon {
+  background-color: #4c1d95;
+}
+
+.contact-icon {
+  font-size: 1.5rem;
+  color: white;
+}
+
+.contact-text {
+  color: #4b5563;
+  text-decoration: none;
+  transition: color 0.3s;
+  font-weight: 500;
+  text-align: center;
+  font-size: 0.9rem;
+}
+
+.contact-item a.contact-text:hover {
+  color: #7c3aed;
+  text-decoration: none;
+}
+
+.contact-labels {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 30px;
+  margin-top: 10px;
+}
+
+.contact-label {
+  width: 130px;
+  font-size: 0.85rem;
+  color: #6b7280;
+  text-align: center;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Estilos responsivos */
+@media (max-width: 950px) {
+  .contacts-wrapper {
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .contacts-divider {
+    width: 80%;
+    height: 1px;
+    margin: 30px 0;
+    background: linear-gradient(to right, transparent, #e0e0e0 20%, #e0e0e0 80%, transparent);
+  }
+  
+  .contacts-group {
+    max-width: 100%;
+    width: 100%;
+    padding: 10px 0;
+  }
+}
+
+@media (max-width: 768px) {
+  .contacts-section {
+    padding: 40px 20px;
+    margin: 20px 15px;
+    width: calc(100% - 30px);
+  }
+  
+  .contacts-container {
+    gap: 20px;
+  }
+  
+  .contact-item {
+    width: 120px;
+  }
+  
+  .contact-icon-wrapper {
+    width: 50px;
+    height: 50px;
+  }
+  
+  .contact-icon {
+    font-size: 1.3rem;
+  }
+  
+  .contacts-title {
+    font-size: 1.8rem;
+  }
+  
+  .contacts-group-title {
+    font-size: 1.3rem;
+  }
+  
+  .contact-text {
+    font-size: 0.85rem;
+  }
+  
+  .contact-label {
+    width: 120px;
+    font-size: 0.75rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .contacts-container {
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .contact-item {
+    width: 100%;
+    flex-direction: row;
+    justify-content: flex-start;
+    margin-bottom: 15px;
+  }
+  
+  .contact-icon-wrapper {
+    margin-bottom: 0;
+    margin-right: 15px;
+  }
+  
+  .contact-labels {
+    display: none;
+  }
+  
+  .contact-text {
+    font-size: 0.9rem;
+    text-align: left;
+  }
+} 

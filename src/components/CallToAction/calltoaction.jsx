@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import emailjs from "@emailjs/browser";
 import './calltoaction.css';
+import { FiPlusCircle, FiFilter, FiSearch, FiBell, FiEdit2, FiEye, FiCheck, FiX, FiCalendar, FiUpload, FiArrowLeft, FiFile, FiDownload, FiAlertCircle } from 'react-icons/fi';
+import Contacts from '../Contacts/Contacts';
 
 function CallToAction() {
   const [name, setName] = useState("");
@@ -18,7 +20,7 @@ function CallToAction() {
 
   useEffect(() => {
     const animatedElements = document.querySelectorAll(
-      '.fade-in-element, .slide-in-left, .slide-in-right, .scale-in, .landing-page, .feature'
+      '.fade-in-element, .slide-in-left, .slide-in-right, .scale-in, .landing-page, .feature, .contacts-section'
     );
     
     const observer = new IntersectionObserver((entries) => {
@@ -94,22 +96,27 @@ function CallToAction() {
   };
 
   return (
-    <div className="landing-page fade-in-element" id="calltoaction">
-      <h1 className="brev">Simplifique a Gestão do seu Condomínio com a WeCond</h1>
-      <div className="features">
-        <div className="feature slide-in-left delay-200">
-          <span className="checkmark">✔</span> Interface Intuitiva
+    <>
+      <div className="landing-page fade-in-element" id="calltoaction">
+        <h1 className="brev">Simplifique a Gestão do seu Condomínio com a WeCond</h1>
+        <div className="features">
+          <div className="feature slide-in-left delay-200">
+            <span className="checkmark">✔</span> Interface Intuitiva
+          </div>
+          <div className="feature slide-in-left delay-300">
+            <span className="checkmark">✔</span> Automático
+          </div>
+          <div className="feature slide-in-left delay-400">
+            <span className="checkmark">✔</span> Rápido
+          </div>
         </div>
-        <div className="feature slide-in-left delay-300">
-          <span className="checkmark">✔</span> Automático
-        </div>
-        <div className="feature slide-in-left delay-400">
-          <span className="checkmark">✔</span> Rápido
-        </div>
+        <button className="cta-button scale-in delay-500" onClick={handleButtonClick}>
+          Junte-se a Nós
+        </button>
       </div>
-      <button className="cta-button scale-in delay-500" onClick={handleButtonClick}>
-        Junte-se a Nós
-      </button>
+
+      {/* Componente de Contatos */}
+      <Contacts />
 
       {isModalVisible && (
         <div className="modal-overlay" onClick={handleCloseModal}>
@@ -149,7 +156,7 @@ function CallToAction() {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 };
 
