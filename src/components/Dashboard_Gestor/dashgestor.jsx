@@ -6,7 +6,7 @@ import { FiPlusCircle, FiFilter, FiSearch, FiBell, FiEdit2, FiEye, FiCheck, FiX,
 import { useAuth } from '../../contexts/auth';
 import { db } from '../../services/firebase';
 import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, getDoc, serverTimestamp, writeBatch } from 'firebase/firestore';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Routes, Route, useLocation } from 'react-router-dom';
 import { CLOUDINARY_CONFIG } from '../../config/cloudinary';
 import LoadingAnimation from '../LoadingAnimation/LoadingAnimation';
 import sha1 from 'crypto-js/sha1';
@@ -17,6 +17,12 @@ import SearchFilters from './components/SearchFilters/SearchFilters';
 import NewWorkButton from './components/WorkForm/NewWorkButton';
 import WorkForm from './components/WorkForm/WorkForm';
 import WorksTable from './components/WorksTable/WorksTable';
+import TopBar from './components/TopBar/TopBar';
+import ProfileComponent from './components/Profile/Profile';
+import MessagesComponent from './components/Messages/Messages';
+import CalendarComponent from './components/Calendar/Calendar';
+import JobsComponent from './components/Jobs/Jobs';
+import MaintenanceComponent from './components/Maintenance/Maintenance';
 
 function DashGestor() {
   const { user } = useAuth();
@@ -53,6 +59,7 @@ function DashGestor() {
     date: new Date().toISOString().split('T')[0],
     status: 'Pendente',
     files: [],
+    isMaintenance: false,
     orcamentos: {
       minimo: '',
       maximo: ''
@@ -70,172 +77,16 @@ function DashGestor() {
   };
 
   const navigate = useNavigate();
+  const location = useLocation();
 
-  const loadWorks = async () => {
-    if (!user?.email) return;
-    
-    setIsLoading(true);
-    try {
-      console.log('Iniciando carregamento de obras...', {
-        userEmail: user.email,
-        userId: user.uid
-      });
-      
-      const worksRef = collection(db, 'works');
-      
-      // Primeiro, vamos buscar todas as obras para debug
-      const allWorksSnapshot = await getDocs(worksRef);
-      console.log('Todas as obras no Firestore:', allWorksSnapshot.docs.map(doc => ({
-        id: doc.id,
-        userEmail: doc.data().userEmail,
-        title: doc.data().title
-      })));
-
-      // Agora fazemos a query filtrada por email
-      const worksQuery = query(
-        worksRef,
-        where('userEmail', '==', user.email)
-      );
-      
-      const snapshot = await getDocs(worksQuery);
-      console.log('Obras após filtro de userEmail:', snapshot.docs.map(doc => ({
-        id: doc.id,
-        userEmail: doc.data().userEmail,
-        title: doc.data().title
-      })));
-
-      const worksData = snapshot.docs.map(doc => {
-        const data = doc.data();
-        return {
-          ...data,
-          id: doc.id
-        };
-      });
-      
-      console.log('Obras processadas para o estado:', worksData.map(w => ({
-        id: w.id,
-        userEmail: w.userEmail,
-        title: w.title
-      })));
-      
-      setWorks(worksData);
-      
-    } catch (error) {
-      console.error('Erro ao carregar obras:', error);
-      setWorks([]);
-    } finally {
-      setIsLoading(false);
-    }
+  // Função auxiliar para agrupar arquivos por tipo
+  const groupFilesByType = (files = []) => {
+    return {
+      images: files.filter(file => file?.type === 'image'),
+      videos: files.filter(file => file?.type === 'video'),
+      documents: files.filter(file => file?.type !== 'image' && file?.type !== 'video')
+    };
   };
-
-  useEffect(() => {
-    loadWorks();
-  }, [user?.uid]);
-
-  // Monitorar mudanças nos orçamentos
-  useEffect(() => {
-    // Verificar orçamentos não visualizados
-    const newUnviewedOrcamentos = {};
-    works.forEach(work => {
-      if (Array.isArray(work.orcamentos) && work.orcamentos.length > 0) {
-        // Verificar se há orçamentos não visualizados
-        const unviewedCount = work.orcamentos.filter(orc => !orc.visualizado).length;
-        if (unviewedCount > 0) {
-          newUnviewedOrcamentos[work.id] = unviewedCount;
-        }
-      }
-    });
-    setUnviewedOrcamentos(newUnviewedOrcamentos);
-  }, [works]);
-
-  useEffect(() => {
-    const fetchUserData = async () => {
-      if (!user?.uid) return;
-      
-      setIsLoading(true);
-      try {
-        const userDoc = await getDoc(doc(db, 'users', user.uid));
-        if (userDoc.exists()) {
-          setUserData(userDoc.data());
-        }
-      } catch (error) {
-        console.error('Error fetching user data:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchUserData();
-  }, [user]);
-
-  useEffect(() => {
-    console.log('Current user:', user); // Debug log
-  }, [user]);
-
-  useEffect(() => {
-    console.log('Obras atuais:', works.map(w => ({ id: w.id, title: w.title })));
-  }, [works]);
-
-  useEffect(() => {
-    // Esta função será chamada apenas uma vez quando o componente for montado
-    const normalizarObrasExistentes = async () => {
-      try {
-        console.log("Iniciando normalização de obras existentes...");
-        const obrasRef = collection(db, 'works');
-        const q = query(obrasRef);
-        const querySnapshot = await getDocs(q);
-        
-        const batch = writeBatch(db);
-        let contadorAtualizacoes = 0;
-        
-        querySnapshot.forEach((docSnapshot) => {
-          const obraData = docSnapshot.data();
-          let precisaAtualizar = false;
-          const atualizacoes = {};
-          
-          // Verificar e corrigir a categoria para "Eletricidade"
-          if (obraData.category && typeof obraData.category === 'string') {
-            const categoriaLower = obraData.category.toLowerCase();
-            if (categoriaLower.includes("eletr") && obraData.category !== "Eletricidade") {
-              atualizacoes.category = "Eletricidade";
-              precisaAtualizar = true;
-              console.log(`Obra ${docSnapshot.id}: Categoria corrigida para "Eletricidade"`);
-            }
-          }
-          
-          // Verificar se o status está como "disponivel" para obras que ainda não têm técnico atribuído
-          if (!obraData.technicianId && obraData.status !== "disponivel") {
-            atualizacoes.status = "disponivel";
-            precisaAtualizar = true;
-            console.log(`Obra ${docSnapshot.id}: Status atualizado para "disponivel"`);
-          }
-          
-          // Se precisar atualizar, adiciona ao batch
-          if (precisaAtualizar) {
-            const obraRef = doc(db, 'works', docSnapshot.id);
-            batch.update(obraRef, atualizacoes);
-            contadorAtualizacoes++;
-          }
-        });
-        
-        // Executar o batch se houver atualizações
-        if (contadorAtualizacoes > 0) {
-          await batch.commit();
-          console.log(`${contadorAtualizacoes} obras foram atualizadas com sucesso!`);
-          // Atualizar as obras localmente depois do batch
-          loadWorks();
-        } else {
-          console.log("Nenhuma obra precisou ser atualizada.");
-        }
-        
-      } catch (error) {
-        console.error("Erro ao normalizar obras existentes:", error);
-      }
-    };
-    
-    // Executar a normalização
-    normalizarObrasExistentes();
-  }, []); // Este efeito será executado apenas uma vez na montagem
 
   const handleViewDetails = (workId) => {
     setExpandedWorks(prev => {
@@ -349,8 +200,20 @@ function DashGestor() {
     }
   };
 
+  // Add file removal function
+  const handleRemoveFile = (fileToRemove) => {
+    setNewWork(prev => ({
+      ...prev,
+      files: prev.files.filter(file => file.url !== fileToRemove.url)
+    }));
+  };
+
   const handleSubmit = async (e) => {
-    e.preventDefault();
+    // Verifica se o evento existe antes de chamar preventDefault
+    if (e && e.preventDefault) {
+      e.preventDefault();
+    }
+    
     setIsSubmitting(true);
 
     try {
@@ -362,7 +225,8 @@ function DashGestor() {
           userId: user.uid,
           createdAt: serverTimestamp(),
           date: newWork.date || new Date().toISOString().split('T')[0],
-          status: "disponivel" // Garantir que o status seja sempre "disponivel"
+          status: "disponivel", // Garantir que o status seja sempre "disponivel"
+          isMaintenance: newWork.isMaintenance || false // Certifique-se de que o campo isMaintenance está definido
         };
 
         // Corrigir categoria para formatos conhecidos
@@ -375,7 +239,7 @@ function DashGestor() {
         const workRef = await addDoc(collection(db, 'works'), workData);
         console.log("Obra criada com sucesso, ID:", workRef.id);
         setWorks(prevWorks => [...prevWorks, { ...workData, id: workRef.id }]);
-        alert('Obra criada com sucesso!');
+        alert(workData.isMaintenance ? 'Manutenção criada com sucesso!' : 'Obra criada com sucesso!');
       } else {
         // Lógica para atualizar obra existente
         const workRef = doc(db, 'works', editingWork.id);
@@ -389,7 +253,7 @@ function DashGestor() {
         setWorks(prevWorks => 
           prevWorks.map(w => w.id === editingWork.id ? { ...updateData, id: editingWork.id } : w)
         );
-        alert('Obra atualizada com sucesso!');
+        alert(updateData.isMaintenance ? 'Manutenção atualizada com sucesso!' : 'Obra atualizada com sucesso!');
       }
 
       // Resetar o formulário
@@ -407,6 +271,7 @@ function DashGestor() {
         },
         files: [],
         date: new Date().toISOString().split('T')[0],
+        isMaintenance: false,
         orcamentos: {
           minimo: '',
           maximo: ''
@@ -416,89 +281,16 @@ function DashGestor() {
       
       setShowNewWorkForm(false);
       setEditingWork(null);
+      
+      // Recarregar as obras após criar/editar
+      loadWorks();
+      
     } catch (error) {
       console.error('Erro ao salvar obra:', error);
       alert(error.message || 'Erro ao salvar obra');
     } finally {
       setIsSubmitting(false);
     }
-  };
-
-  const filteredWorks = works.filter(work => {
-    const matchesSearch = work.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         work.description.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesStatus = selectedFilters.status === '' || 
-                         work.status.toLowerCase() === selectedFilters.status.toLowerCase();
-    
-    const matchesCategory = selectedFilters.category === '' || 
-                           work.category.toLowerCase() === selectedFilters.category.toLowerCase();
-    
-    const matchesPriority = selectedFilters.priority === '' || 
-                           work.priority.toLowerCase() === selectedFilters.priority.toLowerCase();
-
-    return matchesSearch && matchesStatus && matchesCategory && matchesPriority;
-  });
-
-  const getWorksForDate = (date) => {
-    return works.filter(work => {
-      const workDate = new Date(work.date);
-      return workDate.toDateString() === date.toDateString();
-    });
-  };
-
-  const handleDateClick = (date) => {
-    setSelectedDate(date);
-  };
-
-  const handleNotificationClick = () => {
-    setShowNotifications(!showNotifications);
-    if (!showNotifications) {
-      setNotifications(notifications.map(notif => ({ ...notif, read: true })));
-    }
-  };
-
-  const updateWork = async (workId, updatedWork) => {
-    try {
-      const workRef = doc(db, 'works', workId);
-      await updateDoc(workRef, {
-        title: updatedWork.title,
-        description: updatedWork.description,
-        category: updatedWork.category,
-        priority: updatedWork.priority,
-        location: updatedWork.location,
-        date: updatedWork.date,
-        files: updatedWork.files,
-        // Don't update status here as it's handled separately
-      });
-
-      // Update local state
-      setWorks(works.map(work => 
-        work.id === workId 
-          ? { ...work, ...updatedWork }
-          : work
-      ));
-    } catch (error) {
-      console.error('Error updating work:', error);
-      throw error;
-    }
-  };
-
-  // Função auxiliar para agrupar arquivos por tipo
-  const groupFilesByType = (files = []) => {
-    return {
-      images: files.filter(file => file?.type === 'image'),
-      videos: files.filter(file => file?.type === 'video'),
-      documents: files.filter(file => file?.type !== 'image' && file?.type !== 'video')
-    };
-  };
-
-  // Add file removal function
-  const handleRemoveFile = (fileToRemove) => {
-    setNewWork(prev => ({
-      ...prev,
-      files: prev.files.filter(file => file.url !== fileToRemove.url)
-    }));
   };
 
   // Função atualizada para deletar obra e suas notificações
@@ -678,6 +470,411 @@ function DashGestor() {
     }
   };
 
+  // Verificar se estamos em uma rota específica ou na raiz do dashgestor
+  const isRootPath = location.pathname === '/dashgestor';
+
+  const filteredWorks = works.filter(work => {
+    const matchesSearch = work.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         work.description.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesStatus = selectedFilters.status === '' || 
+                         work.status.toLowerCase() === selectedFilters.status.toLowerCase();
+    
+    const matchesCategory = selectedFilters.category === '' || 
+                           work.category.toLowerCase() === selectedFilters.category.toLowerCase();
+    
+    const matchesPriority = selectedFilters.priority === '' || 
+                           work.priority.toLowerCase() === selectedFilters.priority.toLowerCase();
+
+    return matchesSearch && matchesStatus && matchesCategory && matchesPriority;
+  });
+
+  // Função para iniciar uma conversa com o técnico que enviou um orçamento
+  const handleSendMessage = async (workId, fornecedorId, fornecedorNome) => {
+    try {
+      if (!user?.uid || !fornecedorId || !workId) {
+        alert('Informações incompletas para iniciar conversa. Tente novamente.');
+        return;
+      }
+
+      // Verificar se já existe uma conversa entre o gestor e o técnico para esta obra
+      const conversationsRef = collection(db, 'conversations');
+      const q = query(
+        conversationsRef,
+        where('participants', 'array-contains', user.uid),
+        where('workId', '==', workId)
+      );
+
+      const querySnapshot = await getDocs(q);
+      let conversationId;
+
+      if (!querySnapshot.empty) {
+        // Usar a primeira conversa encontrada
+        const conversationDoc = querySnapshot.docs.find(doc => {
+          const data = doc.data();
+          return data.participants.includes(fornecedorId);
+        });
+
+        if (conversationDoc) {
+          conversationId = conversationDoc.id;
+        }
+      }
+
+      // Se não existe conversa, criar uma nova
+      if (!conversationId) {
+        const workRef = doc(db, 'works', workId);
+        const workDoc = await getDoc(workRef);
+        const workData = workDoc.data();
+
+        // Criar nova conversa
+        const newConversation = {
+          participants: [user.uid, fornecedorId],
+          workId: workId,
+          workTitle: workData.title,
+          createdAt: serverTimestamp(),
+          lastMessageAt: serverTimestamp(),
+          lastMessage: 'Conversa iniciada'
+        };
+
+        const docRef = await addDoc(conversationsRef, newConversation);
+        conversationId = docRef.id;
+
+        // Adicionar mensagem inicial ao sistema
+        const messagesRef = collection(db, `conversations/${conversationId}/messages`);
+        await addDoc(messagesRef, {
+          text: `Conversa iniciada sobre a obra "${workData.title}"`,
+          senderId: 'system',
+          timestamp: serverTimestamp()
+        });
+
+        console.log(`Nova conversa criada: ${conversationId}`);
+      }
+
+      // Redirecionar para a página de mensagens
+      navigate(`/messages?conversation=${conversationId}`);
+    } catch (error) {
+      console.error('Erro ao iniciar conversa:', error);
+      alert('Erro ao iniciar conversa. Tente novamente.');
+    }
+  };
+
+  let content;
+  if (location.pathname.includes('/dashgestor/obras') || 
+      location.pathname.includes('/dashgestor/calendario') || 
+      location.pathname.includes('/dashgestor/mensagens') || 
+      location.pathname.includes('/dashgestor/perfil') || 
+      location.pathname.includes('/dashgestor/manutencoes')) {
+    content = (
+      <>
+        <TopBar />
+        <Routes>
+          <Route path="/obras" element={
+            <JobsComponent 
+              works={works.filter(w => !w.isMaintenance)}
+              handleSubmit={handleSubmit}
+              setNewWork={setNewWork}
+              newWork={newWork}
+              handleFileUpload={handleFileUpload}
+              handleRemoveFile={handleRemoveFile}
+              handleEdit={handleEdit}
+              handleDelete={handleDelete}
+              handleComplete={handleComplete}
+              handleStatusChange={handleStatusChange}
+              handleFileDownload={handleFileDownload}
+              handleViewDetails={handleViewDetails}
+              expandedWorks={expandedWorks}
+              isLoading={isLoading}
+              onSendMessage={handleSendMessage}
+            />
+          } />
+          <Route path="/calendario" element={<CalendarComponent />} />
+          <Route path="/mensagens" element={<MessagesComponent />} />
+          <Route path="/perfil" element={<ProfileComponent />} />
+          <Route path="/manutencoes" element={<MaintenanceComponent />} />
+        </Routes>
+      </>
+    );
+  } else {
+    // Esta é a interface padrão do dashboard
+    content = (
+      <div className="dashboard">
+        <TopBar />
+        
+        {isLoading ? (
+          <div className="loading-container">
+            <LoadingAnimation />
+          </div>
+        ) : (
+          <div className="dashboard-content">
+            <Metrics metrics={metrics} />
+            
+            <div className="dashboard-actions">
+              <SearchFilters 
+                onSearch={(term) => setSearchTerm(term)} 
+                onFilterChange={(filters) => setSelectedFilters(filters)}
+                selectedFilters={selectedFilters}
+              />
+              <NewWorkButton onClick={() => setShowNewWorkForm(true)} />
+            </div>
+            
+            <WorksTable 
+              works={filteredWorks}
+              expandedWorks={expandedWorks}
+              unviewedOrcamentos={unviewedOrcamentos}
+              searchTerm={searchTerm}
+              selectedFilters={selectedFilters}
+              onViewDetails={handleViewDetails}
+              onStatusChange={handleStatusChange}
+              onEdit={handleEdit}
+              onComplete={handleComplete}
+              onDelete={handleDelete}
+              onFileDownload={handleFileDownload}
+              onAcceptOrcamento={handleAceitarOrcamento}
+              onSendMessage={handleSendMessage}
+              groupFilesByType={groupFilesByType}
+            />
+            
+            {showNewWorkForm && (
+              <WorkForm 
+                newWork={newWork}
+                setNewWork={setNewWork}
+                handleFileUpload={handleFileUpload}
+                handleRemoveFile={handleRemoveFile}
+                isSubmitting={isSubmitting}
+                onSubmit={handleSubmit}
+                onCancel={() => setShowNewWorkForm(false)}
+                editMode={false}
+              />
+            )}
+            
+            {editingWork && (
+              <WorkForm 
+                newWork={editingWork}
+                setNewWork={setEditingWork}
+                handleFileUpload={handleFileUpload}
+                handleRemoveFile={handleRemoveFile}
+                isSubmitting={isSubmitting}
+                onSubmit={handleSubmit}
+                onCancel={() => setEditingWork(null)}
+                editMode={true}
+              />
+            )}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  const loadWorks = async () => {
+    if (!user?.email) return;
+    
+    setIsLoading(true);
+    try {
+      console.log('Iniciando carregamento de obras...', {
+        userEmail: user.email,
+        userId: user.uid
+      });
+      
+      const worksRef = collection(db, 'works');
+      
+      // Primeiro, vamos buscar todas as obras para debug
+      const allWorksSnapshot = await getDocs(worksRef);
+      console.log('Todas as obras no Firestore:', allWorksSnapshot.docs.map(doc => ({
+        id: doc.id,
+        userEmail: doc.data().userEmail,
+        title: doc.data().title
+      })));
+
+      // Agora fazemos a query filtrada por email
+      const worksQuery = query(
+        worksRef,
+        where('userEmail', '==', user.email)
+      );
+      
+      const snapshot = await getDocs(worksQuery);
+      console.log('Obras após filtro de userEmail:', snapshot.docs.map(doc => ({
+        id: doc.id,
+        userEmail: doc.data().userEmail,
+        title: doc.data().title
+      })));
+
+      const worksData = snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          ...data,
+          id: doc.id
+        };
+      });
+      
+      console.log('Obras processadas para o estado:', worksData.map(w => ({
+        id: w.id,
+        userEmail: w.userEmail,
+        title: w.title
+      })));
+      
+      setWorks(worksData);
+      
+    } catch (error) {
+      console.error('Erro ao carregar obras:', error);
+      setWorks([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadWorks();
+  }, [user?.uid]);
+
+  // Monitorar mudanças nos orçamentos
+  useEffect(() => {
+    // Verificar orçamentos não visualizados
+    const newUnviewedOrcamentos = {};
+    works.forEach(work => {
+      if (Array.isArray(work.orcamentos) && work.orcamentos.length > 0) {
+        // Verificar se há orçamentos não visualizados
+        const unviewedCount = work.orcamentos.filter(orc => !orc.visualizado).length;
+        if (unviewedCount > 0) {
+          newUnviewedOrcamentos[work.id] = unviewedCount;
+        }
+      }
+    });
+    setUnviewedOrcamentos(newUnviewedOrcamentos);
+  }, [works]);
+
+  useEffect(() => {
+    const fetchUserData = async () => {
+      if (!user?.uid) return;
+      
+      setIsLoading(true);
+      try {
+        const userDoc = await getDoc(doc(db, 'users', user.uid));
+        if (userDoc.exists()) {
+          setUserData(userDoc.data());
+        }
+      } catch (error) {
+        console.error('Error fetching user data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchUserData();
+  }, [user]);
+
+  useEffect(() => {
+    console.log('Current user:', user); // Debug log
+  }, [user]);
+
+  useEffect(() => {
+    console.log('Obras atuais:', works.map(w => ({ id: w.id, title: w.title })));
+  }, [works]);
+
+  useEffect(() => {
+    // Esta função será chamada apenas uma vez quando o componente for montado
+    const normalizarObrasExistentes = async () => {
+      try {
+        console.log("Iniciando normalização de obras existentes...");
+        const obrasRef = collection(db, 'works');
+        const q = query(obrasRef);
+        const querySnapshot = await getDocs(q);
+        
+        const batch = writeBatch(db);
+        let contadorAtualizacoes = 0;
+        
+        querySnapshot.forEach((docSnapshot) => {
+          const obraData = docSnapshot.data();
+          let precisaAtualizar = false;
+          const atualizacoes = {};
+          
+          // Verificar e corrigir a categoria para "Eletricidade"
+          if (obraData.category && typeof obraData.category === 'string') {
+            const categoriaLower = obraData.category.toLowerCase();
+            if (categoriaLower.includes("eletr") && obraData.category !== "Eletricidade") {
+              atualizacoes.category = "Eletricidade";
+              precisaAtualizar = true;
+              console.log(`Obra ${docSnapshot.id}: Categoria corrigida para "Eletricidade"`);
+            }
+          }
+          
+          // Verificar se o status está como "disponivel" para obras que ainda não têm técnico atribuído
+          if (!obraData.technicianId && obraData.status !== "disponivel") {
+            atualizacoes.status = "disponivel";
+            precisaAtualizar = true;
+            console.log(`Obra ${docSnapshot.id}: Status atualizado para "disponivel"`);
+          }
+          
+          // Se precisar atualizar, adiciona ao batch
+          if (precisaAtualizar) {
+            const obraRef = doc(db, 'works', docSnapshot.id);
+            batch.update(obraRef, atualizacoes);
+            contadorAtualizacoes++;
+          }
+        });
+        
+        // Executar o batch se houver atualizações
+        if (contadorAtualizacoes > 0) {
+          await batch.commit();
+          console.log(`${contadorAtualizacoes} obras foram atualizadas com sucesso!`);
+          // Atualizar as obras localmente depois do batch
+          loadWorks();
+        } else {
+          console.log("Nenhuma obra precisou ser atualizada.");
+        }
+        
+      } catch (error) {
+        console.error("Erro ao normalizar obras existentes:", error);
+      }
+    };
+    
+    // Executar a normalização
+    normalizarObrasExistentes();
+  }, []); // Este efeito será executado apenas uma vez na montagem
+
+  const getWorksForDate = (date) => {
+    return works.filter(work => {
+      const workDate = new Date(work.date);
+      return workDate.toDateString() === date.toDateString();
+    });
+  };
+
+  const handleDateClick = (date) => {
+    setSelectedDate(date);
+  };
+
+  const handleNotificationClick = () => {
+    setShowNotifications(!showNotifications);
+    if (!showNotifications) {
+      setNotifications(notifications.map(notif => ({ ...notif, read: true })));
+    }
+  };
+
+  const updateWork = async (workId, updatedWork) => {
+    try {
+      const workRef = doc(db, 'works', workId);
+      await updateDoc(workRef, {
+        title: updatedWork.title,
+        description: updatedWork.description,
+        category: updatedWork.category,
+        priority: updatedWork.priority,
+        location: updatedWork.location,
+        date: updatedWork.date,
+        files: updatedWork.files,
+        // Don't update status here as it's handled separately
+      });
+
+      // Update local state
+      setWorks(works.map(work => 
+        work.id === workId 
+          ? { ...work, ...updatedWork }
+          : work
+      ));
+    } catch (error) {
+      console.error('Error updating work:', error);
+      throw error;
+    }
+  };
+
   const tileContent = ({ date }) => {
     const worksForDate = getWorksForDate(date);
     return worksForDate.length > 0 ? (
@@ -693,129 +890,7 @@ function DashGestor() {
     ) : null;
   };
 
-  return (
-    <div className="dashboard-container">
-      <nav className="top-nav">
-        <div className="nav-left">
-          <button 
-            className="back-button" 
-            onClick={() => navigate('/login')}
-          >
-            <FiArrowLeft />
-          </button>
-          <h1>
-            {isLoading ? (
-              <span className="loading-name">Carregando...</span>
-            ) : (
-              userData ? `Gestão de Obras - ${userData.name}` : 'Gestão de Obras'
-            )}
-          </h1>
-        </div>
-      </nav>
-
-      <Metrics metrics={metrics} isLoading={isLoading} />
-
-      <section className="actions-bar">
-        <SearchFilters 
-          searchTerm={searchTerm}
-          setSearchTerm={setSearchTerm}
-          selectedFilters={selectedFilters}
-          setSelectedFilters={setSelectedFilters}
-        />
-        <select
-          className="priority-filter"
-          value={selectedFilters.priority}
-          onChange={(e) => setSelectedFilters({...selectedFilters, priority: e.target.value})}
-        >
-          <option value="">Prioridade</option>
-          <option value="Baixa">Baixa</option>
-          <option value="Média">Média</option>
-          <option value="Alta">Alta</option>
-        </select>
-        <button 
-          className={`calendar-toggle-btn ${showCalendar ? 'active' : ''}`}
-          onClick={() => setShowCalendar(!showCalendar)}
-        >
-          <FiCalendar /> Calendário
-        </button>
-        <NewWorkButton onClick={() => setShowNewWorkForm(true)} />
-      </section>
-
-      {showCalendar && (
-        <section className="calendar-section">
-          <div className="calendar-container">
-            <Calendar
-              onChange={handleDateClick}
-              value={selectedDate}
-              tileContent={tileContent}
-            />
-          </div>
-          <div className="calendar-works">
-            <h3>Obras em {selectedDate.toLocaleDateString()}</h3>
-            {getWorksForDate(selectedDate).length > 0 ? (
-              <div className="calendar-works-list">
-                {getWorksForDate(selectedDate).map(work => (
-                  <div key={work.id} className="calendar-work-card">
-                    <div className="calendar-work-header">
-                      <h4>{work.title}</h4>
-                      <span className={`priority-badge ${work.priority.toLowerCase()}`}>
-                        {work.priority}
-                      </span>
-                    </div>
-                    <p>{work.description}</p>
-                    <div className="calendar-work-footer">
-                      <span className={`status-badge ${work.status.toLowerCase().replace(' ', '-')}`}>
-                        {work.status}
-                      </span>
-                      <span className="location">{work.location.morada}, {work.location.cidade}, {work.location.codigoPostal}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="no-works">Nenhuma obra programada para esta data</p>
-            )}
-          </div>
-        </section>
-      )}
-
-      <section className="works-table-container">
-        {isLoading ? (
-          <div className="loading-container">
-            <LoadingAnimation />
-          </div>
-        ) : (
-          <WorksTable 
-            filteredWorks={filteredWorks}
-            expandedWorks={expandedWorks}
-            handleViewDetails={handleViewDetails}
-            handleEdit={handleEdit}
-            handleComplete={handleComplete}
-            handleDelete={handleDelete}
-            unviewedOrcamentos={unviewedOrcamentos}
-            handleFileDownload={handleFileDownload}
-            handleAceitarOrcamento={handleAceitarOrcamento}
-            markOrcamentosAsViewed={markOrcamentosAsViewed}
-          />
-        )}
-      </section>
-
-      {showNewWorkForm && (
-        <WorkForm 
-          showNewWorkForm={showNewWorkForm}
-          setShowNewWorkForm={setShowNewWorkForm}
-          newWork={newWork}
-          setNewWork={setNewWork}
-          handleSubmit={handleSubmit}
-          handleFileUpload={handleFileUpload}
-          handleRemoveFile={handleRemoveFile}
-          editingWork={editingWork}
-          setEditingWork={setEditingWork}
-          isSubmitting={isSubmitting}
-        />
-      )}
-    </div>
-  );
+  return content;
 }
 
 export default DashGestor;

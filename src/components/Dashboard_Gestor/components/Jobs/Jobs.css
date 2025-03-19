@@ -1,0 +1,484 @@
+.jobs-container {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 24px;
+  padding-top: 80px;
+}
+
+.jobs-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 24px;
+  justify-content: space-between;
+}
+
+.back-button {
+  display: flex;
+  align-items: center;
+  background: none;
+  border: none;
+  color: #6B7280;
+  font-size: 14px;
+  cursor: pointer;
+  margin-right: 16px;
+  padding: 8px 12px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.back-button:hover {
+  background-color: #F3F4F6;
+  color: #111827;
+}
+
+.back-button svg {
+  margin-right: 8px;
+}
+
+.jobs-header h1 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #111827;
+  margin: 0;
+  flex-grow: 1;
+}
+
+.view-toggle {
+  display: flex;
+  gap: 8px;
+}
+
+.view-toggle-btn {
+  background: none;
+  border: 1px solid #E5E7EB;
+  color: #6B7280;
+  width: 36px;
+  height: 36px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.view-toggle-btn.active {
+  background-color: #2563EB;
+  color: white;
+  border-color: #2563EB;
+}
+
+.view-toggle-btn:hover:not(.active) {
+  background-color: #F3F4F6;
+}
+
+/* Estilos para as categorias */
+.categories-container {
+  margin-bottom: 32px;
+  width: 100%;
+}
+
+.categories-container h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 16px;
+}
+
+.categories-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  justify-content: flex-start;
+}
+
+.category-card {
+  background-color: #F9FAFB;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  width: calc(20% - 16px); /* 5 cards por linha em telas grandes */
+  min-width: 110px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.category-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.category-card.active {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 10px rgba(0, 0, 0, 0.1);
+  font-weight: 600;
+}
+
+.category-card.active .category-name {
+  font-weight: 600;
+}
+
+.category-card.active .category-icon {
+  transform: scale(1.1);
+  transition: transform 0.2s ease;
+}
+
+.category-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 8px;
+  font-size: 24px;
+}
+
+.category-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: #374151;
+  text-align: center;
+  margin-bottom: 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
+}
+
+.create-work-btn {
+  margin-top: 8px;
+  background-color: #2563EB;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: background-color 0.2s;
+  width: 100%;
+  justify-content: center;
+}
+
+.create-work-btn:hover {
+  background-color: #1D4ED8;
+}
+
+/* Estilos para a lista de obras */
+.works-list-container {
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  padding: 24px;
+}
+
+/* Estilos para as subcategorias */
+.subcategorias-container {
+  margin-bottom: 24px;
+  padding: 16px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  border-left: 4px solid #2563EB;
+}
+
+.subcategorias-container h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #111827;
+  margin-top: 0;
+  margin-bottom: 12px;
+}
+
+.subcategorias-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 10px;
+}
+
+.subcategoria-item {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  background-color: white;
+  border-radius: 6px;
+  font-size: 14px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  transition: all 0.2s ease;
+}
+
+.subcategoria-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.subcategoria-bullet {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 10px;
+  flex-shrink: 0;
+}
+
+.works-list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.works-list-header h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #111827;
+  margin: 0;
+}
+
+.create-work-btn-header {
+  background-color: #2563EB;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 16px;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: background-color 0.2s;
+}
+
+.create-work-btn-header:hover {
+  background-color: #1D4ED8;
+}
+
+/* Grid de obras */
+.works-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+}
+
+.work-card {
+  background-color: #F9FAFB;
+  border: 1px solid #E5E7EB;
+  border-radius: 8px;
+  padding: 16px;
+  transition: all 0.2s ease;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.work-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  border-color: #D1D5DB;
+}
+
+.work-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.work-card-header h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #111827;
+  margin: 0;
+  padding-right: 12px;
+}
+
+.work-card-description {
+  font-size: 14px;
+  color: #6B7280;
+  margin: 0 0 16px 0;
+  flex-grow: 1;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  line-height: 1.5;
+}
+
+.work-card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: auto;
+}
+
+.work-card-date {
+  font-size: 12px;
+  color: #6B7280;
+}
+
+.no-works-message {
+  grid-column: 1 / -1;
+  text-align: center;
+  color: #6B7280;
+  padding: 32px 0;
+  font-style: italic;
+}
+
+/* Status e categoria badges */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.status-badge.pendente {
+  background-color: #FEF3C7;
+  color: #92400E;
+}
+
+.status-badge.em-andamento {
+  background-color: #DBEAFE;
+  color: #1E40AF;
+}
+
+.status-badge.concluído {
+  background-color: #D1FAE5;
+  color: #065F46;
+}
+
+.status-badge.disponivel {
+  background-color: #E0E7FF;
+  color: #3730A3;
+}
+
+.category-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 500;
+  background-color: #E5E7EB;
+  color: #4B5563;
+}
+
+.category-badge.infiltração {
+  background-color: #EFF6FF;
+  color: #1E40AF;
+}
+
+.category-badge.fissuras-e-rachaduras {
+  background-color: #FEF2F2;
+  color: #991B1B;
+}
+
+.category-badge.canalização {
+  background-color: #ECFDF5;
+  color: #065F46;
+}
+
+.category-badge.manutenção {
+  background-color: #FFFBEB;
+  color: #92400E;
+}
+
+.category-badge.jardinagem {
+  background-color: #F0FDF4;
+  color: #166534;
+}
+
+.category-badge.fiscalização {
+  background-color: #F5F3FF;
+  color: #5B21B6;
+}
+
+.category-badge.reabilitação-de-fachada {
+  background-color: #F3F4F6;
+  color: #1F2937;
+}
+
+.category-badge.eletricidade {
+  background-color: #FEFCE8;
+  color: #854D0E;
+}
+
+.category-badge.construção {
+  background-color: #FFF7ED;
+  color: #9A3412;
+}
+
+.category-badge.pintura {
+  background-color: #ECFEFF;
+  color: #155E75;
+}
+
+/* Responsividade */
+@media (max-width: 1200px) {
+  .category-card {
+    width: calc(25% - 16px); /* 4 cards por linha */
+  }
+}
+
+@media (max-width: 992px) {
+  .category-card {
+    width: calc(33.33% - 16px); /* 3 cards por linha */
+  }
+}
+
+@media (max-width: 768px) {
+  .category-card {
+    width: calc(50% - 16px); /* 2 cards por linha */
+    min-width: unset;
+  }
+  
+  .works-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .jobs-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .jobs-header h1 {
+    margin-bottom: 0;
+  }
+
+  .view-toggle {
+    align-self: flex-end;
+  }
+
+  .category-icon {
+    width: 40px;
+    height: 40px;
+    font-size: 20px;
+  }
+
+  .category-name {
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .categories-container {
+    margin-bottom: 20px;
+  }
+
+  .category-card {
+    width: calc(50% - 12px); /* 2 cards por linha com gap menor */
+    padding: 8px;
+  }
+  
+  .categories-grid {
+    gap: 12px;
+  }
+} 

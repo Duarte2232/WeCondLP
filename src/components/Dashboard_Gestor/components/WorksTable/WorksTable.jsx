@@ -1,24 +1,58 @@
 import React from 'react';
 import './WorksTable.css';
-import { FiEdit2, FiCheck, FiX, FiAlertCircle, FiDownload, FiFile, FiEye } from 'react-icons/fi';
+import { FiEdit2, FiCheck, FiX, FiAlertCircle, FiDownload, FiFile, FiEye, FiMessageCircle } from 'react-icons/fi';
 import LoadingAnimation from '../../../LoadingAnimation/LoadingAnimation';
 
 function WorksTable({ 
   isLoading, 
-  filteredWorks, 
+  works, 
   expandedWorks, 
-  handleViewDetails, 
-  handleEdit, 
-  handleComplete, 
-  handleDelete, 
+  onViewDetails, 
+  onEdit, 
+  onComplete, 
+  onDelete, 
   unviewedOrcamentos,
-  handleFileDownload,
-  handleAceitarOrcamento,
-  markOrcamentosAsViewed
+  onFileDownload,
+  onAcceptOrcamento,
+  onStatusChange,
+  searchTerm,
+  selectedFilters,
+  groupFilesByType,
+  isSimplified = false,
+  onSendMessage
 }) {
+  // Filter works based on search term and filters
+  const filteredWorks = works ? works.filter(work => {
+    const matchesSearch = searchTerm ? (
+      work.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      work.description.toLowerCase().includes(searchTerm.toLowerCase())
+    ) : true;
+    
+    const matchesStatus = selectedFilters?.status ? 
+      work.status.toLowerCase() === selectedFilters.status.toLowerCase() : true;
+    
+    const matchesCategory = selectedFilters?.category ? 
+      work.category.toLowerCase() === selectedFilters.category.toLowerCase() : true;
+    
+    const matchesPriority = selectedFilters?.priority ? 
+      work.priority.toLowerCase() === selectedFilters.priority.toLowerCase() : true;
+
+    return matchesSearch && matchesStatus && matchesCategory && matchesPriority;
+  }) : [];
+
+  if (!works) {
+    return (
+      <section className="works-table-container">
+        <div className="loading-container">
+          <LoadingAnimation />
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className="works-table-container">
-      {isLoading ? (
+      {!works ? (
         <div className="loading-container">
           <LoadingAnimation />
         </div>
@@ -31,31 +65,31 @@ function WorksTable({
               <th>Categoria</th>
               <th>Prioridade</th>
               <th>Status</th>
-              <th>Ações</th>
+              {!isSimplified && <th>Ações</th>}
             </tr>
           </thead>
           <tbody>
             {filteredWorks.map((work, index) => (
               <React.Fragment key={`${work.id}-${index}`}>
                 <tr 
-                  className={`work-row ${work.status === 'Concluído' ? 'concluida' : ''} ${unviewedOrcamentos[work.id] ? 'work-row-with-notification' : ''}`}
-                  onClick={() => handleViewDetails(work.id)}
+                  className={`work-row ${work.status === 'Concluído' ? 'concluida' : ''} ${unviewedOrcamentos && unviewedOrcamentos[work.id] ? 'work-row-with-notification' : ''}`}
+                  onClick={() => onViewDetails(work.id)}
                 >
                   <td data-label="Título">
                     <div className="title-with-notification">
                       <span className="work-title">{work.title}</span>
-                      {Array.isArray(work.orcamentos) && work.orcamentos.length > 0 && (
+                      {Array.isArray(work.orcamentos) && work.orcamentos.length > 0 && !isSimplified && (
                         <span className="orcamentos-count" title={`${work.orcamentos.length} orçamento(s) disponível(is)`}>
                           {work.orcamentos.length}
                         </span>
                       )}
-                      {unviewedOrcamentos[work.id] && (
+                      {unviewedOrcamentos && unviewedOrcamentos[work.id] && !isSimplified && (
                         <span 
                           className="orcamento-notification" 
                           title={`${unviewedOrcamentos[work.id]} novo(s) orçamento(s)`}
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleViewDetails(work.id);
+                            onViewDetails(work.id);
                           }}
                         >
                           <FiAlertCircle />
@@ -66,9 +100,14 @@ function WorksTable({
                   </td>
                   <td data-label="Data">{new Date(work.date).toLocaleDateString()}</td>
                   <td data-label="Categoria">
-                    <span className={`category-badge ${work.category.toLowerCase()}`}>
+                    <span className={`category-badge ${work.category.toLowerCase().replace(/\s+/g, '-')}`}>
                       {work.category}
                     </span>
+                    {work.subcategoria && (
+                      <span className="subcategoria-info">
+                        <span className="subcategoria-arrow">›</span> {work.subcategoria}
+                      </span>
+                    )}
                   </td>
                   <td data-label="Prioridade">
                     <span className={`priority-badge ${work.priority.toLowerCase()}`}>
@@ -80,41 +119,55 @@ function WorksTable({
                       {work.status}
                     </span>
                   </td>
-                  <td data-label="Ações" className="actions-cell" onClick={e => e.stopPropagation()}>
-                    <button 
-                      className="action-btn" 
-                      title="Editar"
-                      onClick={() => handleEdit(work)}
-                    >
-                      <FiEdit2 />
-                    </button>
-                    <button 
-                      className="action-btn" 
-                      title="Marcar como concluído"
-                      onClick={() => handleComplete(work.id)}
-                    >
-                      <FiCheck />
-                    </button>
-                    <button 
-                      className="action-btn delete-btn" 
-                      title="Excluir"
-                      onClick={() => handleDelete(work.id)}
-                    >
-                      <FiX />
-                    </button>
-                  </td>
+                  {!isSimplified && (
+                    <td data-label="Ações" className="actions-cell" onClick={e => e.stopPropagation()}>
+                      <button 
+                        className="action-btn" 
+                        title="Editar"
+                        onClick={() => onEdit(work)}
+                      >
+                        <FiEdit2 />
+                      </button>
+                      <button 
+                        className="action-btn" 
+                        title="Marcar como concluído"
+                        onClick={() => onComplete(work.id)}
+                      >
+                        <FiCheck />
+                      </button>
+                      <button 
+                        className="action-btn delete-btn" 
+                        title="Excluir"
+                        onClick={() => onDelete(work.id)}
+                      >
+                        <FiX />
+                      </button>
+                    </td>
+                  )}
                 </tr>
-                {expandedWorks.has(work.id) && (
+                {expandedWorks.has(work.id) && !isSimplified && (
                   <tr className="details-row">
                     <td colSpan="6">
                       <div className="work-details">
-                        {unviewedOrcamentos[work.id] && markOrcamentosAsViewed(work.id)}
                         <div className="work-details-container">
                           <div className="work-details-main">
                             <div className="details-content">
                               <div className="details-section">
                                 <h4>Descrição</h4>
                                 <p>{work.description}</p>
+                              </div>
+                              <div className="details-section">
+                                <h4>Categoria</h4>
+                                <p>
+                                  <span className={`category-badge ${work.category.toLowerCase().replace(/\s+/g, '-')}`}>
+                                    {work.category}
+                                  </span>
+                                  {work.subcategoria && (
+                                    <span className="subcategoria-info">
+                                      <span className="subcategoria-arrow">›</span> {work.subcategoria}
+                                    </span>
+                                  )}
+                                </p>
                               </div>
                               <div className="details-section">
                                 <h4>Localização</h4>
@@ -129,19 +182,19 @@ function WorksTable({
                                   <div className="status-selector">
                                     <button 
                                       className={`status-btn ${work.status === 'Pendente' ? 'active' : ''}`}
-                                      onClick={() => handleStatusChange(work.id, 'Pendente')}
+                                      onClick={() => onStatusChange(work.id, 'Pendente')}
                                     >
                                       Pendente
                                     </button>
                                     <button 
                                       className={`status-btn ${work.status === 'Em Andamento' ? 'active' : ''}`}
-                                      onClick={() => handleStatusChange(work.id, 'Em Andamento')}
+                                      onClick={() => onStatusChange(work.id, 'Em Andamento')}
                                     >
                                       Em Andamento
                                     </button>
                                     <button 
                                       className={`status-btn ${work.status === 'Concluído' ? 'active' : ''}`}
-                                      onClick={() => handleStatusChange(work.id, 'Concluído')}
+                                      onClick={() => onStatusChange(work.id, 'Concluído')}
                                     >
                                       Concluído
                                     </button>
@@ -154,8 +207,15 @@ function WorksTable({
                                   <h4>Arquivos</h4>
                                   <div className="files-preview-sections">
                                     {['image', 'video', 'document'].map(fileType => {
-                                      const filesOfType = work.files.filter(file => file.type === fileType);
-                                      if (filesOfType.length === 0) return null;
+                                      // Use the groupFilesByType function to organize files
+                                      const filesByType = groupFilesByType(work.files);
+                                      const filesOfType = fileType === 'image' 
+                                        ? filesByType.images 
+                                        : fileType === 'video' 
+                                          ? filesByType.videos 
+                                          : filesByType.documents;
+                                      
+                                      if (!filesOfType || filesOfType.length === 0) return null;
                                       
                                       return (
                                         <div key={fileType} className="file-type-section">
@@ -183,7 +243,7 @@ function WorksTable({
                                                     className="download-btn"
                                                     onClick={(e) => {
                                                       e.stopPropagation();
-                                                      handleFileDownload(file);
+                                                      onFileDownload(file);
                                                     }}
                                                   >
                                                     <FiDownload /> Baixar
@@ -201,10 +261,11 @@ function WorksTable({
                             </div>
                           </div>
                           
-                          {work.orcamentos && work.orcamentos.length > 0 && (
+                          {work.orcamentos && Array.isArray(work.orcamentos) && work.orcamentos.length > 0 && (
                             <div className="orcamentos-sidebar">
                               <div className="orcamentos-header">
                                 <h3>Orçamentos</h3>
+                                <p className="orcamentos-tip">Clique em "Aceitar" para aprovar um orçamento</p>
                               </div>
                               <div className="orcamentos-list">
                                 {work.orcamentos.map((orcamento, idx) => (
@@ -233,15 +294,28 @@ function WorksTable({
                                         <>
                                           <button 
                                             className="orcamento-download"
-                                            onClick={() => handleFileDownload(orcamento.arquivo)}
+                                            onClick={() => onFileDownload(orcamento.arquivo)}
                                           >
                                             <FiDownload /> Ver PDF
                                           </button>
                                           <button 
-                                            className="orcamento-aceitar"
-                                            onClick={() => handleAceitarOrcamento(work.id, idx)}
+                                            className="orcamento-mensagem"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              if (onSendMessage) {
+                                                onSendMessage(work.id, orcamento.fornecedorId, orcamento.fornecedor);
+                                              }
+                                            }}
+                                            title="Enviar mensagem ao fornecedor"
                                           >
-                                            <FiCheck />
+                                            <FiMessageCircle /> Mensagem
+                                          </button>
+                                          <button 
+                                            className="orcamento-aceitar"
+                                            onClick={() => onAcceptOrcamento(work.id, idx)}
+                                            title="Aceitar este orçamento"
+                                          >
+                                            <FiCheck style={{ strokeWidth: 3 }} /> Aceitar
                                           </button>
                                         </>
                                       )}

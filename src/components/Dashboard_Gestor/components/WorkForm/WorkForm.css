@@ -278,4 +278,59 @@
 
 .orcamento-range .form-group {
   flex: 1;
+}
+
+/* Add new type toggle styles */
+.type-toggle {
+  display: flex;
+  gap: 16px;
+  margin-top: 8px;
+}
+
+.type-option {
+  display: flex;
+  align-items: center;
+  padding: 8px 16px;
+  border: 1px solid #D1D5DB;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 14px;
+  position: relative;
+  background-color: #F9FAFB;
+}
+
+.type-option input {
+  position: absolute;
+  opacity: 0;
+  cursor: pointer;
+  height: 0;
+  width: 0;
+}
+
+.type-option.active {
+  background-color: #EBF5FF;
+  border-color: #2563EB;
+  color: #2563EB;
+}
+
+/* Update the existing submit button class to be save-btn */
+.save-btn {
+  background-color: #2563EB;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 10px 24px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.save-btn:hover {
+  background-color: #1D4ED8;
+}
+
+.save-btn:disabled {
+  background-color: #93C5FD;
+  cursor: not-allowed;
 } 

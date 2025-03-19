@@ -21,7 +21,7 @@ function App() {
             </div>
           } />
           <Route path="/login" element={<Login />} />
-          <Route path="/dashgestor" element={<DashGestor />} />
+          <Route path="/dashgestor/*" element={<DashGestor />} />
           <Route path="/dashtecnico/*" element={<DashTecnico />} />
           <Route path="/dashadmin" element={<DashAdmin />} />
         </Routes>
