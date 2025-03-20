@@ -692,6 +692,7 @@ function DashGestor() {
             <option value="Baixa">Baixa</option>
             <option value="Média">Média</option>
             <option value="Alta">Alta</option>
+            <option value="Urgente (24h-48h)">Urgente (24h-48h)</option>
           </select>
         </div>
         <button 
@@ -1078,6 +1079,7 @@ function DashGestor() {
                     <option value="Baixa">Baixa</option>
                     <option value="Média">Média</option>
                     <option value="Alta">Alta</option>
+                    <option value="Urgente (24h-48h)">Urgente (24h-48h)</option>
                   </select>
                 </div>
               </div>
