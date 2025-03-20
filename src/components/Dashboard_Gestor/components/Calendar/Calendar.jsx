@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiArrowLeft, FiPlus, FiChevronLeft, FiChevronRight, FiFilter, FiCheck } from 'react-icons/fi';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, query } from 'firebase/firestore';
 import { db } from '../../../../services/firebase';
 import './Calendar.css';
 
@@ -20,18 +20,20 @@ const Calendar = () => {
     prazosOrcamentos: true
   });
 
-  // Buscar obras e eventos do Firestore
+  // Buscar as obras e eventos ao carregar a página
   useEffect(() => {
-    const fetchObras = async () => {
-      setIsLoading(true);
+    const fetchData = async () => {
       try {
-        // Buscar obras da coleção 'works' em vez de 'obras'
-        const obrasSnapshot = await getDocs(collection(db, 'works'));
-        const obrasData = obrasSnapshot.docs.map(doc => ({
+        setIsLoading(true);
+
+        // Buscar as obras no Firestore
+        const q = query(collection(db, 'works'));
+        const querySnapshot = await getDocs(q);
+        const obrasData = querySnapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data()
         }));
-        
+
         console.log('Obras carregadas:', obrasData); // Debug log
         setObras(obrasData);
 
@@ -44,7 +46,8 @@ const Calendar = () => {
             try {
               const obraDate = new Date(obra.date);
               if (!isNaN(obraDate.getTime())) {
-                obrasEventos.push({
+                // Create the base event
+                const baseEvent = {
                   id: `obra-${obra.id}`,
                   titulo: obra.title,
                   data: formatDateToDisplay(obraDate),
@@ -52,8 +55,75 @@ const Calendar = () => {
                   color: obra.isMaintenance ? '#f59e0b' : '#2563eb',
                   details: obra.description,
                   local: obra.location ? `${obra.location.morada || ''}, ${obra.location.cidade || ''}` : '',
-                  originalDate: obraDate
-                });
+                  originalDate: obraDate,
+                  frequency: obra.frequency || 'Única' // Add frequency information
+                };
+
+                // Add the event to the array
+                obrasEventos.push(baseEvent);
+
+                // If it's a maintenance with a frequency, generate recurring events
+                if (obra.isMaintenance && obra.frequency && obra.frequency !== 'Única') {
+                  const startDate = new Date(obraDate);
+                  // Generate recurring events up to 1 year in the future
+                  const endDate = new Date(startDate);
+                  endDate.setFullYear(endDate.getFullYear() + 1);
+                  
+                  let currentDate = new Date(startDate);
+                  currentDate.setDate(currentDate.getDate() + 1); // Start from the next day
+                  
+                  while (currentDate <= endDate) {
+                    let shouldAddEvent = false;
+                    
+                    // Calculate the next occurrence based on frequency
+                    switch(obra.frequency) {
+                      case 'Diária':
+                        shouldAddEvent = true;
+                        currentDate.setDate(currentDate.getDate() + 1);
+                        break;
+                      case 'Semanal':
+                        shouldAddEvent = true;
+                        currentDate.setDate(currentDate.getDate() + 7);
+                        break;
+                      case 'Quinzenal':
+                        shouldAddEvent = true;
+                        currentDate.setDate(currentDate.getDate() + 14);
+                        break;
+                      case 'Mensal':
+                        shouldAddEvent = true;
+                        currentDate.setMonth(currentDate.getMonth() + 1);
+                        break;
+                      case 'Trimestral':
+                        shouldAddEvent = true;
+                        currentDate.setMonth(currentDate.getMonth() + 3);
+                        break;
+                      case 'Semestral':
+                        shouldAddEvent = true;
+                        currentDate.setMonth(currentDate.getMonth() + 6);
+                        break;
+                      case 'Anual':
+                        shouldAddEvent = true;
+                        currentDate.setFullYear(currentDate.getFullYear() + 1);
+                        break;
+                      default:
+                        // If no valid frequency, don't add recurring events
+                        currentDate = new Date(endDate);
+                        currentDate.setDate(currentDate.getDate() + 1); // break the loop
+                    }
+                    
+                    if (shouldAddEvent) {
+                      const recurringDate = new Date(currentDate);
+                      obrasEventos.push({
+                        ...baseEvent,
+                        id: `${baseEvent.id}-recur-${recurringDate.getTime()}`,
+                        titulo: `${baseEvent.titulo} (${obra.frequency})`,
+                        data: formatDateToDisplay(recurringDate),
+                        originalDate: new Date(recurringDate),
+                        isRecurring: true
+                      });
+                    }
+                  }
+                }
               }
             } catch (error) {
               console.error('Erro ao processar data da obra:', error);
@@ -115,14 +185,17 @@ const Calendar = () => {
         
         setEventos(todosEventos);
       } catch (error) {
-        console.error('Erro ao buscar obras:', error);
+        console.error('Erro ao carregar dados:', error);
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchObras();
-  }, []);
+    fetchData();
+    
+    // Re-run this effect whenever the component mounts
+    // This ensures that any new events added elsewhere in the app will be displayed
+  }, [db]);
 
   const formatDateToDisplay = (date) => {
     return `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;

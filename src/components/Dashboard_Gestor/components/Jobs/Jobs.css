@@ -72,17 +72,22 @@
   background-color: #F3F4F6;
 }
 
-/* Estilos para as categorias */
+/* Estilos para o grid de categorias */
 .categories-container {
-  margin-bottom: 32px;
-  width: 100%;
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  padding: 24px;
+  margin-bottom: 24px;
+  overflow: visible;
 }
 
 .categories-container h2 {
   font-size: 1.25rem;
   font-weight: 600;
   color: #111827;
-  margin-bottom: 16px;
+  margin-top: 0;
+  margin-bottom: 24px;
 }
 
 .categories-grid {
@@ -93,61 +98,70 @@
 }
 
 .category-card {
-  background-color: #F9FAFB;
-  border: 2px solid transparent;
-  border-radius: 8px;
-  padding: 12px;
   display: flex;
-  flex-direction: column;
   align-items: center;
+  background-color: #f9fafb;
+  border-radius: 8px;
+  padding: 16px;
+  border: 2px solid transparent;
   cursor: pointer;
   transition: all 0.2s ease;
-  width: calc(20% - 16px); /* 5 cards por linha em telas grandes */
-  min-width: 110px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  width: calc(25% - 16px);
+  min-width: 220px;
+  max-width: 280px;
 }
 
 .category-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
 }
 
 .category-card.active {
-  transform: translateY(-3px);
-  box-shadow: 0 6px 10px rgba(0, 0, 0, 0.1);
-  font-weight: 600;
-}
-
-.category-card.active .category-name {
-  font-weight: 600;
-}
-
-.category-card.active .category-icon {
-  transform: scale(1.1);
-  transition: transform 0.2s ease;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
 }
 
 .category-icon {
   width: 48px;
   height: 48px;
-  border-radius: 50%;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 8px;
   font-size: 24px;
+  margin-right: 16px;
+  flex-shrink: 0;
 }
 
 .category-name {
-  font-size: 14px;
-  font-weight: 500;
-  color: #374151;
-  text-align: center;
-  margin-bottom: 8px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  width: 100%;
+  font-weight: 600;
+  color: #111827;
+  font-size: 16px;
+}
+
+/* Responsividade para as categorias */
+@media (max-width: 1200px) {
+  .category-card {
+    width: calc(33.333% - 16px);
+  }
+}
+
+@media (max-width: 992px) {
+  .category-card {
+    width: calc(50% - 16px);
+  }
+}
+
+@media (max-width: 768px) {
+  .categories-grid {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: space-between;
+  }
+  
+  .category-card {
+    width: calc(50% - 8px);
+    min-width: 150px;
+  }
 }
 
 .create-work-btn {
@@ -418,67 +432,4 @@
 .category-badge.pintura {
   background-color: #ECFEFF;
   color: #155E75;
-}
-
-/* Responsividade */
-@media (max-width: 1200px) {
-  .category-card {
-    width: calc(25% - 16px); /* 4 cards por linha */
-  }
-}
-
-@media (max-width: 992px) {
-  .category-card {
-    width: calc(33.33% - 16px); /* 3 cards por linha */
-  }
-}
-
-@media (max-width: 768px) {
-  .category-card {
-    width: calc(50% - 16px); /* 2 cards por linha */
-    min-width: unset;
-  }
-  
-  .works-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .jobs-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
-  }
-
-  .jobs-header h1 {
-    margin-bottom: 0;
-  }
-
-  .view-toggle {
-    align-self: flex-end;
-  }
-
-  .category-icon {
-    width: 40px;
-    height: 40px;
-    font-size: 20px;
-  }
-
-  .category-name {
-    font-size: 12px;
-  }
-}
-
-@media (max-width: 480px) {
-  .categories-container {
-    margin-bottom: 20px;
-  }
-
-  .category-card {
-    width: calc(50% - 12px); /* 2 cards por linha com gap menor */
-    padding: 8px;
-  }
-  
-  .categories-grid {
-    gap: 12px;
-  }
 } 

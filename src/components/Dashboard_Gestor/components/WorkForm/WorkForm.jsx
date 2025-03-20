@@ -5,106 +5,97 @@ import { FiX, FiUpload, FiFile } from 'react-icons/fi';
 // Lista de categorias e subcategorias para o formulário
 const categoriasForm = [
   { 
-    id: 'Infiltração', 
-    subcategorias: [
-      'Infiltração em coberturas e terraços',
-      'Infiltração em paredes e fachadas',
-      'Infiltração em garagens e caves',
-      'Diagnóstico e identificação de causas',
-      'Soluções de impermeabilização'
+    "id": "Infiltração",
+    "tipos_de_obras": [
+      "Impermeabilização de coberturas e terraços",
+      "Revestimento de paredes exteriores para proteção contra infiltrações",
+      "Instalação de novos sistemas de drenagem",
+      "Substituição de materiais afetados pela humidade",
+      "Reparação de fissuras causadoras de infiltrações"
     ]
   },
   { 
-    id: 'Fissuras e rachaduras', 
-    subcategorias: [
-      'Fissuras estruturais',
-      'Rachaduras em paredes interiores e exteriores',
-      'Rachaduras em fachadas e varandas',
-      'Monitorização e avaliação periódica',
-      'Técnicas de reparação e reforço estrutural'
+    "id": "Fissuras e rachaduras", 
+    "tipos_de_obras": [
+      "Reforço estrutural de elementos danificados",
+      "Reparação de fissuras em paredes interiores e exteriores",
+      "Substituição de revestimentos afetados por rachaduras",
+      "Correção de deformações em varandas e fachadas",
+      "Aplicação de novos materiais de revestimento mais resistentes"
     ]
   },
   { 
-    id: 'Canalização', 
-    subcategorias: [
-      'Deteção e reparação de fugas de água',
-      'Substituição e manutenção de tubagens',
-      'Limpeza e desobstrução de esgotos',
-      'Sistemas de pressurização e bombagem',
-      'Manutenção de reservatórios e depósitos de água'
+    "id": "Canalização", 
+    "tipos_de_obras": [
+      "Instalação de novas tubagens de água e esgoto",
+      "Construção de sistemas de drenagem pluvial",
+      "Reabilitação completa da rede de abastecimento de água",
+      "Modernização dos sistemas de pressurização",
+      "Substituição de condutas antigas por materiais mais eficientes"
     ]
   },
   { 
-    id: 'Manutenção', 
-    subcategorias: [
-      'Manutenção geral do edifício',
-      'Manutenção preventiva e corretiva',
-      'Reparações em áreas comuns',
-      'Limpeza de algerozes e caleiras',
-      'Serviços de emergência'
+    "id": "Jardinagem", 
+    "tipos_de_obras": [
+      "Criação de novos espaços verdes",
+      "Construção de jardins verticais",
+      "Instalação de sistemas de rega automatizados",
+      "Requalificação de parques e áreas de lazer",
+      "Construção de caminhos e zonas pedonais em jardins"
     ]
   },
   { 
-    id: 'Jardinagem', 
-    subcategorias: [
-      'Manutenção e conservação de jardins comuns',
-      'Poda e remoção de árvores e arbustos',
-      'Instalação e manutenção de sistemas de rega',
-      'Controlo de pragas e doenças',
-      'Requalificação de espaços verdes'
+    "id": "Fiscalização", 
+    "tipos_de_obras": [
+      "Inspeção técnica e estrutural do edifício",
+      "Vistoria para identificação de riscos na construção",
+      "Elaboração de laudos técnicos para reabilitação de edifícios",
+      "Avaliação da conformidade com normas de construção",
+      "Acompanhamento técnico de obras no condomínio"
     ]
   },
   { 
-    id: 'Fiscalização', 
-    subcategorias: [
-      'Inspeção periódica de infraestruturas',
-      'Fiscalização do cumprimento de normas e regulamentos',
-      'Relatórios técnicos e auditorias',
-      'Avaliação da qualidade dos serviços prestados',
-      'Gestão de obras e intervenções externas'
+    "id": "Reabilitação de Fachada", 
+    "tipos_de_obras": [
+      "Revestimento e pintura de fachadas",
+      "Substituição de materiais de revestimento exterior",
+      "Tratamento de fissuras e infiltrações na fachada",
+      "Aplicação de isolamento térmico em fachadas",
+      "Renovação estética e modernização de fachadas antigas"
     ]
   },
   { 
-    id: 'Reabilitação de Fachada', 
-    subcategorias: [
-      'Recuperação e restauro de fachadas',
-      'Tratamento de fissuras e infiltrações',
-      'Impermeabilização de superfícies externas',
-      'Pintura e renovação estética',
-      'Limpeza de fachadas e remoção de grafitis'
+    "id": "Eletricidade", 
+    "tipos_de_obras": [
+      "Instalação de novos quadros elétricos",
+      "Reestruturação completa da rede elétrica do edifício",
+      "Substituição de cablagem antiga por novas tecnologias",
+      "Implementação de sistemas de iluminação inteligente",
+      "Instalação de postos de carregamento para veículos elétricos"
     ]
   },
   { 
-    id: 'Eletricidade', 
-    subcategorias: [
-      'Manutenção de instalações elétricas do condomínio',
-      'Substituição de quadros elétricos e cablagens',
-      'Iluminação de áreas comuns (escadas, garagem, elevadores)',
-      'Sistemas de emergência e iluminação de segurança',
-      'Inspeção e conformidade com normas elétricas'
+    "id": "Construção", 
+    "tipos_de_obras": [
+      "Ampliação de espaços comuns no edifício",
+      "Construção de novas infraestruturas no condomínio",
+      "Reabilitação de garagens e estacionamentos",
+      "Instalação de novos acessos e melhoria da acessibilidade",
+      "Substituição de pavimentos e revestimentos internos e externos"
     ]
   },
   { 
-    id: 'Construção', 
-    subcategorias: [
-      'Pequenas obras e remodelações em áreas comuns',
-      'Reparação de estruturas e fundações',
-      'Substituição de revestimentos e pavimentos',
-      'Ampliação e melhoria de infraestruturas',
-      'Gestão de licenças e autorizações'
-    ]
-  },
-  { 
-    id: 'Pintura', 
-    subcategorias: [
-      'Pintura de fachadas e zonas comuns',
-      'Pintura de garagens e parques de estacionamento',
-      'Marcação de lugares e sinalização em pavimentos',
-      'Preparação e tratamento de superfícies antes da pintura',
-      'Utilização de tintas específicas para exterior e interior'
+    "id": "Pintura", 
+    "tipos_de_obras": [
+      "Pintura integral das fachadas do edifício",
+      "Pintura de corredores e escadas",
+      "Pintura de garagens e parques de estacionamento",
+      "Marcação de lugares e sinalização em pavimentos",
+      "Aplicação de tintas específicas para proteção contra intempéries"
     ]
   }
 ];
+
 
 function WorkForm({ 
   newWork, 
@@ -123,7 +114,7 @@ function WorkForm({
     if (newWork.category) {
       const selectedCategory = categoriasForm.find(cat => cat.id === newWork.category);
       if (selectedCategory) {
-        setAvailableSubcategories(selectedCategory.subcategorias);
+        setAvailableSubcategories(selectedCategory.tipos_de_obras);
       } else {
         setAvailableSubcategories([]);
       }
@@ -136,7 +127,7 @@ function WorkForm({
     <div className="modal-overlay">
       <div className="modal-content">
         <div className="modal-header">
-          <h2>{editMode ? 'Editar' : 'Novo'} {newWork.isMaintenance ? 'Manutenção' : 'Obra'}</h2>
+          <h2>{editMode ? 'Editar' : 'Nova'} Obra</h2>
           <button className="close-btn" onClick={onCancel}>
             <FiX />
           </button>
@@ -144,39 +135,13 @@ function WorkForm({
         <form className="new-work-form" onSubmit={onSubmit}>
           <div className="form-row">
             <div className="form-group">
-              <label>Tipo</label>
-              <div className="type-toggle">
-                <label className={`type-option ${!newWork.isMaintenance ? 'active' : ''}`}>
-                  <input
-                    type="radio"
-                    name="type"
-                    checked={!newWork.isMaintenance}
-                    onChange={() => setNewWork({...newWork, isMaintenance: false})}
-                  />
-                  Obra
-                </label>
-                <label className={`type-option ${newWork.isMaintenance ? 'active' : ''}`}>
-                  <input
-                    type="radio"
-                    name="type"
-                    checked={newWork.isMaintenance}
-                    onChange={() => setNewWork({...newWork, isMaintenance: true})}
-                  />
-                  Manutenção
-                </label>
-              </div>
-            </div>
-          </div>
-          
-          <div className="form-row">
-            <div className="form-group">
-              <label>Título {newWork.isMaintenance ? 'da Manutenção' : 'da Obra'}</label>
+              <label>Título da Obra</label>
               <input
                 type="text"
                 required
                 value={newWork.title}
                 onChange={(e) => setNewWork({...newWork, title: e.target.value})}
-                placeholder={newWork.isMaintenance ? "Ex: Manutenção Preventiva do Elevador" : "Ex: Reparo no Sistema Elétrico"}
+                placeholder="Ex: Reparo no Sistema Elétrico"
               />
             </div>
           </div>
@@ -188,7 +153,7 @@ function WorkForm({
                 required
                 value={newWork.description}
                 onChange={(e) => setNewWork({...newWork, description: e.target.value})}
-                placeholder={newWork.isMaintenance ? "Descreva os detalhes da manutenção..." : "Descreva os detalhes da obra..."}
+                placeholder="Descreva os detalhes da obra..."
               />
             </div>
           </div>
@@ -202,43 +167,27 @@ function WorkForm({
                 onChange={(e) => setNewWork({...newWork, category: e.target.value, subcategoria: ''})}
               >
                 <option value="">Selecione uma categoria</option>
-                {newWork.isMaintenance ? (
-                  <>
-                    <option value="Elevadores">Elevadores</option>
-                    <option value="Sistemas AVAC">Sistemas AVAC</option>
-                    <option value="Sistemas de Segurança">Sistemas de Segurança</option>
-                    <option value="Limpeza">Limpeza</option>
-                    <option value="Jardinagem">Jardinagem</option>
-                    <option value="Eletricidade">Eletricidade</option>
-                    <option value="Hidráulica">Hidráulica</option>
-                    <option value="Equipamentos">Equipamentos</option>
-                  </>
-                ) : (
-                  <>
-                    <option value="Infiltração">Infiltração</option>
-                    <option value="Fissuras e rachaduras">Fissuras e rachaduras</option>
-                    <option value="Canalização">Canalização</option>
-                    <option value="Manutenção">Manutenção</option>
-                    <option value="Jardinagem">Jardinagem</option>
-                    <option value="Fiscalização">Fiscalização</option>
-                    <option value="Reabilitação de Fachada">Reabilitação de Fachada</option>
-                    <option value="Eletricidade">Eletricidade</option>
-                    <option value="Construção">Construção</option>
-                    <option value="Pintura">Pintura</option>
-                  </>
-                )}
+                <option value="Infiltração">Infiltração</option>
+                <option value="Fissuras e rachaduras">Fissuras e rachaduras</option>
+                <option value="Canalização">Canalização</option>
+                <option value="Jardinagem">Jardinagem</option>
+                <option value="Fiscalização">Fiscalização</option>
+                <option value="Reabilitação de Fachada">Reabilitação de Fachada</option>
+                <option value="Eletricidade">Eletricidade</option>
+                <option value="Construção">Construção</option>
+                <option value="Pintura">Pintura</option>
               </select>
             </div>
-            {!newWork.isMaintenance && newWork.category && availableSubcategories.length > 0 && (
+            {newWork.category && availableSubcategories.length > 0 && (
               <div className="form-group">
-                <label>Subcategoria</label>
+                <label>Tipo de Obra</label>
                 <select
                   value={newWork.subcategoria || ''}
                   onChange={(e) => setNewWork({...newWork, subcategoria: e.target.value})}
                 >
-                  <option value="">Selecione uma subcategoria</option>
-                  {availableSubcategories.map((subcategoria, index) => (
-                    <option key={index} value={subcategoria}>{subcategoria}</option>
+                  <option value="">Selecione um tipo de obra</option>
+                  {availableSubcategories.map((tipoObra, index) => (
+                    <option key={index} value={tipoObra}>{tipoObra}</option>
                   ))}
                 </select>
               </div>
@@ -260,7 +209,7 @@ function WorkForm({
           
           <div className="form-row">
             <div className="form-group">
-              <label>{newWork.isMaintenance ? 'Data Programada' : 'Data'}</label>
+              <label>Data</label>
               <input
                 type="date"
                 required
@@ -330,52 +279,48 @@ function WorkForm({
             </div>
           </div>
           
-          {!newWork.isMaintenance && (
-            <>
-              <div className="form-row">
+          <div className="form-row">
+            <div className="form-group">
+              <label>Orçamento Estimado (€)</label>
+              <div className="orcamento-range">
                 <div className="form-group">
-                  <label>Orçamento Estimado (€)</label>
-                  <div className="orcamento-range">
-                    <div className="form-group">
-                      <label>Mínimo</label>
-                      <input
-                        type="number"
-                        value={newWork.orcamentos.minimo}
-                        onChange={(e) => setNewWork({
-                          ...newWork, 
-                          orcamentos: {...newWork.orcamentos, minimo: e.target.value}
-                        })}
-                        placeholder="0"
-                      />
-                    </div>
-                    <div className="form-group">
-                      <label>Máximo</label>
-                      <input
-                        type="number"
-                        value={newWork.orcamentos.maximo}
-                        onChange={(e) => setNewWork({
-                          ...newWork, 
-                          orcamentos: {...newWork.orcamentos, maximo: e.target.value}
-                        })}
-                        placeholder="0"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Prazo para Orçamentos</label>
+                  <label>Mínimo</label>
                   <input
-                    type="date"
-                    value={newWork.prazoOrcamentos}
-                    onChange={(e) => setNewWork({...newWork, prazoOrcamentos: e.target.value})}
+                    type="number"
+                    value={newWork.orcamentos.minimo}
+                    onChange={(e) => setNewWork({
+                      ...newWork, 
+                      orcamentos: {...newWork.orcamentos, minimo: e.target.value}
+                    })}
+                    placeholder="0"
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Máximo</label>
+                  <input
+                    type="number"
+                    value={newWork.orcamentos.maximo}
+                    onChange={(e) => setNewWork({
+                      ...newWork, 
+                      orcamentos: {...newWork.orcamentos, maximo: e.target.value}
+                    })}
+                    placeholder="0"
                   />
                 </div>
               </div>
-            </>
-          )}
+            </div>
+          </div>
+          
+          <div className="form-row">
+            <div className="form-group">
+              <label>Prazo para Orçamentos</label>
+              <input
+                type="date"
+                value={newWork.prazoOrcamentos}
+                onChange={(e) => setNewWork({...newWork, prazoOrcamentos: e.target.value})}
+              />
+            </div>
+          </div>
           
           <div className="form-row">
             <div className="form-group">

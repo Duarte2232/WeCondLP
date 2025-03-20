@@ -1,0 +1,23 @@
+.new-maintenance-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: var(--primary-color, #4F46E5);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: all 0.2s ease;
+}
+
+.new-maintenance-btn:hover {
+  background: #4338CA; /* Roxo mais escuro */
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(79, 70, 229, 0.2);
+}
+
+.new-maintenance-btn svg {
+  font-size: 1.2rem;
+} 

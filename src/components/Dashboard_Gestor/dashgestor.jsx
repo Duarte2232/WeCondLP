@@ -40,10 +40,13 @@ function DashGestor() {
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [works, setWorks] = useState([]);
+  const [maintenances, setMaintenances] = useState([]);
   const [userData, setUserData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [unviewedOrcamentos, setUnviewedOrcamentos] = useState({});
+  const [expandedItem, setExpandedItem] = useState(null);
+  const [showItemDetails, setShowItemDetails] = useState(false);
 
   const [newWork, setNewWork] = useState({
     title: '',
@@ -226,7 +229,7 @@ function DashGestor() {
           createdAt: serverTimestamp(),
           date: newWork.date || new Date().toISOString().split('T')[0],
           status: "disponivel", // Garantir que o status seja sempre "disponivel"
-          isMaintenance: newWork.isMaintenance || false // Certifique-se de que o campo isMaintenance está definido
+          isMaintenance: false // Sempre definido como false para obras
         };
 
         // Corrigir categoria para formatos conhecidos
@@ -239,13 +242,14 @@ function DashGestor() {
         const workRef = await addDoc(collection(db, 'works'), workData);
         console.log("Obra criada com sucesso, ID:", workRef.id);
         setWorks(prevWorks => [...prevWorks, { ...workData, id: workRef.id }]);
-        alert(workData.isMaintenance ? 'Manutenção criada com sucesso!' : 'Obra criada com sucesso!');
+        alert('Obra criada com sucesso!');
       } else {
         // Lógica para atualizar obra existente
         const workRef = doc(db, 'works', editingWork.id);
         const updateData = {
           ...newWork,
-          updatedAt: serverTimestamp()
+          updatedAt: serverTimestamp(),
+          isMaintenance: false // Sempre definido como false para obras
         };
 
         await updateDoc(workRef, updateData);
@@ -253,7 +257,7 @@ function DashGestor() {
         setWorks(prevWorks => 
           prevWorks.map(w => w.id === editingWork.id ? { ...updateData, id: editingWork.id } : w)
         );
-        alert(updateData.isMaintenance ? 'Manutenção atualizada com sucesso!' : 'Obra atualizada com sucesso!');
+        alert('Obra atualizada com sucesso!');
       }
 
       // Resetar o formulário
@@ -558,6 +562,224 @@ function DashGestor() {
     }
   };
 
+  // Used to render notifications dropdown
+  const renderNotifications = () => {
+    if (!showNotifications) return null;
+    
+    return (
+      <div className="notification-wrapper">
+        <div className="notifications-dropdown">
+          <div className="notifications-header">
+            <h3>Notificações</h3>
+          </div>
+          
+          <div className="notifications-list">
+            {notifications.length > 0 ? (
+              notifications.map((notification, index) => (
+                <div 
+                  key={index} 
+                  className={`notification-item ${!notification.read ? 'unread' : ''}`}
+                >
+                  <p>{notification.message}</p>
+                  <span className="notification-time">{notification.time}</span>
+                </div>
+              ))
+            ) : (
+              <div className="no-notifications">
+                <p>Nenhuma notificação</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Similar to handleSubmit but for maintenance tasks
+  const handleSubmitMaintenance = async (maintenanceData) => {
+    try {
+      setIsSubmitting(true);
+      
+      // Create the maintenance object
+      const newMaintenanceData = {
+        ...maintenanceData,
+        userEmail: user.email,
+        userId: user.uid,
+        createdAt: serverTimestamp(),
+        date: maintenanceData.date || new Date().toISOString().split('T')[0],
+        status: "disponivel",
+        isMaintenance: true
+      };
+      
+      console.log("Criando nova manutenção:", newMaintenanceData);
+      
+      // Add to Firestore
+      const maintenanceRef = await addDoc(collection(db, 'works'), newMaintenanceData);
+      console.log("Manutenção criada com sucesso, ID:", maintenanceRef.id);
+      
+      // Add to local state with ID
+      const maintenanceWithId = { ...newMaintenanceData, id: maintenanceRef.id };
+      setMaintenances(prevMaintenances => [maintenanceWithId, ...prevMaintenances]);
+      
+      // Also add to the works array as they share the same collection
+      setWorks(prevWorks => [maintenanceWithId, ...prevWorks]);
+      
+      alert('Manutenção criada com sucesso!');
+      return maintenanceWithId;
+      
+    } catch (error) {
+      console.error('Erro ao criar manutenção:', error);
+      alert('Erro ao criar manutenção. Tente novamente.');
+      return null;
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Function to handle item click in recent items
+  const handleItemClick = (item) => {
+    setExpandedItem(item);
+    setShowItemDetails(true);
+  };
+
+  // Function to close the item details modal
+  const closeItemDetails = () => {
+    setShowItemDetails(false);
+    setExpandedItem(null);
+  };
+
+  // Function to render the item details modal
+  const renderItemDetails = () => {
+    if (!showItemDetails || !expandedItem) return null;
+    
+    const isMaintenance = expandedItem.isMaintenance;
+    const groupedFiles = groupFilesByType(expandedItem.files || []);
+    
+    return (
+      <div className="item-details-overlay">
+        <div className="item-details-modal">
+          <div className="item-details-header">
+            <h2>{expandedItem.title}</h2>
+            <button className="close-button" onClick={closeItemDetails}>
+              <FiX size={20} />
+            </button>
+          </div>
+          
+          <div className="item-details-content">
+            <div className="item-details-status">
+              <span className={`status-badge ${expandedItem.status?.toLowerCase().replace(' ', '-')}`}>
+                {expandedItem.status}
+              </span>
+              {expandedItem.category && (
+                <span className={`category-badge ${expandedItem.category?.toLowerCase().replace(/\s+/g, '-')}`}>
+                  {expandedItem.category}
+                </span>
+              )}
+              {isMaintenance && expandedItem.frequency && (
+                <span className="frequency-badge">
+                  {expandedItem.frequency}
+                </span>
+              )}
+            </div>
+            
+            <div className="item-details-section">
+              <h3>Descrição</h3>
+              <p>{expandedItem.description}</p>
+            </div>
+            
+            <div className="item-details-section">
+              <h3>Data</h3>
+              <p>{expandedItem.date && new Date(expandedItem.date).toLocaleDateString()}</p>
+            </div>
+            
+            {expandedItem.location && Object.values(expandedItem.location).some(val => val) && (
+              <div className="item-details-section">
+                <h3>Localização</h3>
+                <p>
+                  {expandedItem.location.morada && <div>Morada: {expandedItem.location.morada}</div>}
+                  {expandedItem.location.codigoPostal && <div>Código Postal: {expandedItem.location.codigoPostal}</div>}
+                  {expandedItem.location.cidade && <div>Cidade: {expandedItem.location.cidade}</div>}
+                  {expandedItem.location.andar && <div>Andar: {expandedItem.location.andar}</div>}
+                </p>
+              </div>
+            )}
+            
+            {expandedItem.files && expandedItem.files.length > 0 && (
+              <div className="item-details-section">
+                <h3>Ficheiros</h3>
+                <div className="file-list">
+                  {expandedItem.files.map((file, index) => (
+                    <div key={index} className="file-item">
+                      <span className="file-name">{file.name}</span>
+                      <button 
+                        className="file-download-btn" 
+                        onClick={() => handleFileDownload(file, file.name)}
+                      >
+                        <FiDownload />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            {isMaintenance && (
+              <div className="item-details-section">
+                <h3>Detalhes da Manutenção</h3>
+                <p>Frequência: {expandedItem.frequency || 'Única'}</p>
+                {expandedItem.nextDate && <p>Próxima Data: {new Date(expandedItem.nextDate).toLocaleDateString()}</p>}
+              </div>
+            )}
+            
+            <div className="item-details-actions">
+              <button 
+                className="edit-button"
+                onClick={() => {
+                  closeItemDetails();
+                  handleEdit(expandedItem);
+                }}
+              >
+                <FiEdit2 /> Editar
+              </button>
+              <button 
+                className="delete-button"
+                onClick={() => {
+                  if (window.confirm(`Tem certeza que deseja excluir ${expandedItem.isMaintenance ? 'esta manutenção' : 'esta obra'}?`)) {
+                    closeItemDetails();
+                    handleDelete(expandedItem.id);
+                  }
+                }}
+              >
+                <FiX /> Excluir
+              </button>
+              {isMaintenance ? (
+                <button 
+                  className="view-button"
+                  onClick={() => {
+                    closeItemDetails();
+                    navigate('/dashgestor/manutencoes');
+                  }}
+                >
+                  <FiEye /> Ver Todas Manutenções
+                </button>
+              ) : (
+                <button 
+                  className="view-button"
+                  onClick={() => {
+                    closeItemDetails();
+                    navigate('/dashgestor/obras');
+                  }}
+                >
+                  <FiEye /> Ver Todas Obras
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   let content;
   if (location.pathname.includes('/dashgestor/obras') || 
       location.pathname.includes('/dashgestor/calendario') || 
@@ -590,76 +812,188 @@ function DashGestor() {
           <Route path="/calendario" element={<CalendarComponent />} />
           <Route path="/mensagens" element={<MessagesComponent />} />
           <Route path="/perfil" element={<ProfileComponent />} />
-          <Route path="/manutencoes" element={<MaintenanceComponent />} />
+          <Route path="/manutencoes" element={
+            <MaintenanceComponent 
+              maintenances={maintenances}
+              handleSubmitMaintenance={handleSubmitMaintenance}
+              isLoading={isLoading}
+            />
+          } />
         </Routes>
       </>
     );
   } else {
     // Esta é a interface padrão do dashboard
     content = (
-      <div className="dashboard">
+      <div className="dashboard-container">
         <TopBar />
         
-        {isLoading ? (
-          <div className="loading-container">
-            <LoadingAnimation />
-          </div>
-        ) : (
-          <div className="dashboard-content">
-            <Metrics metrics={metrics} />
-            
+        <div className="dashboard-content">
+          <div className="dashboard-header">
+            <h1>Dashboard</h1>
             <div className="dashboard-actions">
-              <SearchFilters 
-                onSearch={(term) => setSearchTerm(term)} 
-                onFilterChange={(filters) => setSelectedFilters(filters)}
-                selectedFilters={selectedFilters}
-              />
-              <NewWorkButton onClick={() => setShowNewWorkForm(true)} />
+              <button 
+                className="notifications-btn"
+                onClick={() => setShowNotifications(!showNotifications)}
+              >
+                <FiBell />
+                {notifications.length > 0 && <span className="notification-badge">{notifications.length}</span>}
+              </button>
             </div>
-            
-            <WorksTable 
-              works={filteredWorks}
-              expandedWorks={expandedWorks}
-              unviewedOrcamentos={unviewedOrcamentos}
-              searchTerm={searchTerm}
-              selectedFilters={selectedFilters}
-              onViewDetails={handleViewDetails}
-              onStatusChange={handleStatusChange}
-              onEdit={handleEdit}
-              onComplete={handleComplete}
-              onDelete={handleDelete}
-              onFileDownload={handleFileDownload}
-              onAcceptOrcamento={handleAceitarOrcamento}
-              onSendMessage={handleSendMessage}
-              groupFilesByType={groupFilesByType}
-            />
-            
-            {showNewWorkForm && (
-              <WorkForm 
-                newWork={newWork}
-                setNewWork={setNewWork}
-                handleFileUpload={handleFileUpload}
-                handleRemoveFile={handleRemoveFile}
-                isSubmitting={isSubmitting}
-                onSubmit={handleSubmit}
-                onCancel={() => setShowNewWorkForm(false)}
-                editMode={false}
-              />
-            )}
-            
-            {editingWork && (
-              <WorkForm 
-                newWork={editingWork}
-                setNewWork={setEditingWork}
-                handleFileUpload={handleFileUpload}
-                handleRemoveFile={handleRemoveFile}
-                isSubmitting={isSubmitting}
-                onSubmit={handleSubmit}
-                onCancel={() => setEditingWork(null)}
-                editMode={true}
-              />
-            )}
+            {renderNotifications()}
           </div>
+          
+          <div className="metrics-container">
+            <Metrics metrics={metrics} />
+          </div>
+          
+          <div className="search-filters-container">
+            <SearchFilters 
+              searchTerm={searchTerm}
+              setSearchTerm={setSearchTerm}
+              selectedFilters={selectedFilters}
+              setSelectedFilters={setSelectedFilters}
+            />
+          </div>
+          
+          {showCalendar && (
+            <div className="mini-calendar-container">
+              <Calendar 
+                onChange={setSelectedDate}
+                value={selectedDate}
+              />
+            </div>
+          )}
+          
+          <div className="recent-actions-section">
+            <h2>Ações Recentes</h2>
+            
+            <div className="recent-actions-container">
+              {/* Recent Works */}
+              <div className="recent-works">
+                <div className="section-header">
+                  <h3>Obras Recentes</h3>
+                  <button onClick={() => navigate('/dashgestor/obras')} className="view-all-btn">
+                    Ver todas
+                  </button>
+                </div>
+                
+                <div className="recent-items-list">
+                  {isLoading ? (
+                    <div className="loading">Carregando...</div>
+                  ) : works.length > 0 ? (
+                    works
+                      .filter(work => !work.isMaintenance)
+                      .sort((a, b) => {
+                        // Sort by created date, newest first
+                        const dateA = a.createdAt ? new Date(a.createdAt.seconds * 1000) : new Date(0);
+                        const dateB = b.createdAt ? new Date(b.createdAt.seconds * 1000) : new Date(0);
+                        return dateB - dateA;
+                      })
+                      .slice(0, 5)
+                      .map(work => (
+                        <div 
+                          key={work.id} 
+                          className="recent-item" 
+                          onClick={() => handleItemClick(work)}
+                        >
+                          <div className="recent-item-title">
+                            <h4>{work.title}</h4>
+                            <span className={`status-badge ${work.status?.toLowerCase().replace(' ', '-')}`}>
+                              {work.status}
+                            </span>
+                          </div>
+                          <div className="recent-item-details">
+                            <p className="recent-item-description">{work.description}</p>
+                            <div className="recent-item-meta">
+                              <span className="recent-item-date">
+                                {work.date && new Date(work.date).toLocaleDateString()}
+                              </span>
+                              <span className={`category-badge ${work.category?.toLowerCase().replace(/\s+/g, '-')}`}>
+                                {work.category}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                  ) : (
+                    <p className="no-items">Nenhuma obra encontrada.</p>
+                  )}
+                </div>
+              </div>
+              
+              {/* Recent Maintenances */}
+              <div className="recent-maintenances">
+                <div className="section-header">
+                  <h3>Manutenções Recentes</h3>
+                  <button onClick={() => navigate('/dashgestor/manutencoes')} className="view-all-btn">
+                    Ver todas
+                  </button>
+                </div>
+                
+                <div className="recent-items-list">
+                  {isLoading ? (
+                    <div className="loading">Carregando...</div>
+                  ) : maintenances.length > 0 ? (
+                    maintenances
+                      .sort((a, b) => {
+                        // Sort by created date, newest first
+                        const dateA = a.createdAt ? new Date(a.createdAt.seconds * 1000) : new Date(0);
+                        const dateB = b.createdAt ? new Date(b.createdAt.seconds * 1000) : new Date(0);
+                        return dateB - dateA;
+                      })
+                      .slice(0, 5)
+                      .map(maintenance => (
+                        <div 
+                          key={maintenance.id} 
+                          className="recent-item" 
+                          onClick={() => handleItemClick(maintenance)}
+                        >
+                          <div className="recent-item-title">
+                            <h4>{maintenance.title}</h4>
+                            <span className={`status-badge ${maintenance.status?.toLowerCase().replace(' ', '-')}`}>
+                              {maintenance.status}
+                            </span>
+                          </div>
+                          <div className="recent-item-details">
+                            <p className="recent-item-description">{maintenance.description}</p>
+                            <div className="recent-item-meta">
+                              <span className="recent-item-date">
+                                {maintenance.date && new Date(maintenance.date).toLocaleDateString()}
+                              </span>
+                              <span className="frequency-badge">
+                                {maintenance.frequency || 'Única'}
+                              </span>
+                              <span className={`category-badge ${maintenance.category?.toLowerCase().replace(/\s+/g, '-')}`}>
+                                {maintenance.category}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                  ) : (
+                    <p className="no-items">Nenhuma manutenção encontrada.</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Render item details modal */}
+        {renderItemDetails()}
+
+        {showNewWorkForm && (
+          <WorkForm
+            newWork={newWork}
+            setNewWork={setNewWork}
+            handleFileUpload={handleFileUpload}
+            handleRemoveFile={handleRemoveFile}
+            isSubmitting={isSubmitting}
+            onSubmit={handleSubmit}
+            onCancel={() => setShowNewWorkForm(false)}
+            editMode={false}
+          />
         )}
       </div>
     );
@@ -889,6 +1223,39 @@ function DashGestor() {
       </div>
     ) : null;
   };
+
+  useEffect(() => {
+    const fetchWorks = async () => {
+      if (user) {
+        setIsLoading(true);
+        try {
+          // Buscar obras do Firestore
+          const q = query(collection(db, 'works'), where("userId", "==", user.uid));
+          const querySnapshot = await getDocs(q);
+          const worksData = querySnapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          }));
+          
+          // Separar obras e manutenções
+          const obras = worksData.filter(work => !work.isMaintenance);
+          const manutencoes = worksData.filter(work => work.isMaintenance);
+          
+          setWorks(obras);
+          setMaintenances(manutencoes);
+          
+          console.log('Obras carregadas:', obras.length);
+          console.log('Manutenções carregadas:', manutencoes.length);
+        } catch (error) {
+          console.error('Erro ao carregar obras:', error);
+        } finally {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    fetchWorks();
+  }, [user, db]);
 
   return content;
 }

@@ -74,19 +74,6 @@ const Jobs = ({
       ]
     },
     { 
-      id: 'manutencao', 
-      nome: 'Manutenção', 
-      icone: '🔧', 
-      cor: '#f39c12',
-      subcategorias: [
-        'Manutenção geral do edifício',
-        'Manutenção preventiva e corretiva',
-        'Reparações em áreas comuns',
-        'Limpeza de algerozes e caleiras',
-        'Serviços de emergência'
-      ]
-    },
-    { 
       id: 'jardinagem', 
       nome: 'Jardinagem', 
       icone: '🌱', 
@@ -202,6 +189,32 @@ const Jobs = ({
     setShowNewWorkForm(false);
   };
 
+  // Função para renderizar o grid de categorias de forma horizontal
+  const renderCategoriesGrid = () => {
+    return (
+      <div className="categories-grid">
+        {categorias.map(categoria => (
+          <div 
+            key={categoria.id}
+            className={`category-card ${selectedCategory === categoria.id ? 'active' : ''}`}
+            style={{ 
+              borderColor: selectedCategory === categoria.id ? categoria.cor : 'transparent',
+              backgroundColor: selectedCategory === categoria.id ? `${categoria.cor}20` : '#f9fafb'
+            }}
+            onClick={() => handleCategoryClick(categoria)}
+          >
+            <div className="category-icon" style={{ backgroundColor: categoria.cor }}>
+              {categoria.icone}
+            </div>
+            <div className="category-content">
+              <div className="category-name">{categoria.nome}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   // Função auxiliar para normalizar strings para comparação de categorias
   const normalizeString = (str) => {
     return str.toLowerCase()
@@ -247,24 +260,7 @@ const Jobs = ({
 
       <div className="categories-container">
         <h2>Categorias de Obras</h2>
-        <div className="categories-grid">
-          {categorias.map(categoria => (
-            <div 
-              key={categoria.id}
-              className={`category-card ${selectedCategory === categoria.id ? 'active' : ''}`}
-              style={{ 
-                borderColor: selectedCategory === categoria.id ? categoria.cor : 'transparent',
-                backgroundColor: selectedCategory === categoria.id ? `${categoria.cor}20` : '#f9fafb'
-              }}
-              onClick={() => handleCategoryClick(categoria)}
-            >
-              <div className="category-icon" style={{ backgroundColor: categoria.cor }}>
-                {categoria.icone}
-              </div>
-              <div className="category-name">{categoria.nome}</div>
-            </div>
-          ))}
-        </div>
+        {renderCategoriesGrid()}
       </div>
 
       <div className="works-list-container">
