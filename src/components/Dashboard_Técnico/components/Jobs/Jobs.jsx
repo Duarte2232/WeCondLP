@@ -28,8 +28,8 @@ const Jobs = ({ jobs, loading }) => {
       console.log('Starting conversation for job:', job);
       console.log('Full job data:', JSON.stringify(job, null, 2));
       
-      // Try different possible property names for gestor ID
-      const gestorId = job.gestorId || job.userId || job.createdBy || job.ownerId;
+      // Get the gestor ID from the job's userId (the creator of the job)
+      const gestorId = job.userId;
       console.log('Gestor ID found:', gestorId);
       
       if (!gestorId) {

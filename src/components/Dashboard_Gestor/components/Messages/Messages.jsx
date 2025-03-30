@@ -73,14 +73,19 @@ const Messages = () => {
         
         const conversationsMap = new Map();
         
-        obrasSnapshot.forEach((obraDoc) => {
+        for (const obraDoc of obrasSnapshot.docs) {
           const obraData = obraDoc.data();
           if (obraData.technicianId) {
             const chatId = [auth.currentUser.uid, obraData.technicianId].sort().join('_');
             if (!conversationsMap.has(chatId)) {
+              // Fetch technician data
+              const technicianDoc = await getDoc(doc(db, 'users', obraData.technicianId));
+              const technicianData = technicianDoc.exists() ? technicianDoc.data() : null;
+              
               conversationsMap.set(chatId, {
                 chatId,
                 technicianId: obraData.technicianId,
+                technicianName: technicianData?.empresaNome || technicianData?.name || 'Técnico',
                 obraId: obraDoc.id,
                 obraTitle: obraData.title,
                 lastMessage: null,
@@ -88,7 +93,7 @@ const Messages = () => {
               });
             }
           }
-        });
+        }
 
         // Converter Map para array
         const conversationsArray = Array.from(conversationsMap.values());
@@ -239,7 +244,7 @@ const Messages = () => {
               >
                 <div className="conversation-info">
                   <h3>{conversation.obraTitle}</h3>
-                  <p>Técnico: {conversation.technicianId}</p>
+                  <p>Técnico: {conversation.technicianName}</p>
                 </div>
                 {conversation.unreadCount > 0 && (
                   <span className="unread-badge">{conversation.unreadCount}</span>
@@ -257,7 +262,7 @@ const Messages = () => {
                   <FiUser className="user-icon" />
                   <div className="user-details">
                     <h2>{selectedConversation.obraTitle}</h2>
-                    <span className="obra-title">Conversa com o técnico</span>
+                    <span className="obra-title">Conversa com {selectedConversation.technicianName}</span>
                   </div>
                 </div>
               </div>
@@ -289,7 +294,9 @@ const Messages = () => {
                             </div>
                           )}
                           <span className="message-time">
-                            {new Date(message.timestamp).toLocaleTimeString()}
+                            {message.timestamp?.seconds ? 
+                              new Date(message.timestamp.seconds * 1000).toLocaleTimeString() :
+                              new Date().toLocaleTimeString()}
                           </span>
                         </div>
                       </div>

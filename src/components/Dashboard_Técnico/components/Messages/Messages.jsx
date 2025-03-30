@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { FiArrowLeft, FiSend, FiPaperclip, FiUser } from 'react-icons/fi';
 import { getAuth } from 'firebase/auth';
-import { ref, onValue, push, set, serverTimestamp } from 'firebase/database';
+import { ref, onValue, push, set, serverTimestamp, get } from 'firebase/database';
 import { getDoc, doc } from 'firebase/firestore';
 import { db, database } from '../../../../services/firebase.jsx';
 import './Messages.css';
@@ -61,6 +61,7 @@ const Messages = () => {
   // Configurar listener de mensagens em tempo real
   useEffect(() => {
     if (!auth.currentUser || !gestorId) {
+      console.log('No auth user or gestorId, skipping listener setup');
       setLoading(false);
       return;
     }
@@ -80,12 +81,17 @@ const Messages = () => {
         const messagesArray = Object.entries(data).map(([id, message]) => ({
           id,
           ...message
-        })).sort((a, b) => a.timestamp - b.timestamp);
+        })).sort((a, b) => {
+          // Handle serverTimestamp
+          const aTime = a.timestamp?.seconds || a.timestamp;
+          const bTime = b.timestamp?.seconds || b.timestamp;
+          return aTime - bTime;
+        });
         
-        console.log('Messages loaded:', messagesArray.length);
+        console.log('Messages loaded:', messagesArray);
         setMessages(messagesArray);
       } else {
-        console.log('No messages found');
+        console.log('No messages found in data');
         setMessages([]);
       }
       
@@ -112,6 +118,12 @@ const Messages = () => {
     };
   }, [auth.currentUser, gestorId]);
 
+  // Add a debug effect to monitor loading state
+  useEffect(() => {
+    console.log('Loading state changed:', loading);
+    console.log('Messages state:', messages);
+  }, [loading, messages]);
+
   // Scroll para a última mensagem
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -122,10 +134,29 @@ const Messages = () => {
     if (!newMessage.trim() && !selectedFile) return;
 
     try {
+      console.log('Starting to send message...', {
+        newMessage,
+        gestorId,
+        obraId,
+        obraTitle,
+        userData
+      });
+
+      if (!gestorId) {
+        console.error('No gestor ID available');
+        setError('Erro: ID do gestor não encontrado');
+        return;
+      }
+
       // Create a unique chat ID for this conversation
       const chatId = [auth.currentUser.uid, gestorId].sort().join('_');
+      console.log('Chat ID:', chatId);
+
       const messagesRef = ref(database, `chats/${chatId}/messages`);
+      console.log('Messages reference:', messagesRef.toString());
+
       const newMessageRef = push(messagesRef);
+      console.log('New message reference:', newMessageRef.toString());
 
       const messageData = {
         text: newMessage.trim(),
@@ -137,18 +168,36 @@ const Messages = () => {
         obraTitle: obraTitle
       };
 
+      console.log('Message data to be sent:', messageData);
+
       if (selectedFile) {
         messageData.type = 'file';
         messageData.fileUrl = 'URL_DO_ARQUIVO'; // Implementar upload de arquivo depois
         messageData.fileName = selectedFile.name;
       }
 
-      await set(newMessageRef, messageData);
+      // Try to set the message
+      try {
+        await set(newMessageRef, messageData);
+        console.log('Message sent successfully to path:', newMessageRef.toString());
+        
+        // Verify the message was sent by reading it back
+        const snapshot = await get(newMessageRef);
+        if (snapshot.exists()) {
+          console.log('Message verified in database:', snapshot.val());
+        } else {
+          console.error('Message not found in database after sending');
+        }
+      } catch (setError) {
+        console.error('Error setting message:', setError);
+        throw setError;
+      }
+
       setNewMessage('');
       setSelectedFile(null);
     } catch (error) {
-      console.error('Error sending message:', error);
-      setError('Erro ao enviar mensagem');
+      console.error('Error in handleSendMessage:', error);
+      setError(`Erro ao enviar mensagem: ${error.message}`);
     }
   };
 
@@ -202,6 +251,7 @@ const Messages = () => {
           <div className="loading">
             <p>Carregando mensagens...</p>
             {error && <p className="error-message">{error}</p>}
+            <p className="debug-info">Chat ID: {auth.currentUser?.uid && gestorId ? [auth.currentUser.uid, gestorId].sort().join('_') : 'N/A'}</p>
           </div>
         </div>
       </div>
@@ -252,7 +302,9 @@ const Messages = () => {
                       </div>
                     )}
                     <span className="message-time">
-                      {new Date(message.timestamp).toLocaleTimeString()}
+                      {message.timestamp?.seconds ? 
+                        new Date(message.timestamp.seconds * 1000).toLocaleTimeString() :
+                        new Date().toLocaleTimeString()}
                     </span>
                   </div>
                 </div>
