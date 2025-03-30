@@ -3,8 +3,9 @@ import { getAuth } from 'firebase/auth';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db } from '../../../../services/firebase.jsx';
-import { FiUpload, FiCheck, FiArrowLeft } from 'react-icons/fi';
+import { FiUpload, FiCheck, FiArrowLeft, FiUser } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
+import { CLOUDINARY_CONFIG } from '../../../../config/cloudinary';
 import './PerfilTecnico.css';
 
 const PerfilTecnico = () => {
@@ -28,6 +29,7 @@ const PerfilTecnico = () => {
   });
   const [uploadStatus, setUploadStatus] = useState({});
   const [logoUrl, setLogoUrl] = useState('');
+  const [profilePhotoUrl, setProfilePhotoUrl] = useState('');
   const navigate = useNavigate();
 
   const documentosNecessarios = [
@@ -98,6 +100,7 @@ const PerfilTecnico = () => {
             });
             setDocumentos(data.documentos || {});
             setLogoUrl(data.logoUrl || '');
+            setProfilePhotoUrl(data.profilePhoto?.url || '');
           }
         } catch (error) {
           console.error('Erro ao carregar dados do usuário:', error);
@@ -135,6 +138,31 @@ const PerfilTecnico = () => {
     });
   };
 
+  const handleLogoUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    try {
+      setUploadStatus(prev => ({ ...prev, logo: 'uploading' }));
+
+      // Upload to Cloudinary
+      const { url, publicId } = await uploadToCloudinary(file);
+      
+      setLogoUrl(url);
+      setUploadStatus(prev => ({ ...prev, logo: 'success' }));
+
+      // Update user document in Firestore
+      const userRef = doc(db, 'users', auth.currentUser.uid);
+      await updateDoc(userRef, {
+        logoUrl: url,
+        logoPublicId: publicId
+      });
+    } catch (error) {
+      console.error('Erro no upload do logo:', error);
+      setUploadStatus(prev => ({ ...prev, logo: 'error' }));
+    }
+  };
+
   const handleFileUpload = async (e, documentoId) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -142,26 +170,28 @@ const PerfilTecnico = () => {
     try {
       setUploadStatus(prev => ({ ...prev, [documentoId]: 'uploading' }));
 
-      const fileRef = ref(storage, `documentos/${auth.currentUser.uid}/${documentoId}/${file.name}`);
-      await uploadBytes(fileRef, file);
-      const downloadURL = await getDownloadURL(fileRef);
-
+      // Upload to Cloudinary
+      const { url, publicId } = await uploadToCloudinary(file);
+      
       setDocumentos(prev => ({
         ...prev,
         [documentoId]: {
           nome: file.name,
-          url: downloadURL,
+          url: url,
+          publicId: publicId,
           dataUpload: new Date().toISOString()
         }
       }));
 
       setUploadStatus(prev => ({ ...prev, [documentoId]: 'success' }));
 
+      // Update user document in Firestore
       const userRef = doc(db, 'users', auth.currentUser.uid);
       await updateDoc(userRef, {
         [`documentos.${documentoId}`]: {
           nome: file.name,
-          url: downloadURL,
+          url: url,
+          publicId: publicId,
           dataUpload: new Date().toISOString()
         }
       });
@@ -171,27 +201,60 @@ const PerfilTecnico = () => {
     }
   };
 
-  const handleLogoUpload = async (e) => {
+  const uploadToCloudinary = async (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('upload_preset', CLOUDINARY_CONFIG.uploadPreset);
+
+    try {
+      const response = await fetch(
+        `https://api.cloudinary.com/v1_1/${CLOUDINARY_CONFIG.cloudName}/auto/upload`,
+        {
+          method: 'POST',
+          body: formData
+        }
+      );
+      
+      if (!response.ok) {
+        throw new Error('Upload falhou');
+      }
+
+      const data = await response.json();
+      return {
+        url: data.secure_url,
+        publicId: data.public_id
+      };
+    } catch (error) {
+      console.error('Erro no upload para Cloudinary:', error);
+      throw error;
+    }
+  };
+
+  const handleProfilePhotoUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
     try {
-      setUploadStatus(prev => ({ ...prev, logo: 'uploading' }));
+      setUploadStatus(prev => ({ ...prev, profilePhoto: 'uploading' }));
 
-      const fileRef = ref(storage, `logos/${auth.currentUser.uid}/${file.name}`);
-      await uploadBytes(fileRef, file);
-      const downloadURL = await getDownloadURL(fileRef);
+      // Upload to Cloudinary
+      const { url, publicId } = await uploadToCloudinary(file);
+      
+      setProfilePhotoUrl(url);
+      setUploadStatus(prev => ({ ...prev, profilePhoto: 'success' }));
 
-      setLogoUrl(downloadURL);
-      setUploadStatus(prev => ({ ...prev, logo: 'success' }));
-
+      // Update user document in Firestore
       const userRef = doc(db, 'users', auth.currentUser.uid);
       await updateDoc(userRef, {
-        logoUrl: downloadURL
+        profilePhoto: {
+          url: url,
+          publicId: publicId,
+          uploadedAt: new Date().toISOString()
+        }
       });
     } catch (error) {
-      console.error('Erro no upload do logo:', error);
-      setUploadStatus(prev => ({ ...prev, logo: 'error' }));
+      console.error('Erro no upload da foto de perfil:', error);
+      setUploadStatus(prev => ({ ...prev, profilePhoto: 'error' }));
     }
   };
 
