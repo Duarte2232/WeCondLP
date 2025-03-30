@@ -1,268 +1,286 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiArrowLeft, FiSend, FiSearch, FiMessageCircle, FiChevronRight, FiHome } from 'react-icons/fi';
+import { FiSend, FiSearch, FiMessageCircle, FiUser, FiPaperclip, FiSmile, FiPlus, FiMenu, FiX } from 'react-icons/fi';
 import './Messages.css';
-import { getAuth } from 'firebase/auth';
-import { collection, query, where, getDocs, orderBy, addDoc, serverTimestamp, onSnapshot, doc, getDoc } from 'firebase/firestore';
 import { db } from '../../../../services/firebase';
+import { doc, getDoc } from 'firebase/firestore';
 import { useAuth } from '../../../../contexts/auth';
+import * as messageService from '../../../../services/messageService';
 
 const Messages = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const auth = getAuth();
-  const [conversations, setConversations] = useState([]);
-  const [selectedConversation, setSelectedConversation] = useState(null);
-  const [messages, setMessages] = useState([]);
   const [messageText, setMessageText] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [works, setWorks] = useState([]);
-  const [workDetails, setWorkDetails] = useState({});
-  const [technicians, setTechnicians] = useState({});
-  const messageEndRef = useRef(null);
-
-  useEffect(() => {
-    if (!user) return;
+  const messageInputRef = useRef(null);
+  const [showEmojis, setShowEmojis] = useState(false);
+  const messagesListRef = useRef(null);
+  const [sidebarVisible, setSidebarVisible] = useState(false);
+  
+  // Estado para armazenar informações da conversa atual
+  const [activeConversation, setActiveConversation] = useState(null);
+  const [pendingConversationId, setPendingConversationId] = useState(null);
+  
+  // Lista de conversas e mensagens
+  const [conversations, setConversations] = useState([]);
+  const [messages, setMessages] = useState([]);
+  const [participants, setParticipants] = useState({});
+  
+  // Função para formatar timestamp
+  const formatTimestamp = (timestamp) => {
+    if (!timestamp) return '';
     
-    const loadWorks = async () => {
-      try {
-        const worksRef = collection(db, 'works');
-        const worksQuery = query(worksRef, where('userEmail', '==', user.email));
-        const snapshot = await getDocs(worksQuery);
-        
-        const worksData = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
-        
-        setWorks(worksData);
-        
-        // Criar um mapa de detalhes de obras para uso rápido
-        const workDetailsMap = {};
-        worksData.forEach(work => {
-          workDetailsMap[work.id] = {
-            title: work.title,
-            description: work.description,
-            category: work.category,
-            status: work.status
+    // Se for um objeto Date, usar diretamente
+    const date = timestamp instanceof Date ? timestamp : new Date(timestamp);
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+  
+  // Função para buscar informações do usuário no Firestore
+  const fetchUserInfo = async (userId) => {
+    try {
+      // Verificar se já temos as informações em cache
+      if (participants[userId]) {
+        return participants[userId];
+      }
+      
+      // Buscar o documento do usuário no Firestore
+      const userDoc = await getDoc(doc(db, 'users', userId));
+      
+      if (!userDoc.exists()) {
+        console.log('Usuário não encontrado:', userId);
+        return null;
+      }
+      
+      const userData = userDoc.data();
+      
+      // Determinar nome e tipo com base no perfil do usuário
+      let nome = userData.nome;
+      let tipo = 'Usuário';
+      
+      if (userData.perfilDeAcesso === 'gestor') {
+        nome = userData.empresaNome || nome;
+        tipo = userData.empresaTipo || 'Gestor';
+      } else if (userData.perfilDeAcesso === 'tecnico') {
+        tipo = 'Técnico';
+      }
+      
+      const userInfo = { nome, tipo, ...userData };
+      
+      // Salvar as informações no estado para uso futuro
+      setParticipants(prev => ({
+        ...prev,
+        [userId]: userInfo
+      }));
+      
+      return userInfo;
+    } catch (error) {
+      console.error('Erro ao buscar informações do usuário:', error);
+      return null;
+    }
+  };
+  
+  // Efeito para verificar se foi redirecionado com uma conversa para ativar
+  useEffect(() => {
+    if (!user?.uid) return;
+    
+    // Verifica se há um ID de conversa ativa no localStorage
+    const activeConversationId = localStorage.getItem('activeConversationId');
+    
+    if (activeConversationId) {
+      console.log('ID de conversa encontrado no localStorage:', activeConversationId);
+      
+      // Limpa o localStorage imediatamente para evitar reativações indesejadas
+      localStorage.removeItem('activeConversationId');
+      
+      // Armazena o ID para ser usado quando as conversas forem carregadas
+      setPendingConversationId(activeConversationId);
+    }
+  }, [user?.uid]);
+  
+  // Efeito para carregar as conversas do usuário atual
+  useEffect(() => {
+    if (!user?.uid) return;
+    
+    console.log('Carregando conversas do usuário:', user.uid);
+    
+    // Função para carregar e processar as conversas
+    const loadConversations = async (conversationsData) => {
+      console.log('Dados de conversas recebidos:', conversationsData);
+      
+      // Para cada conversa, buscar informações dos participantes
+      const processedConversations = await Promise.all(
+        conversationsData.map(async (conv) => {
+          // Buscar informações de cada participante (exceto o usuário atual)
+          const otherParticipantIds = conv.participants.filter(id => id !== user.uid);
+          
+          // Se não há outros participantes, mostrar como "Conversa vazia"
+          if (otherParticipantIds.length === 0) {
+            return {
+              ...conv,
+              displayName: 'Conversa vazia',
+              displayInfo: 'Sem participantes',
+              isOnline: false
+            };
+          }
+          
+          // Buscar informações do primeiro participante (normalmente teremos apenas um outro)
+          const otherUserInfo = await fetchUserInfo(otherParticipantIds[0]);
+          
+          // Obter o título da obra da metadata
+          const workTitle = conv.metadata?.workTitle || '';
+          
+          return {
+            ...conv,
+            displayName: otherUserInfo?.nome || 'Técnico',
+            displayInfo: `${otherUserInfo?.tipo || 'Técnico'} ${workTitle ? `• Obra: ${workTitle}` : ''}`,
+            isOnline: false // Eventualmente poderia implementar status online
           };
-        });
+        })
+      );
+      
+      setConversations(processedConversations);
+      
+      // Se existe um ID de conversa pendente, verificar se ela está na lista
+      if (pendingConversationId) {
+        const targetConv = processedConversations.find(conv => conv.id === pendingConversationId);
         
-        setWorkDetails(workDetailsMap);
-      } catch (error) {
-        console.error('Erro ao carregar obras:', error);
+        if (targetConv) {
+          console.log('Ativando conversa pendente:', targetConv);
+          setActiveConversation(targetConv);
+          setPendingConversationId(null);
+        }
       }
     };
     
-    loadWorks();
-    loadConversations();
-  }, [user]);
+    // Inscrever-se para receber atualizações das conversas
+    const unsubscribe = messageService.getUserConversations(user.uid, loadConversations);
+    
+    // Limpar inscrição ao desmontar
+    return () => unsubscribe();
+  }, [user?.uid, pendingConversationId]);
   
+  // Efeito para carregar mensagens quando uma conversa é selecionada
   useEffect(() => {
-    // Sempre role para o final quando mensagens mudam
-    if (messageEndRef.current) {
-      messageEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    if (!activeConversation) {
+      setMessages([]);
+      return;
     }
-  }, [messages]);
+    
+    console.log('Carregando mensagens da conversa:', activeConversation.id);
+    
+    // Marcar conversa como lida
+    messageService.markConversationAsRead(activeConversation.id, user.uid)
+      .catch(error => console.error('Erro ao marcar conversa como lida:', error));
+    
+    // Inscrever-se para receber atualizações das mensagens
+    const unsubscribe = messageService.getConversationMessages(activeConversation.id, (messagesData) => {
+      console.log('Mensagens recebidas:', messagesData);
+      setMessages(messagesData);
+    });
+    
+    // Limpar inscrição ao desmontar ou trocar de conversa
+    return () => unsubscribe();
+  }, [activeConversation, user?.uid]);
   
+  // Efeito para rolar para o final da lista de mensagens
   useEffect(() => {
-    if (selectedConversation) {
-      loadMessages(selectedConversation.id);
-      
-      // Carregar informações do técnico se ainda não estiverem carregadas
-      if (!technicians[selectedConversation.technicianId]) {
-        loadTechnicianInfo(selectedConversation.technicianId);
-      }
+    if (messagesListRef.current) {
+      messagesListRef.current.scrollTop = messagesListRef.current.scrollHeight;
     }
-  }, [selectedConversation]);
-  
-  const loadTechnicianInfo = async (technicianId) => {
-    try {
-      const technicianDoc = await getDoc(doc(db, 'users', technicianId));
-      if (technicianDoc.exists()) {
-        const techData = technicianDoc.data();
-        setTechnicians(prev => ({
-          ...prev,
-          [technicianId]: {
-            nome: techData.nome || 'Técnico',
-            sobrenome: techData.sobrenome || '',
-            email: techData.email || '',
-            photoURL: techData.photoURL || null
-          }
-        }));
-      }
-    } catch (error) {
-      console.error('Erro ao carregar informações do técnico:', error);
-    }
-  };
-  
-  const loadConversations = async () => {
-    if (!user) return;
-    
-    try {
-      setLoading(true);
-      const conversationsRef = collection(db, 'conversations');
-      const q = query(
-        conversationsRef,
-        where('participants', 'array-contains', user.uid),
-        orderBy('lastMessageAt', 'desc')
-      );
-      
-      // Usar onSnapshot para atualização em tempo real
-      const unsubscribe = onSnapshot(q, async (snapshot) => {
-        const conversationsData = [];
-        
-        for (const doc of snapshot.docs) {
-          const data = doc.data();
-          
-          // Determinar qual é o ID do técnico (o outro participante)
-          const technicianId = data.participants.find(id => id !== user.uid);
-          
-          // Se ainda não temos informações sobre este técnico, carregar
-          if (technicianId && !technicians[technicianId]) {
-            loadTechnicianInfo(technicianId);
-          }
-          
-          conversationsData.push({
-            id: doc.id,
-            workId: data.workId,
-            technicianId,
-            lastMessage: data.lastMessage,
-            lastMessageAt: data.lastMessageAt?.toDate(),
-            unreadCount: data.unreadCount || 0
-          });
-        }
-        
-        setConversations(conversationsData);
-        setLoading(false);
-      });
-      
-      return unsubscribe;
-    } catch (error) {
-      console.error('Erro ao carregar conversas:', error);
-      setLoading(false);
-    }
-  };
-  
-  const loadMessages = async (conversationId) => {
-    try {
-      const messagesRef = collection(db, `conversations/${conversationId}/messages`);
-      const q = query(messagesRef, orderBy('timestamp', 'asc'));
-      
-      const unsubscribe = onSnapshot(q, (snapshot) => {
-        const messagesData = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-          timestamp: doc.data().timestamp?.toDate()
-        }));
-        
-        setMessages(messagesData);
-      });
-      
-      return unsubscribe;
-    } catch (error) {
-      console.error('Erro ao carregar mensagens:', error);
-    }
-  };
-  
-  const handleSendMessage = async (e) => {
-    e.preventDefault();
-    
-    if (!messageText.trim() || !selectedConversation) return;
-    
-    try {
-      const messageData = {
-        text: messageText.trim(),
-        senderId: user.uid,
-        timestamp: serverTimestamp()
-      };
-      
-      // Adicionar a mensagem à coleção de mensagens da conversa
-      const messagesRef = collection(db, `conversations/${selectedConversation.id}/messages`);
-      await addDoc(messagesRef, messageData);
-      
-      // Atualizar informações da conversa
-      const conversationRef = doc(db, 'conversations', selectedConversation.id);
-      await getDoc(conversationRef).then(docSnap => {
-        if (docSnap.exists()) {
-          const conversationData = docSnap.data();
-          
-          // Atualizar o documento da conversa
-          return conversationRef.update({
-            lastMessage: messageText.trim(),
-            lastMessageAt: serverTimestamp(),
-            // Incrementar contador de não lidas para o outro participante
-            [`unreadCount.${selectedConversation.technicianId}`]: 
-              (conversationData.unreadCount?.[selectedConversation.technicianId] || 0) + 1
-          });
-        }
-      });
-      
-      setMessageText('');
-    } catch (error) {
-      console.error('Erro ao enviar mensagem:', error);
-    }
-  };
-  
-  const handleBack = () => {
+  }, [activeConversation, messages]);
+
+  // Função para voltar ao painel
+  const goBackToDashboard = () => {
     navigate('/dashgestor');
   };
-  
-  const filteredConversations = conversations.filter(conversation => {
-    if (!searchTerm) return true;
-    
-    const technicianInfo = technicians[conversation.technicianId] || {};
-    const workInfo = workDetails[conversation.workId] || {};
-    
-    const technicianName = `${technicianInfo.nome || ''} ${technicianInfo.sobrenome || ''}`.toLowerCase();
-    const workTitle = (workInfo.title || '').toLowerCase();
-    
-    return technicianName.includes(searchTerm.toLowerCase()) || 
-           workTitle.includes(searchTerm.toLowerCase());
-  });
-  
-  const formatDate = (date) => {
-    if (!date) return '';
-    
-    const now = new Date();
-    const messageDate = new Date(date);
-    
-    // Se a mensagem é de hoje, mostrar apenas a hora
-    if (messageDate.toDateString() === now.toDateString()) {
-      return messageDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    }
-    
-    // Se a mensagem é deste ano, mostrar dia e mês
-    if (messageDate.getFullYear() === now.getFullYear()) {
-      return messageDate.toLocaleDateString([], { day: '2-digit', month: '2-digit' });
-    }
-    
-    // Se a mensagem é de outro ano, mostrar dia, mês e ano
-    return messageDate.toLocaleDateString([], { day: '2-digit', month: '2-digit', year: '2-digit' });
+
+  // Função para criar nova conversa
+  const handleNewConversation = () => {
+    console.log('Criar nova conversa');
+    // Aqui poderíamos implementar a lógica para selecionar um técnico para iniciar uma conversa
+    // Por simplicidade, apenas mostramos um alerta
+    alert('Funcionalidade de nova conversa será implementada em breve.');
   };
 
-  return (
-    <div className="messages-container">
-      <div className="messages-header">
-        <button className="back-button" onClick={handleBack}>
-          <FiArrowLeft />
-          <span>Voltar</span>
-        </button>
-        <h1>Mensagens</h1>
-      </div>
+  // Função para enviar mensagem
+  const handleSendMessage = (e) => {
+    e.preventDefault();
+    if (!messageText.trim() || !activeConversation) return;
+    
+    // Enviar mensagem através do messageService
+    messageService.sendMessage(activeConversation.id, {
+      text: messageText,
+      senderId: user.uid,
+      metadata: {}
+    }).then(messageId => {
+      console.log('Mensagem enviada com ID:', messageId);
+      // Não precisamos atualizar o estado manualmente pois o listener fará isso
       
-      <div className="messages-content">
-        <div className="messages-layout">
-          {/* Painel esquerdo - Lista de conversas */}
-          <div className="conversations-panel">
-            <div className="conversations-header">
-              <h2>Conversas</h2>
+      // Limpa o campo de texto
+      setMessageText('');
+    }).catch(error => {
+      console.error('Erro ao enviar mensagem:', error);
+      alert('Erro ao enviar mensagem. Tente novamente.');
+    });
+  };
+  
+  // Função para alternar a visibilidade da barra lateral em dispositivos móveis
+  const toggleSidebar = () => {
+    setSidebarVisible(!sidebarVisible);
+  };
+  
+  // Função para selecionar uma conversa
+  const handleSelectConversation = (conversation) => {
+    setActiveConversation(conversation);
+    
+    // Em dispositivos móveis, fechar a barra lateral ao selecionar uma conversa
+    setSidebarVisible(false);
+    
+    if (messageInputRef.current) {
+      messageInputRef.current.focus();
+    }
+  };
+
+  // Filtrar conversas baseado na pesquisa
+  const filteredConversations = conversations.filter(conv => 
+    (conv.displayName?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+    (conv.displayInfo?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+    (conv.lastMessage?.text?.toLowerCase() || '').includes(searchTerm.toLowerCase())
+  );
+
+  return (
+    <div className="messages-app-container">
+      <div className="messages-app">
+        <header className="messages-header">
+          <div className="header-left">
+            <button 
+              className="menu-button mobile-only" 
+              onClick={toggleSidebar}
+              aria-label="Menu de conversas"
+            >
+              {sidebarVisible ? <FiX /> : <FiMenu />}
+            </button>
+            <h1>Mensagens</h1>
+          </div>
+          <button 
+            className="new-conversation-btn" 
+            onClick={handleNewConversation}
+            aria-label="Nova conversa"
+          >
+            <FiPlus />
+            <span>Nova Conversa</span>
+          </button>
+        </header>
+        
+        <div className="messages-content">
+          {/* Sidebar com lista de conversas */}
+          <aside className={`conversations-sidebar ${sidebarVisible ? 'active' : ''}`}>
+            <div className="search-container">
               <div className="search-bar">
-                <FiSearch />
+                <FiSearch className="search-icon" />
                 <input 
                   type="text" 
-                  placeholder="Procurar..." 
+                  placeholder="Pesquisar conversas..." 
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
@@ -270,138 +288,120 @@ const Messages = () => {
             </div>
             
             <div className="conversations-list">
-              {loading ? (
-                <div className="loading-indicator">Carregando conversas...</div>
-              ) : filteredConversations.length === 0 ? (
-                <div className="empty-state">
-                  <FiMessageCircle size={40} />
+              {filteredConversations.length === 0 ? (
+                <div className="empty-conversations">
+                  <FiMessageCircle size={32} />
                   <p>Nenhuma conversa encontrada</p>
-                  {searchTerm && <p>Tente outro termo de pesquisa</p>}
+                  <p>Use o botão "Nova Conversa" ou aguarde contato dos técnicos.</p>
                 </div>
               ) : (
-                filteredConversations.map(conversation => {
-                  const technicianInfo = technicians[conversation.technicianId] || {};
-                  const workInfo = workDetails[conversation.workId] || {};
-                  
-                  return (
-                    <div 
-                      key={conversation.id}
-                      className={`conversation-item ${selectedConversation?.id === conversation.id ? 'active' : ''}`}
-                      onClick={() => setSelectedConversation(conversation)}
-                    >
-                      <div className="conversation-avatar">
-                        {technicianInfo.photoURL ? (
-                          <img src={technicianInfo.photoURL} alt="Avatar" />
-                        ) : (
-                          <div className="avatar-placeholder">
-                            {technicianInfo.nome ? technicianInfo.nome.charAt(0).toUpperCase() : "T"}
-                          </div>
-                        )}
-                      </div>
-                      <div className="conversation-details">
-                        <div className="conversation-header">
-                          <h3>{technicianInfo.nome || 'Técnico'} {technicianInfo.sobrenome || ''}</h3>
-                          <span className="conversation-date">{formatDate(conversation.lastMessageAt)}</span>
-                        </div>
-                        <div className="conversation-work">
-                          <span>Obra: {workInfo.title || 'Sem título'}</span>
-                        </div>
-                        <p className="conversation-preview">{conversation.lastMessage || 'Sem mensagens'}</p>
-                      </div>
-                      {conversation.unreadCount > 0 && (
-                        <div className="unread-badge">{conversation.unreadCount}</div>
-                      )}
+                filteredConversations.map((conversation) => (
+                  <div 
+                    key={conversation.id} 
+                    className={`conversation-item ${activeConversation?.id === conversation.id ? 'active' : ''}`}
+                    onClick={() => handleSelectConversation(conversation)}
+                  >
+                    <div className="avatar">
+                      <FiUser />
+                      {conversation.isOnline && <span className="status-indicator"></span>}
                     </div>
-                  );
-                })
+                    <div className="conversation-content">
+                      <div className="conversation-header">
+                        <h3>{conversation.displayName}</h3>
+                        <span className="time">{formatTimestamp(conversation.lastMessage?.timestamp)}</span>
+                      </div>
+                      <p className="apartment">{conversation.displayInfo}</p>
+                      <p className="preview-message">{conversation.lastMessage?.text || 'Nova conversa'}</p>
+                    </div>
+                    {conversation.unreadCount > 0 && (
+                      <div className="unread-badge">{conversation.unreadCount}</div>
+                    )}
+                  </div>
+                ))
               )}
             </div>
-          </div>
+          </aside>
           
-          {/* Painel direito - Chat ou placeholder */}
-          <div className="chat-panel">
-            {selectedConversation ? (
+          {/* Área de chat */}
+          <main className="chat-area">
+            {activeConversation ? (
               <>
+                {/* Cabeçalho do chat */}
                 <div className="chat-header">
-                  <div className="chat-header-user">
-                    <div className="chat-avatar">
-                      {technicians[selectedConversation.technicianId]?.photoURL ? (
-                        <img src={technicians[selectedConversation.technicianId].photoURL} alt="Avatar" />
-                      ) : (
-                        <div className="avatar-placeholder">
-                          {technicians[selectedConversation.technicianId]?.nome 
-                            ? technicians[selectedConversation.technicianId].nome.charAt(0).toUpperCase() 
-                            : "T"}
-                        </div>
-                      )}
+                  <div className="chat-contact-info">
+                    <div className="avatar">
+                      <FiUser />
+                      {activeConversation.isOnline && <span className="status-indicator"></span>}
                     </div>
                     <div>
-                      <h3>{technicians[selectedConversation.technicianId]?.nome || 'Técnico'} {technicians[selectedConversation.technicianId]?.sobrenome || ''}</h3>
-                      <p className="chat-subheader">Técnico</p>
+                      <h3>{activeConversation.displayName}</h3>
+                      <p>{activeConversation.displayInfo}</p>
                     </div>
-                  </div>
-                  <div className="chat-work-info">
-                    <div className="work-badge">
-                      <FiHome />
-                      <span>Obra: {workDetails[selectedConversation.workId]?.title || 'Sem título'}</span>
-                    </div>
-                    {workDetails[selectedConversation.workId]?.category && (
-                      <div className="category-badge">
-                        {workDetails[selectedConversation.workId].category}
-                      </div>
-                    )}
                   </div>
                 </div>
                 
-                <div className="chat-messages">
-                  {messages.length === 0 ? (
-                    <div className="empty-chat">
-                      <FiMessageCircle size={50} />
-                      <p>Nenhuma mensagem ainda</p>
-                      <p>Comece a conversar agora</p>
-                    </div>
-                  ) : (
-                    messages.map(message => (
-                      <div 
-                        key={message.id} 
-                        className={`message ${message.senderId === user.uid ? 'my-message' : 'other-message'}`}
-                      >
+                {/* Mensagens */}
+                <div className="messages-list" ref={messagesListRef}>
+                  {messages.length > 0 ? (
+                    messages.map((message) => (
+                      <div key={message.id} className={`message ${message.senderId === user.uid ? 'outgoing' : 'incoming'}`}>
                         <div className="message-content">
                           <p>{message.text}</p>
-                          <span className="message-time">
-                            {message.timestamp ? formatDate(message.timestamp) : 'Enviando...'}
-                          </span>
+                          <span className="message-time">{formatTimestamp(message.timestamp)}</span>
                         </div>
                       </div>
                     ))
+                  ) : (
+                    <div className="empty-chat-content">
+                      <FiMessageCircle size={40} />
+                      <h3>Nenhuma mensagem</h3>
+                      <p>Esta conversa ainda não tem mensagens. Comece a interagir agora!</p>
+                    </div>
                   )}
-                  <div ref={messageEndRef} />
                 </div>
                 
-                <form className="chat-input" onSubmit={handleSendMessage}>
-                  <input
-                    type="text"
-                    placeholder="Escreva sua mensagem..."
+                {/* Área de input */}
+                <form className="message-input-area" onSubmit={handleSendMessage}>
+                  <button 
+                    type="button" 
+                    className="attachment-button"
+                    aria-label="Anexar arquivo"
+                  >
+                    <FiPaperclip />
+                  </button>
+                  <input 
+                    ref={messageInputRef}
+                    type="text" 
+                    placeholder="Digite uma mensagem..." 
                     value={messageText}
                     onChange={(e) => setMessageText(e.target.value)}
                   />
                   <button 
+                    type="button" 
+                    className="emoji-button"
+                    onClick={() => setShowEmojis(!showEmojis)}
+                    aria-label="Inserir emoji"
+                  >
+                    <FiSmile />
+                  </button>
+                  <button 
                     type="submit" 
-                    className="send-button"
+                    className="send-button" 
                     disabled={!messageText.trim()}
+                    aria-label="Enviar mensagem"
                   >
                     <FiSend />
                   </button>
                 </form>
               </>
             ) : (
-              <div className="no-chat-selected">
-                <FiMessageCircle size={60} />
+              <div className="no-conversation-selected">
+                <FiMessageCircle size={48} />
                 <h3>Nenhuma conversa selecionada</h3>
                 <p>Selecione uma conversa para começar a enviar mensagens</p>
               </div>
             )}
-          </div>
+          </main>
         </div>
       </div>
     </div>

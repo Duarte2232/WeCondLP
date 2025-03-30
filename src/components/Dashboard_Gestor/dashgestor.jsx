@@ -10,6 +10,7 @@ import { useNavigate, Routes, Route, useLocation } from 'react-router-dom';
 import { CLOUDINARY_CONFIG } from '../../config/cloudinary';
 import LoadingAnimation from '../LoadingAnimation/LoadingAnimation';
 import sha1 from 'crypto-js/sha1';
+import * as messageService from '../../services/messageService';
 
 // Importação dos componentes
 import Metrics from './components/Metrics/Metrics';
@@ -500,62 +501,30 @@ function DashGestor() {
         alert('Informações incompletas para iniciar conversa. Tente novamente.');
         return;
       }
-
-      // Verificar se já existe uma conversa entre o gestor e o técnico para esta obra
-      const conversationsRef = collection(db, 'conversations');
-      const q = query(
-        conversationsRef,
-        where('participants', 'array-contains', user.uid),
-        where('workId', '==', workId)
+      
+      console.log('Iniciando conversa com técnico:', { workId, fornecedorId, fornecedorNome });
+      
+      // Buscar título da obra
+      const workRef = doc(db, 'works', workId);
+      const workDoc = await getDoc(workRef);
+      const workTitle = workDoc.exists() ? workDoc.data().title : 'Obra';
+      
+      // Usar o messageService para criar/obter a conversa
+      const conversationId = await messageService.startGestorTecnicoConversation(
+        fornecedorId, // id do técnico
+        user.uid,     // id do gestor
+        workId,
+        workTitle
       );
-
-      const querySnapshot = await getDocs(q);
-      let conversationId;
-
-      if (!querySnapshot.empty) {
-        // Usar a primeira conversa encontrada
-        const conversationDoc = querySnapshot.docs.find(doc => {
-          const data = doc.data();
-          return data.participants.includes(fornecedorId);
-        });
-
-        if (conversationDoc) {
-          conversationId = conversationDoc.id;
-        }
-      }
-
-      // Se não existe conversa, criar uma nova
-      if (!conversationId) {
-        const workRef = doc(db, 'works', workId);
-        const workDoc = await getDoc(workRef);
-        const workData = workDoc.data();
-
-        // Criar nova conversa
-        const newConversation = {
-          participants: [user.uid, fornecedorId],
-          workId: workId,
-          workTitle: workData.title,
-          createdAt: serverTimestamp(),
-          lastMessageAt: serverTimestamp(),
-          lastMessage: 'Conversa iniciada'
-        };
-
-        const docRef = await addDoc(conversationsRef, newConversation);
-        conversationId = docRef.id;
-
-        // Adicionar mensagem inicial ao sistema
-        const messagesRef = collection(db, `conversations/${conversationId}/messages`);
-        await addDoc(messagesRef, {
-          text: `Conversa iniciada sobre a obra "${workData.title}"`,
-          senderId: 'system',
-          timestamp: serverTimestamp()
-        });
-
-        console.log(`Nova conversa criada: ${conversationId}`);
-      }
-
+      
+      console.log('Conversa iniciada com ID:', conversationId);
+      
+      // Para garantir que a conversa esteja disponível no componente Messages,
+      // armazenamos temporariamente o ID da conversa
+      localStorage.setItem('activeConversationId', conversationId);
+      
       // Redirecionar para a página de mensagens
-      navigate(`/messages?conversation=${conversationId}`);
+      navigate('/dashgestor/mensagens');
     } catch (error) {
       console.error('Erro ao iniciar conversa:', error);
       alert('Erro ao iniciar conversa. Tente novamente.');

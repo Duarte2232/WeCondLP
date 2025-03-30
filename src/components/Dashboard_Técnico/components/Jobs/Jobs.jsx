@@ -4,12 +4,14 @@ import { FiMapPin, FiClock, FiPhone, FiArrowLeft, FiTag, FiInfo, FiAlertCircle, 
 import { db } from '../../../../services/firebase';
 import { collection, doc, getDoc, addDoc, query, where, getDocs, serverTimestamp } from 'firebase/firestore';
 import { useAuth } from '../../../../contexts/auth';
+import * as messageService from '../../../../services/messageService';
 import './Jobs.css';
 
 const Jobs = ({ jobs, loading }) => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [expandedWorks, setExpandedWorks] = useState(new Set());
+  const [isMessageLoading, setIsMessageLoading] = useState(false);
   
   // Depurar as obras recebidas
   console.log("Jobs recebidos no componente:", jobs);
@@ -62,25 +64,37 @@ const Jobs = ({ jobs, loading }) => {
   };
 
   // Função para iniciar uma conversa com o gestor da obra
-  const handleSendMessage = (workId, gestorId, workTitle) => {
+  const handleSendMessage = async (workId, gestorId, workTitle) => {
     try {
       if (!user?.uid) {
         alert('Você precisa estar logado para enviar mensagens.');
         return;
       }
       
-      console.log('Redirecionando para mensagens:', { workId, gestorId, workTitle });
+      setIsMessageLoading(true);
+      console.log('Iniciando conversa com gestor:', { workId, gestorId, workTitle });
       
-      // Armazenar informações no localStorage para serem recuperadas pelo componente Messages
-      localStorage.setItem('currentWorkId', workId);
-      localStorage.setItem('currentGestorId', gestorId || 'gestor');
-      localStorage.setItem('currentWorkTitle', workTitle || 'Sem título');
+      // Usar o messageService para criar/obter a conversa
+      const conversationId = await messageService.startTecnicoGestorConversation(
+        user.uid,
+        gestorId || 'gestor',
+        workId,
+        workTitle || 'Sem título'
+      );
+      
+      console.log('Conversa iniciada com ID:', conversationId);
+      
+      // Para garantir que a conversa esteja disponível no componente Messages,
+      // armazenamos temporariamente o ID da conversa
+      localStorage.setItem('activeConversationId', conversationId);
       
       // Redirecionar para a página de mensagens
       navigate('/dashtecnico/mensagens');
     } catch (error) {
-      console.error('Erro ao redirecionar para mensagens:', error);
+      console.error('Erro ao iniciar conversa:', error);
       alert('Não foi possível iniciar a conversa. Por favor, tente novamente.');
+    } finally {
+      setIsMessageLoading(false);
     }
   };
 
