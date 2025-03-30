@@ -1,367 +1,370 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { FiArrowLeft, FiSend, FiSearch, FiMessageCircle, FiChevronRight, FiInfo } from 'react-icons/fi';
+import React, { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { FiSend, FiSearch, FiMessageCircle, FiUser, FiPaperclip, FiSmile, FiPlus } from 'react-icons/fi';
 import './Messages.css';
-import { getAuth } from 'firebase/auth';
-import { collection, query, where, getDocs, orderBy, addDoc, serverTimestamp, onSnapshot, doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../../../../services/firebase';
+import { doc, getDoc } from 'firebase/firestore';
 import { useAuth } from '../../../../contexts/auth';
 
 const Messages = () => {
   const navigate = useNavigate();
-  const location = useLocation();
   const { user } = useAuth();
-  const auth = getAuth();
-  const [conversations, setConversations] = useState([]);
-  const [selectedConversation, setSelectedConversation] = useState(null);
-  const [messages, setMessages] = useState([]);
   const [messageText, setMessageText] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [works, setWorks] = useState([]);
-  const [workDetails, setWorkDetails] = useState({});
-  const [gestores, setGestores] = useState({});
-  const messageEndRef = useRef(null);
-
+  const messageInputRef = useRef(null);
+  const [showEmojis, setShowEmojis] = useState(false);
+  const messagesListRef = useRef(null);
+  
+  // Estado para armazenar informações da conversa atual
+  const [activeConversation, setActiveConversation] = useState(null);
+  
+  // Lista de conversas e mensagens
+  const [conversations, setConversations] = useState([]);
+  const [messages, setMessages] = useState([]);
+  const [gestoresInfo, setGestoresInfo] = useState({});
+  const [isInitializing, setIsInitializing] = useState(false);
+  
+  // Função para buscar informações do gestor no Firebase
+  const fetchGestorInfo = async (gestorId) => {
+    try {
+      console.log('Buscando informações do gestor:', gestorId);
+      
+      // Verifica se já temos as informações deste gestor em cache
+      if (gestoresInfo[gestorId]) {
+        return gestoresInfo[gestorId];
+      }
+      
+      // Busca o documento do gestor no Firebase
+      const gestorDoc = await getDoc(doc(db, 'users', gestorId));
+      
+      if (!gestorDoc.exists()) {
+        console.log('Gestor não encontrado:', gestorId);
+        return null;
+      }
+      
+      const gestorData = gestorDoc.data();
+      console.log('Dados do gestor:', gestorData);
+      
+      // Salva as informações no estado para uso futuro
+      const gestorInfo = {
+        nome: gestorData.empresaNome || gestorData.nome || 'Empresa',
+        tipo: gestorData.empresaTipo || 'Gestor'
+      };
+      
+      setGestoresInfo(prev => ({
+        ...prev,
+        [gestorId]: gestorInfo
+      }));
+      
+      return gestorInfo;
+    } catch (error) {
+      console.error('Erro ao buscar informações do gestor:', error);
+      return null;
+    }
+  };
+  
+  // Efeito para verificar se foi redirecionado do Jobs com uma conversa para iniciar
   useEffect(() => {
-    // Scroll para o final das mensagens quando são carregadas ou atualizadas
-    if (messageEndRef.current) {
-      messageEndRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [messages]);
-
+    const workId = localStorage.getItem('currentWorkId');
+    const gestorId = localStorage.getItem('currentGestorId');
+    const workTitle = localStorage.getItem('currentWorkTitle');
+    
+    // Se não há dados no localStorage ou já está inicializando, não faz nada
+    if (!workId || !gestorId || isInitializing) return;
+    
+    const initializeConversation = async () => {
+      try {
+        // Marca que está inicializando para evitar inicializações duplicadas
+        setIsInitializing(true);
+        
+        console.log('Inicializando conversa com:', { workId, gestorId, workTitle });
+        
+        // Buscar informações do gestor no Firebase
+        const gestorInfo = await fetchGestorInfo(gestorId);
+        
+        if (!gestorInfo) {
+          console.log('Não foi possível obter informações do gestor, usando valores padrão');
+        }
+        
+        // Criar um ID único para a conversa
+        const conversationId = `work-${workId}-gestor-${gestorId}`;
+        
+        // Verificar se esta conversa já existe
+        const existingConversationIndex = conversations.findIndex(
+          conv => conv.id === conversationId
+        );
+        
+        if (existingConversationIndex >= 0) {
+          // Se a conversa já existe, apenas a torna ativa
+          setActiveConversation(conversations[existingConversationIndex]);
+        } else {
+          // Criar uma conversa com o gestor/empresa
+          const newConversation = {
+            id: conversationId,
+            name: gestorInfo?.nome || 'Empresa',
+            apt: `${gestorInfo?.tipo || 'Gestor'} • Obra: ${workTitle || workId}`,
+            lastMessage: 'Nova conversa iniciada',
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            unread: 0,
+            isOnline: true,
+            workId,
+            gestorId
+          };
+          
+          // Se a conversa não existe, adiciona à lista e torna ativa
+          setConversations(prevConversations => [newConversation, ...prevConversations]);
+          setActiveConversation(newConversation);
+        }
+      } catch (error) {
+        console.error('Erro ao inicializar conversa:', error);
+      } finally {
+        // Limpe o localStorage após usar, independente do resultado
+        localStorage.removeItem('currentWorkId');
+        localStorage.removeItem('currentGestorId');
+        localStorage.removeItem('currentWorkTitle');
+        
+        // Marca que terminou a inicialização
+        setIsInitializing(false);
+      }
+    };
+    
+    initializeConversation();
+  }, []);  // Removida a dependência de conversations
+  
+  // Efeito para rolar para o final da lista de mensagens
   useEffect(() => {
-    if (!user) return;
-    
-    // Processar parâmetros da URL para ver se há uma conversa a ser aberta
-    const queryParams = new URLSearchParams(location.search);
-    const conversationId = queryParams.get('conversation');
-    
-    loadConversations(conversationId);
-  }, [user, location.search]);
-
-  const loadConversations = async (targetConversationId = null) => {
-    if (!user?.uid) return;
-    
-    setLoading(true);
-    try {
-      // Buscar todas as conversas onde o técnico é participante
-      const conversationsRef = collection(db, 'conversations');
-      const q = query(
-        conversationsRef,
-        where('participants', 'array-contains', user.uid),
-        orderBy('lastMessageAt', 'desc')
-      );
-      
-      const querySnapshot = await getDocs(q);
-      
-      // Processar as conversas e buscar detalhes dos trabalhos e gestores
-      const conversationsData = [];
-      const workIds = new Set();
-      const gestorIds = new Set();
-      
-      querySnapshot.forEach(doc => {
-        const conversation = {
-          id: doc.id,
-          ...doc.data()
-        };
-        
-        // Obter IDs de obras e gestores para carregar detalhes
-        if (conversation.workId) {
-          workIds.add(conversation.workId);
-        }
-        
-        // Encontrar o ID do gestor (que não é o usuário atual)
-        conversation.participants.forEach(participantId => {
-          if (participantId !== user.uid) {
-            gestorIds.add(participantId);
-          }
-        });
-        
-        conversationsData.push(conversation);
-      });
-      
-      setConversations(conversationsData);
-      
-      // Carregar detalhes das obras
-      const workDetailsMap = {};
-      for (const workId of workIds) {
-        const workDoc = await getDoc(doc(db, 'works', workId));
-        if (workDoc.exists()) {
-          workDetailsMap[workId] = workDoc.data();
-        }
-      }
-      setWorkDetails(workDetailsMap);
-      
-      // Carregar detalhes dos gestores
-      const gestoresMap = {};
-      for (const gestorId of gestorIds) {
-        const gestorDoc = await getDoc(doc(db, 'users', gestorId));
-        if (gestorDoc.exists()) {
-          gestoresMap[gestorId] = gestorDoc.data();
-        }
-      }
-      setGestores(gestoresMap);
-      
-      // Se há um conversationId específico para abrir
-      if (targetConversationId) {
-        const targetConversation = conversationsData.find(c => c.id === targetConversationId);
-        if (targetConversation) {
-          setSelectedConversation(targetConversation);
-          loadMessages(targetConversationId);
-        }
-      }
-      
-    } catch (error) {
-      console.error('Erro ao carregar conversas:', error);
-    } finally {
-      setLoading(false);
+    if (messagesListRef.current) {
+      messagesListRef.current.scrollTop = messagesListRef.current.scrollHeight;
     }
-  };
-
-  const loadMessages = async (conversationId) => {
-    if (!conversationId) return;
-    
-    try {
-      // Configurar listener para mensagens da conversa selecionada
-      const messagesRef = collection(db, `conversations/${conversationId}/messages`);
-      const q = query(messagesRef, orderBy('timestamp', 'asc'));
-      
-      const unsubscribe = onSnapshot(q, (snapshot) => {
-        const messagesData = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
-        setMessages(messagesData);
-      });
-      
-      // Retornar função para desinscrever do listener quando a conversa mudar
-      return unsubscribe;
-    } catch (error) {
-      console.error('Erro ao carregar mensagens:', error);
-    }
-  };
-
-  // Selecionar uma conversa e carregar suas mensagens
-  const handleSelectConversation = (conversation) => {
-    setSelectedConversation(conversation);
-    
-    // Atualizar URL para refletir a conversa selecionada
-    navigate(`/dashtecnico/mensagens?conversation=${conversation.id}`, { replace: true });
-    
-    // Limpar mensagens anteriores e carregar novas
-    setMessages([]);
-    loadMessages(conversation.id);
-  };
-
-  // Enviar uma nova mensagem
-  const handleSendMessage = async (e) => {
-    e.preventDefault();
-    
-    if (!messageText.trim() || !selectedConversation?.id) return;
-    
-    try {
-      const messagesRef = collection(db, `conversations/${selectedConversation.id}/messages`);
-      
-      // Adicionar a mensagem
-      await addDoc(messagesRef, {
-        text: messageText.trim(),
-        senderId: user.uid,
-        timestamp: serverTimestamp(),
-        read: false
-      });
-      
-      // Atualizar o último timestamp e mensagem da conversa
-      const conversationRef = doc(db, 'conversations', selectedConversation.id);
-      await updateDoc(conversationRef, {
-        lastMessageAt: serverTimestamp(),
-        lastMessage: messageText.trim()
-      });
-      
-      // Limpar o campo de texto
-      setMessageText('');
-    } catch (error) {
-      console.error('Erro ao enviar mensagem:', error);
-      alert('Erro ao enviar mensagem. Por favor, tente novamente.');
-    }
-  };
+  }, [activeConversation, messages]);
 
   // Função para voltar ao painel
   const goBackToDashboard = () => {
     navigate('/dashtecnico');
   };
 
-  // Encontrar o nome do gestor para uma conversa
-  const getGestorName = (conversation) => {
-    if (!conversation || !conversation.participants) return 'Desconhecido';
+  // Função para criar nova conversa
+  const handleNewConversation = () => {
+    console.log('Criar nova conversa');
+    // Criação de conversa de suporte
+    const newConversation = {
+      id: `new-${Date.now()}`,
+      name: "WeCond Suporte",
+      apt: 'Suporte Técnico',
+      lastMessage: 'Conversa iniciada',
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      unread: 0,
+      isOnline: true
+    };
     
-    const gestorId = conversation.participants.find(id => id !== user.uid);
-    if (!gestorId) return 'Desconhecido';
-    
-    return gestores[gestorId]?.name || gestores[gestorId]?.email || gestores[gestorId]?.empresaNome || 'Gestor';
+    setConversations(prev => [newConversation, ...prev]);
+    setActiveConversation(newConversation);
   };
 
-  // Encontrar o título da obra de uma conversa
-  const getWorkTitle = (conversation) => {
-    if (!conversation || !conversation.workId) return 'Obra não especificada';
+  // Função para enviar mensagem
+  const handleSendMessage = (e) => {
+    e.preventDefault();
+    if (!messageText.trim() || !activeConversation) return;
     
-    return conversation.workTitle || workDetails[conversation.workId]?.title || 'Obra';
+    // Cria nova mensagem
+    const newMessage = {
+      id: `msg-${Date.now()}`,
+      text: messageText,
+      sender: 'me',
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    };
+    
+    // Adiciona mensagem ao estado
+    setMessages(prev => [...prev, newMessage]);
+    
+    // Atualiza a última mensagem da conversa ativa
+    setConversations(prev => 
+      prev.map(conv => 
+        conv.id === activeConversation.id 
+          ? {...conv, lastMessage: messageText, time: newMessage.time} 
+          : conv
+      )
+    );
+    
+    // Limpa o campo de texto
+    setMessageText('');
+    
+    // Simula resposta automática após 1 segundo
+    setTimeout(() => {
+      const autoReply = {
+        id: `msg-${Date.now()}`,
+        text: 'Mensagem recebida. Nossa equipe entrará em contato em breve para discutir mais detalhes sobre a obra.',
+        sender: 'other',
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      };
+      
+      setMessages(prev => [...prev, autoReply]);
+    }, 1000);
   };
-
-  // Filtrar conversas com base no termo de busca
-  const filteredConversations = conversations.filter(conversation => {
-    const gestorName = getGestorName(conversation).toLowerCase();
-    const workTitle = getWorkTitle(conversation).toLowerCase();
-    const searchLower = searchTerm.toLowerCase();
+  
+  // Função para selecionar uma conversa
+  const handleSelectConversation = (conversation) => {
+    setActiveConversation(conversation);
     
-    return gestorName.includes(searchLower) || workTitle.includes(searchLower);
-  });
-
-  // Formatar timestamp para exibição
-  const formatTimestamp = (timestamp) => {
-    if (!timestamp) return '';
+    // Limpa as mensagens atuais (em um cenário real, aqui buscaríamos as mensagens desta conversa)
+    setMessages([]);
     
-    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-    const today = new Date();
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
-    
-    if (date.toDateString() === today.toDateString()) {
-      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    } else if (date.toDateString() === yesterday.toDateString()) {
-      return 'Ontem';
-    } else {
-      return date.toLocaleDateString();
+    if (messageInputRef.current) {
+      messageInputRef.current.focus();
     }
   };
 
+  // Filtrar conversas baseado na pesquisa
+  const filteredConversations = conversations.filter(conv => 
+    (conv.name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+    (conv.apt?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+    (conv.lastMessage?.toLowerCase() || '').includes(searchTerm.toLowerCase())
+  );
+
   return (
-    <div className="main-content messages-page">
-      <div className="page-header-container">
-        <button className="back-button" onClick={goBackToDashboard}>
-          <FiArrowLeft />
-          <span>Voltar</span>
+    <div className="messages-app">
+      <header className="messages-header">
+        <h1>Mensagens</h1>
+        <button 
+          className="new-conversation-btn" 
+          onClick={handleNewConversation}
+          aria-label="Nova conversa"
+        >
+          <FiPlus />
+          <span>Nova Conversa</span>
         </button>
-        <h1 className="page-title">Mensagens</h1>
-      </div>
+      </header>
       
-      <div className="messages-container">
-        {loading ? (
-          <div className="loading">Carregando conversas...</div>
-        ) : (
-          <>
-            <div className="conversations-sidebar">
-              <div className="search-bar">
-                <FiSearch className="search-icon" />
-                <input 
-                  type="text" 
-                  placeholder="Pesquisar conversas" 
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
+      <div className="messages-content">
+        {/* Sidebar com lista de conversas */}
+        <aside className="conversations-sidebar">
+          <div className="search-container">
+            <div className="search-bar">
+              <FiSearch className="search-icon" />
+              <input 
+                type="text" 
+                placeholder="Pesquisar conversas..." 
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+          </div>
+          
+          <div className="conversations-list">
+            {filteredConversations.length === 0 ? (
+              <div className="empty-conversations">
+                <FiMessageCircle size={32} />
+                <p>Nenhuma conversa encontrada</p>
+                <p>Use o botão "Nova Conversa" ou inicie uma conversa a partir de uma obra.</p>
+              </div>
+            ) : (
+              filteredConversations.map((conversation) => (
+                <div 
+                  key={conversation.id} 
+                  className={`conversation-item ${activeConversation?.id === conversation.id ? 'active' : ''}`}
+                  onClick={() => handleSelectConversation(conversation)}
+                >
+                  <div className="avatar">
+                    <FiUser />
+                    {conversation.isOnline && <span className="status-indicator"></span>}
+                  </div>
+                  <div className="conversation-content">
+                    <div className="conversation-header">
+                      <h3>{conversation.name}</h3>
+                      <span className="time">{conversation.time}</span>
+                    </div>
+                    <p className="apartment">{conversation.apt}</p>
+                    <p className="preview-message">{conversation.lastMessage}</p>
+                  </div>
+                  {conversation.unread > 0 && (
+                    <div className="unread-badge">{conversation.unread}</div>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        </aside>
+        
+        {/* Área de chat */}
+        <main className="chat-area">
+          {activeConversation ? (
+            <>
+              {/* Cabeçalho do chat */}
+              <div className="chat-header">
+                <div className="chat-contact-info">
+                  <div className="avatar">
+                    <FiUser />
+                    {activeConversation.isOnline && <span className="status-indicator"></span>}
+                  </div>
+                  <div>
+                    <h3>{activeConversation.name}</h3>
+                    <p>{activeConversation.apt}</p>
+                  </div>
+                </div>
               </div>
               
-              <div className="conversations-list">
-                {filteredConversations.length > 0 ? (
-                  filteredConversations.map(conversation => (
-                    <div 
-                      key={conversation.id} 
-                      className={`conversation-item ${selectedConversation?.id === conversation.id ? 'active' : ''}`}
-                      onClick={() => handleSelectConversation(conversation)}
-                    >
-                      <div className="conversation-icon">
-                        <FiMessageCircle />
+              {/* Mensagens */}
+              <div className="messages-list" ref={messagesListRef}>
+                {messages.length > 0 ? (
+                  messages.map((message) => (
+                    <div key={message.id} className={`message ${message.sender === 'me' ? 'outgoing' : 'incoming'}`}>
+                      <div className="message-content">
+                        <p>{message.text}</p>
+                        <span className="message-time">{message.time}</span>
                       </div>
-                      <div className="conversation-info">
-                        <div className="conversation-header">
-                          <h3>{getGestorName(conversation)}</h3>
-                          <span className="conversation-time">
-                            {formatTimestamp(conversation.lastMessageAt)}
-                          </span>
-                        </div>
-                        <div className="conversation-subheader">
-                          <span className="work-title">{getWorkTitle(conversation)}</span>
-                        </div>
-                        <p className="conversation-preview">
-                          {conversation.lastMessage || 'Conversa iniciada'}
-                        </p>
-                      </div>
-                      <FiChevronRight className="conversation-arrow" />
                     </div>
                   ))
                 ) : (
-                  <div className="no-conversations">
-                    <FiInfo />
-                    <p>Nenhuma conversa encontrada</p>
+                  <div className="empty-chat-content">
+                    <FiMessageCircle size={40} />
+                    <h3>Nenhuma mensagem</h3>
+                    <p>Esta conversa ainda não tem mensagens. Comece a interagir agora!</p>
                   </div>
                 )}
               </div>
+              
+              {/* Área de input */}
+              <form className="message-input-area" onSubmit={handleSendMessage}>
+                <button 
+                  type="button" 
+                  className="attachment-button"
+                  aria-label="Anexar arquivo"
+                >
+                  <FiPaperclip />
+                </button>
+                <input 
+                  ref={messageInputRef}
+                  type="text" 
+                  placeholder="Digite uma mensagem..." 
+                  value={messageText}
+                  onChange={(e) => setMessageText(e.target.value)}
+                />
+                <button 
+                  type="button" 
+                  className="emoji-button"
+                  onClick={() => setShowEmojis(!showEmojis)}
+                  aria-label="Inserir emoji"
+                >
+                  <FiSmile />
+                </button>
+                <button 
+                  type="submit" 
+                  className="send-button" 
+                  disabled={!messageText.trim()}
+                  aria-label="Enviar mensagem"
+                >
+                  <FiSend />
+                </button>
+              </form>
+            </>
+          ) : (
+            <div className="no-conversation-selected">
+              <FiMessageCircle size={48} />
+              <h3>Nenhuma conversa selecionada</h3>
+              <p>Selecione uma conversa para começar a enviar mensagens</p>
             </div>
-            
-            <div className="messages-content">
-              {selectedConversation ? (
-                <>
-                  <div className="chat-header">
-                    <div className="chat-info">
-                      <h2>{getGestorName(selectedConversation)}</h2>
-                      <p>{getWorkTitle(selectedConversation)}</p>
-                    </div>
-                  </div>
-                  
-                  <div className="chat-messages">
-                    {messages.map(message => {
-                      const isCurrentUser = message.senderId === user.uid;
-                      const isSystem = message.senderId === 'system';
-                      
-                      return (
-                        <div 
-                          key={message.id} 
-                          className={`message ${isCurrentUser ? 'outgoing' : isSystem ? 'system' : 'incoming'}`}
-                        >
-                          {isSystem ? (
-                            <div className="system-message">
-                              {message.text}
-                            </div>
-                          ) : (
-                            <>
-                              <div className="message-bubble">
-                                {message.text}
-                              </div>
-                              <div className="message-time">
-                                {formatTimestamp(message.timestamp)}
-                              </div>
-                            </>
-                          )}
-                        </div>
-                      );
-                    })}
-                    <div ref={messageEndRef} />
-                  </div>
-                  
-                  <form className="chat-input" onSubmit={handleSendMessage}>
-                    <input 
-                      type="text" 
-                      placeholder="Escreva uma mensagem..." 
-                      value={messageText}
-                      onChange={(e) => setMessageText(e.target.value)}
-                    />
-                    <button type="submit" className="send-button" disabled={!messageText.trim()}>
-                      <FiSend />
-                    </button>
-                  </form>
-                </>
-              ) : (
-                <div className="no-conversation-selected">
-                  <div className="no-conversation-icon">
-                    <FiMessageCircle />
-                  </div>
-                  <h3>Selecione uma conversa</h3>
-                  <p>Escolha uma conversa existente ou inicie uma nova a partir de uma obra.</p>
-                </div>
-              )}
-            </div>
-          </>
-        )}
+          )}
+        </main>
       </div>
     </div>
   );

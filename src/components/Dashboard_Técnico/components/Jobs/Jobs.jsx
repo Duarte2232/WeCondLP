@@ -62,100 +62,25 @@ const Jobs = ({ jobs, loading }) => {
   };
 
   // Função para iniciar uma conversa com o gestor da obra
-  const handleSendMessage = async (workId, gestorId) => {
+  const handleSendMessage = (workId, gestorId, workTitle) => {
     try {
       if (!user?.uid) {
         alert('Você precisa estar logado para enviar mensagens.');
         return;
       }
       
-      if (!workId) {
-        console.error('ID da obra não encontrado');
-        return;
-      }
+      console.log('Redirecionando para mensagens:', { workId, gestorId, workTitle });
       
-      // Tentar obter o userId diretamente da obra se não for fornecido
-      if (!gestorId) {
-        const workRef = doc(db, 'works', workId);
-        const workDoc = await getDoc(workRef);
-        
-        if (!workDoc.exists()) {
-          console.error('Obra não encontrada');
-          return;
-        }
-        
-        const workData = workDoc.data();
-        gestorId = workData.userId;
-        
-        if (!gestorId) {
-          console.error('ID do gestor não encontrado na obra');
-          return;
-        }
-      }
-
-      // Verificar se já existe uma conversa entre o técnico e o gestor para esta obra
-      const conversationsRef = collection(db, 'conversations');
-      const q = query(
-        conversationsRef,
-        where('participants', 'array-contains', user.uid),
-        where('workId', '==', workId)
-      );
-
-      const querySnapshot = await getDocs(q);
-      let conversationId;
-
-      if (!querySnapshot.empty) {
-        // Usar a primeira conversa encontrada
-        const conversationDoc = querySnapshot.docs.find(doc => {
-          const data = doc.data();
-          return data.participants.includes(gestorId);
-        });
-
-        if (conversationDoc) {
-          conversationId = conversationDoc.id;
-        }
-      }
-
-      // Se não existe conversa, criar uma nova
-      if (!conversationId) {
-        const workRef = doc(db, 'works', workId);
-        const workDoc = await getDoc(workRef);
-        
-        if (!workDoc.exists()) {
-          console.error('Obra não encontrada ao criar conversa');
-          return;
-        }
-        
-        const workData = workDoc.data();
-
-        // Criar nova conversa
-        const newConversation = {
-          participants: [user.uid, gestorId],
-          workId: workId,
-          workTitle: workData.title || 'Obra sem título',
-          createdAt: serverTimestamp(),
-          lastMessageAt: serverTimestamp(),
-          lastMessage: 'Conversa iniciada'
-        };
-
-        const docRef = await addDoc(conversationsRef, newConversation);
-        conversationId = docRef.id;
-
-        // Adicionar mensagem inicial ao sistema
-        const messagesRef = collection(db, `conversations/${conversationId}/messages`);
-        await addDoc(messagesRef, {
-          text: `Conversa iniciada sobre a obra "${workData.title || 'Obra sem título'}"`,
-          senderId: 'system',
-          timestamp: serverTimestamp()
-        });
-
-        console.log(`Nova conversa criada: ${conversationId}`);
-      }
-
+      // Armazenar informações no localStorage para serem recuperadas pelo componente Messages
+      localStorage.setItem('currentWorkId', workId);
+      localStorage.setItem('currentGestorId', gestorId || 'gestor');
+      localStorage.setItem('currentWorkTitle', workTitle || 'Sem título');
+      
       // Redirecionar para a página de mensagens
-      navigate(`/dashtecnico/mensagens?conversation=${conversationId}`);
+      navigate('/dashtecnico/mensagens');
     } catch (error) {
-      console.error('Erro ao iniciar conversa:', error);
+      console.error('Erro ao redirecionar para mensagens:', error);
+      alert('Não foi possível iniciar a conversa. Por favor, tente novamente.');
     }
   };
 
@@ -302,7 +227,7 @@ const Jobs = ({ jobs, loading }) => {
                 </button>
                 <button 
                   className="send-message-btn"
-                  onClick={() => handleSendMessage(job.id, job.userId)}
+                  onClick={() => handleSendMessage(job.id, job.userId, job.title)}
                 >
                   <FiMessageSquare /> Mensagem ao Gestor
                 </button>
