@@ -319,4 +319,26 @@ h1 {
 .no-jobs-hint {
   color: #6B7280;
   font-size: 14px;
+}
+
+.chat-gestor-btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  background: #10B981;
+  color: white;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: background-color 0.2s;
+}
+
+.chat-gestor-btn:hover {
+  background: #059669;
+}
+
+.chat-gestor-btn svg {
+  font-size: 16px;
 } 

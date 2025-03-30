@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
 import './dashgestor.css';
-import { FiPlusCircle, FiFilter, FiSearch, FiBell, FiEdit2, FiEye, FiCheck, FiX, FiCalendar, FiUpload, FiArrowLeft, FiFile, FiDownload, FiAlertCircle } from 'react-icons/fi';
+import { FiPlusCircle, FiFilter, FiSearch, FiBell, FiEdit2, FiEye, FiCheck, FiX, FiCalendar, FiUpload, FiArrowLeft, FiFile, FiDownload, FiAlertCircle, FiMessageSquare } from 'react-icons/fi';
 import { useAuth } from '../../contexts/auth';
 import { db } from '../../services/firebase';
 import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, getDoc, serverTimestamp, writeBatch } from 'firebase/firestore';
@@ -17,6 +17,7 @@ import SearchFilters from './components/SearchFilters/SearchFilters';
 import NewWorkButton from './components/WorkForm/NewWorkButton';
 import WorkForm from './components/WorkForm/WorkForm';
 import WorksTable from './components/WorksTable/WorksTable';
+import Messages from './components/Messages/Messages';
 
 function DashGestor() {
   const { user } = useAuth();
@@ -38,6 +39,7 @@ function DashGestor() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [unviewedOrcamentos, setUnviewedOrcamentos] = useState({});
+  const [showMessages, setShowMessages] = useState(false);
 
   const [newWork, setNewWork] = useState({
     title: '',
@@ -695,98 +697,73 @@ function DashGestor() {
 
   return (
     <div className="dashboard-container">
-      <nav className="top-nav">
-        <div className="nav-left">
-          <button 
-            className="back-button" 
-            onClick={() => navigate('/login')}
-          >
-            <FiArrowLeft />
-          </button>
-          <h1>
-            {isLoading ? (
-              <span className="loading-name">Carregando...</span>
-            ) : (
-              userData ? `Gestão de Obras - ${userData.name}` : 'Gestão de Obras'
-            )}
-          </h1>
-        </div>
-      </nav>
-
-      <Metrics metrics={metrics} isLoading={isLoading} />
-
-      <section className="actions-bar">
-        <SearchFilters 
-          searchTerm={searchTerm}
-          setSearchTerm={setSearchTerm}
-          selectedFilters={selectedFilters}
-          setSelectedFilters={setSelectedFilters}
-        />
-        <select
-          className="priority-filter"
-          value={selectedFilters.priority}
-          onChange={(e) => setSelectedFilters({...selectedFilters, priority: e.target.value})}
-        >
-          <option value="">Prioridade</option>
-          <option value="Baixa">Baixa</option>
-          <option value="Média">Média</option>
-          <option value="Alta">Alta</option>
-        </select>
-        <button 
-          className={`calendar-toggle-btn ${showCalendar ? 'active' : ''}`}
-          onClick={() => setShowCalendar(!showCalendar)}
-        >
-          <FiCalendar /> Calendário
-        </button>
-        <NewWorkButton onClick={() => setShowNewWorkForm(true)} />
-      </section>
-
-      {showCalendar && (
-        <section className="calendar-section">
-          <div className="calendar-container">
-            <Calendar
-              onChange={handleDateClick}
-              value={selectedDate}
-              tileContent={tileContent}
-            />
-          </div>
-          <div className="calendar-works">
-            <h3>Obras em {selectedDate.toLocaleDateString()}</h3>
-            {getWorksForDate(selectedDate).length > 0 ? (
-              <div className="calendar-works-list">
-                {getWorksForDate(selectedDate).map(work => (
-                  <div key={work.id} className="calendar-work-card">
-                    <div className="calendar-work-header">
-                      <h4>{work.title}</h4>
-                      <span className={`priority-badge ${work.priority.toLowerCase()}`}>
-                        {work.priority}
-                      </span>
-                    </div>
-                    <p>{work.description}</p>
-                    <div className="calendar-work-footer">
-                      <span className={`status-badge ${work.status.toLowerCase().replace(' ', '-')}`}>
-                        {work.status}
-                      </span>
-                      <span className="location">{work.location.morada}, {work.location.cidade}, {work.location.codigoPostal}</span>
-                    </div>
-                  </div>
-                ))}
+      {showMessages ? (
+        <Messages />
+      ) : (
+        <>
+          <div className="dashboard-header">
+            <div className="header-left">
+              <h1>Dashboard do Gestor</h1>
+              <div className="header-actions">
+                <NewWorkButton onClick={() => setShowNewWorkForm(true)} />
+                <button 
+                  className="messages-button"
+                  onClick={() => setShowMessages(true)}
+                >
+                  <FiMessageSquare />
+                  <span>Mensagens</span>
+                </button>
               </div>
-            ) : (
-              <p className="no-works">Nenhuma obra programada para esta data</p>
-            )}
+            </div>
+            <div className="header-right">
+              <div className="calendar-toggle">
+                <button 
+                  className={`calendar-toggle-btn ${showCalendar ? 'active' : ''}`}
+                  onClick={() => setShowCalendar(!showCalendar)}
+                >
+                  <FiCalendar />
+                </button>
+              </div>
+              <div className="notifications">
+                <button 
+                  className="notifications-btn"
+                  onClick={handleNotificationClick}
+                >
+                  <FiBell />
+                  {Object.keys(unviewedOrcamentos).length > 0 && (
+                    <span className="notification-badge">
+                      {Object.values(unviewedOrcamentos).reduce((a, b) => a + b, 0)}
+                    </span>
+                  )}
+                </button>
+              </div>
+            </div>
           </div>
-        </section>
-      )}
 
-      <section className="works-table-container">
-        {isLoading ? (
-          <div className="loading-container">
-            <LoadingAnimation />
-          </div>
-        ) : (
-          <WorksTable 
-            filteredWorks={filteredWorks}
+          {showCalendar && (
+            <div className="calendar-container">
+              <Calendar
+                onChange={setSelectedDate}
+                value={selectedDate}
+                onClickDay={handleDateClick}
+                tileContent={tileContent}
+                locale="pt-BR"
+              />
+            </div>
+          )}
+
+          <Metrics metrics={metrics} isLoading={isLoading} />
+
+          <SearchFilters
+            searchTerm={searchTerm}
+            setSearchTerm={setSearchTerm}
+            selectedFilters={selectedFilters}
+            setSelectedFilters={setSelectedFilters}
+          />
+
+          <WorksTable
+            isLoading={isLoading}
+            filteredWorks={works}
             expandedWorks={expandedWorks}
             handleViewDetails={handleViewDetails}
             handleEdit={handleEdit}
@@ -797,22 +774,22 @@ function DashGestor() {
             handleAceitarOrcamento={handleAceitarOrcamento}
             markOrcamentosAsViewed={markOrcamentosAsViewed}
           />
-        )}
-      </section>
 
-      {showNewWorkForm && (
-        <WorkForm 
-          showNewWorkForm={showNewWorkForm}
-          setShowNewWorkForm={setShowNewWorkForm}
-          newWork={newWork}
-          setNewWork={setNewWork}
-          handleSubmit={handleSubmit}
-          handleFileUpload={handleFileUpload}
-          handleRemoveFile={handleRemoveFile}
-          editingWork={editingWork}
-          setEditingWork={setEditingWork}
-          isSubmitting={isSubmitting}
-        />
+          {showNewWorkForm && (
+            <WorkForm
+              showNewWorkForm={showNewWorkForm}
+              setShowNewWorkForm={setShowNewWorkForm}
+              newWork={newWork}
+              setNewWork={setNewWork}
+              handleSubmit={handleSubmit}
+              handleFileUpload={handleFileUpload}
+              handleRemoveFile={handleRemoveFile}
+              editingWork={editingWork}
+              setEditingWork={setEditingWork}
+              isSubmitting={isSubmitting}
+            />
+          )}
+        </>
       )}
     </div>
   );

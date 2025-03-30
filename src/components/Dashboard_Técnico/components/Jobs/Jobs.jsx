@@ -1,10 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiMapPin, FiClock, FiPhone, FiArrowLeft, FiTag, FiInfo, FiAlertCircle } from 'react-icons/fi';
+import { FiMapPin, FiClock, FiPhone, FiArrowLeft, FiTag, FiInfo, FiAlertCircle, FiMessageSquare } from 'react-icons/fi';
+import { getAuth } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../../../../services/firebase.jsx';
 import './Jobs.css';
 
 const Jobs = ({ jobs, loading }) => {
   const navigate = useNavigate();
+  const auth = getAuth();
   
   // Depurar as obras recebidas
   console.log("Jobs recebidos no componente:", jobs);
@@ -16,6 +20,46 @@ const Jobs = ({ jobs, loading }) => {
   // Função para voltar ao painel
   const goBackToDashboard = () => {
     navigate('/dashtecnico');
+  };
+
+  // Função para iniciar conversa com o gestor
+  const startConversation = async (job) => {
+    try {
+      console.log('Starting conversation for job:', job);
+      console.log('Full job data:', JSON.stringify(job, null, 2));
+      
+      // Try different possible property names for gestor ID
+      const gestorId = job.gestorId || job.userId || job.createdBy || job.ownerId;
+      console.log('Gestor ID found:', gestorId);
+      
+      if (!gestorId) {
+        console.error('No gestor ID found for this job. Available properties:', Object.keys(job));
+        return;
+      }
+
+      // Fetch gestor data from Firestore
+      const gestorDoc = await getDoc(doc(db, 'users', gestorId));
+      
+      if (!gestorDoc.exists()) {
+        console.error('Gestor document not found for ID:', gestorId);
+        return;
+      }
+
+      const gestorData = gestorDoc.data();
+      console.log('Gestor data:', gestorData);
+
+      // Navigate to messages with gestor information
+      navigate('/dashtecnico/mensagens', { 
+        state: { 
+          gestorId: gestorId,
+          gestorName: gestorData.email || 'Gestor',
+          obraId: job.id,
+          obraTitle: job.title
+        }
+      });
+    } catch (error) {
+      console.error('Error starting conversation:', error);
+    }
   };
 
   return (
@@ -67,6 +111,13 @@ const Jobs = ({ jobs, loading }) => {
               <div className="job-actions">
                 <button className="status-update-btn">Atualizar Estado</button>
                 <button className="view-details-btn">Ver Detalhes</button>
+                <button 
+                  className="chat-gestor-btn"
+                  onClick={() => startConversation(job)}
+                >
+                  <FiMessageSquare />
+                  Conversar com o gestor
+                </button>
               </div>
             </div>
           ))
