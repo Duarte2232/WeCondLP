@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { FiArrowLeft, FiSend, FiPaperclip, FiUser } from 'react-icons/fi';
 import { getAuth } from 'firebase/auth';
-import { ref, onValue, push, set, serverTimestamp } from 'firebase/database';
+import { ref, onValue, push, set, serverTimestamp, get } from 'firebase/database';
 import { getDoc, doc, collection, query, where, getDocs } from 'firebase/firestore';
 import { db, database } from '../../../../services/firebase.jsx';
 import './Messages.css';
@@ -66,22 +66,53 @@ const Messages = () => {
       if (!auth.currentUser) return;
 
       try {
-        // Buscar todas as obras do gestor
-        const obrasRef = collection(db, 'works');
-        const obrasQuery = query(obrasRef, where('userId', '==', auth.currentUser.uid));
-        const obrasSnapshot = await getDocs(obrasQuery);
-        
         const conversationsMap = new Map();
         
+        // Buscar todas as obras onde o gestor é o dono ou participante
+        const obrasRef = collection(db, 'works');
+        const obrasQuery = query(
+          obrasRef,
+          where('userId', '==', auth.currentUser.uid)
+        );
+        const obrasSnapshot = await getDocs(obrasQuery);
+        
+        // Para cada obra, verificar se tem um técnico atribuído
         for (const obraDoc of obrasSnapshot.docs) {
           const obraData = obraDoc.data();
+          console.log('Checking obra:', obraData.title, 'Technician:', obraData.technicianId);
+          
+          // Verificar se a obra tem um técnico atribuído
           if (obraData.technicianId) {
+            // Criar o chatId para esta conversa
             const chatId = [auth.currentUser.uid, obraData.technicianId].sort().join('_');
-            if (!conversationsMap.has(chatId)) {
-              // Fetch technician data
-              const technicianDoc = await getDoc(doc(db, 'users', obraData.technicianId));
-              const technicianData = technicianDoc.exists() ? technicianDoc.data() : null;
+            console.log('Created chatId:', chatId);
+            
+            // Buscar dados do técnico
+            const technicianDoc = await getDoc(doc(db, 'users', obraData.technicianId));
+            const technicianData = technicianDoc.exists() ? technicianDoc.data() : null;
+            console.log('Technician data:', technicianData);
+            
+            // Buscar mensagens desta conversa
+            const messagesRef = ref(database, `chats/${chatId}/messages`);
+            const messagesSnapshot = await get(messagesRef);
+            
+            if (messagesSnapshot.exists()) {
+              const messages = messagesSnapshot.val();
+              const lastMessage = Object.values(messages).pop();
+              console.log('Found messages:', messages);
               
+              conversationsMap.set(chatId, {
+                chatId,
+                technicianId: obraData.technicianId,
+                technicianName: technicianData?.empresaNome || technicianData?.name || 'Técnico',
+                obraId: obraDoc.id,
+                obraTitle: obraData.title,
+                lastMessage: lastMessage,
+                unreadCount: 0
+              });
+            } else {
+              console.log('No messages found for chat:', chatId);
+              // Se não houver mensagens, ainda criar a conversa
               conversationsMap.set(chatId, {
                 chatId,
                 technicianId: obraData.technicianId,
@@ -95,12 +126,19 @@ const Messages = () => {
           }
         }
 
-        // Converter Map para array
-        const conversationsArray = Array.from(conversationsMap.values());
+        // Converter Map para array e ordenar por última mensagem
+        const conversationsArray = Array.from(conversationsMap.values()).sort((a, b) => {
+          const aTime = a.lastMessage?.timestamp?.seconds || 0;
+          const bTime = b.lastMessage?.timestamp?.seconds || 0;
+          return bTime - aTime; // Ordenar do mais recente para o mais antigo
+        });
+
+        console.log('Final conversations array:', conversationsArray);
         setConversations(conversationsArray);
 
         // Se não houver conversa selecionada e houver conversas disponíveis, selecionar a primeira
         if (!selectedConversation && conversationsArray.length > 0) {
+          console.log('Selecting first conversation:', conversationsArray[0]);
           setSelectedConversation(conversationsArray[0]);
         }
       } catch (error) {
@@ -132,9 +170,14 @@ const Messages = () => {
         const messagesArray = Object.entries(data).map(([id, message]) => ({
           id,
           ...message
-        })).sort((a, b) => a.timestamp - b.timestamp);
+        })).sort((a, b) => {
+          // Handle serverTimestamp
+          const aTime = a.timestamp?.seconds || a.timestamp;
+          const bTime = b.timestamp?.seconds || b.timestamp;
+          return aTime - bTime;
+        });
         
-        console.log('Messages loaded:', messagesArray.length);
+        console.log('Messages loaded:', messagesArray);
         setMessages(messagesArray);
       } else {
         console.log('No messages found');
@@ -201,8 +244,15 @@ const Messages = () => {
   };
 
   const handleConversationSelect = (conversation) => {
+    console.log('Selecting conversation:', conversation);
     setSelectedConversation(conversation);
   };
+
+  // Add debug effect to monitor state changes
+  useEffect(() => {
+    console.log('Selected conversation changed:', selectedConversation);
+    console.log('Messages state:', messages);
+  }, [selectedConversation, messages]);
 
   if (!auth.currentUser) {
     return (
@@ -245,6 +295,7 @@ const Messages = () => {
                 <div className="conversation-info">
                   <h3>{conversation.obraTitle}</h3>
                   <p>Técnico: {conversation.technicianName}</p>
+                  <p className="debug-info">Chat ID: {conversation.chatId}</p>
                 </div>
                 {conversation.unreadCount > 0 && (
                   <span className="unread-badge">{conversation.unreadCount}</span>
@@ -263,6 +314,7 @@ const Messages = () => {
                   <div className="user-details">
                     <h2>{selectedConversation.obraTitle}</h2>
                     <span className="obra-title">Conversa com {selectedConversation.technicianName}</span>
+                    <p className="debug-info">Chat ID: {selectedConversation.chatId}</p>
                   </div>
                 </div>
               </div>
@@ -272,6 +324,7 @@ const Messages = () => {
                 {loading ? (
                   <div className="loading">
                     <p>Carregando mensagens...</p>
+                    <p className="debug-info">Chat ID: {selectedConversation.chatId}</p>
                   </div>
                 ) : messages.length > 0 ? (
                   <div className="messages-list">
@@ -306,6 +359,7 @@ const Messages = () => {
                 ) : (
                   <div className="no-messages">
                     <p>Inicie uma conversa com o técnico</p>
+                    <p className="debug-info">Chat ID: {selectedConversation.chatId}</p>
                   </div>
                 )}
               </div>

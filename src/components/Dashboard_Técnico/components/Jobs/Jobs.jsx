@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiMapPin, FiClock, FiPhone, FiArrowLeft, FiTag, FiInfo, FiAlertCircle, FiMessageSquare } from 'react-icons/fi';
 import { getAuth } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../../../../services/firebase.jsx';
 import './Jobs.css';
 
@@ -47,6 +47,13 @@ const Jobs = ({ jobs, loading }) => {
 
       const gestorData = gestorDoc.data();
       console.log('Gestor data:', gestorData);
+
+      // Assign the technician to the work
+      const workRef = doc(db, 'works', job.id);
+      await updateDoc(workRef, {
+        technicianId: auth.currentUser.uid,
+        status: 'confirmada'
+      });
 
       // Navigate to messages with gestor information
       navigate('/dashtecnico/mensagens', { 

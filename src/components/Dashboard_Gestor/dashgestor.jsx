@@ -717,12 +717,12 @@ function DashGestor() {
             </div>
             <div className="header-right">
               <div className="calendar-toggle">
-                <button 
+          <button 
                   className={`calendar-toggle-btn ${showCalendar ? 'active' : ''}`}
                   onClick={() => setShowCalendar(!showCalendar)}
-                >
+          >
                   <FiCalendar />
-                </button>
+          </button>
               </div>
               <div className="notifications">
                 <button 
@@ -749,19 +749,19 @@ function DashGestor() {
                 tileContent={tileContent}
                 locale="pt-BR"
               />
-            </div>
+        </div>
           )}
 
-          <Metrics metrics={metrics} isLoading={isLoading} />
+      <Metrics metrics={metrics} isLoading={isLoading} />
 
-          <SearchFilters
-            searchTerm={searchTerm}
-            setSearchTerm={setSearchTerm}
-            selectedFilters={selectedFilters}
-            setSelectedFilters={setSelectedFilters}
-          />
+        <SearchFilters 
+          searchTerm={searchTerm}
+          setSearchTerm={setSearchTerm}
+          selectedFilters={selectedFilters}
+          setSelectedFilters={setSelectedFilters}
+        />
 
-          <WorksTable
+          <WorksTable 
             isLoading={isLoading}
             filteredWorks={works}
             expandedWorks={expandedWorks}
@@ -775,19 +775,19 @@ function DashGestor() {
             markOrcamentosAsViewed={markOrcamentosAsViewed}
           />
 
-          {showNewWorkForm && (
-            <WorkForm
-              showNewWorkForm={showNewWorkForm}
-              setShowNewWorkForm={setShowNewWorkForm}
-              newWork={newWork}
-              setNewWork={setNewWork}
-              handleSubmit={handleSubmit}
-              handleFileUpload={handleFileUpload}
-              handleRemoveFile={handleRemoveFile}
-              editingWork={editingWork}
-              setEditingWork={setEditingWork}
-              isSubmitting={isSubmitting}
-            />
+      {showNewWorkForm && (
+        <WorkForm 
+          showNewWorkForm={showNewWorkForm}
+          setShowNewWorkForm={setShowNewWorkForm}
+          newWork={newWork}
+          setNewWork={setNewWork}
+          handleSubmit={handleSubmit}
+          handleFileUpload={handleFileUpload}
+          handleRemoveFile={handleRemoveFile}
+          editingWork={editingWork}
+          setEditingWork={setEditingWork}
+          isSubmitting={isSubmitting}
+        />
           )}
         </>
       )}
