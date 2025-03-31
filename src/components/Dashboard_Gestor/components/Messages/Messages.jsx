@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { FiArrowLeft, FiSend, FiPaperclip, FiUser } from 'react-icons/fi';
+import { FiArrowLeft, FiSend, FiUser } from 'react-icons/fi';
 import { getAuth } from 'firebase/auth';
 import { ref, onValue, push, set, serverTimestamp, get } from 'firebase/database';
 import { getDoc, doc, collection, query, where, getDocs } from 'firebase/firestore';
@@ -13,24 +13,15 @@ const Messages = () => {
   const auth = getAuth();
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
-  const [selectedFile, setSelectedFile] = useState(null);
   const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [technicianData, setTechnicianData] = useState(null);
   const [conversations, setConversations] = useState([]);
   const [selectedConversation, setSelectedConversation] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
   const messagesEndRef = useRef(null);
 
-  // Get conversation data from location state if available
-  const { technicianId, technicianName, obraId, obraTitle } = location.state || {};
-
-  // Função para voltar ao painel
-  const goBackToDashboard = () => {
-    navigate('/dashgestor');
-  };
-
-  // Carregar dados do usuário e do técnico
+  // Carregar dados do usuário
   useEffect(() => {
     const loadUserData = async () => {
       if (!auth.currentUser) {
@@ -39,18 +30,9 @@ const Messages = () => {
       }
 
       try {
-        // Load gestor data
         const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
         if (userDoc.exists()) {
           setUserData(userDoc.data());
-        }
-
-        // Load technician data if technicianId is available
-        if (technicianId) {
-          const technicianDoc = await getDoc(doc(db, 'users', technicianId));
-          if (technicianDoc.exists()) {
-            setTechnicianData(technicianDoc.data());
-          }
         }
       } catch (error) {
         console.error('Error loading user data:', error);
@@ -58,7 +40,7 @@ const Messages = () => {
       }
     };
     loadUserData();
-  }, [auth.currentUser, technicianId]);
+  }, [auth.currentUser]);
 
   // Carregar conversas do gestor
   useEffect(() => {
@@ -79,214 +61,200 @@ const Messages = () => {
         // Para cada obra, verificar se tem um técnico atribuído
         for (const obraDoc of obrasSnapshot.docs) {
           const obraData = obraDoc.data();
-          console.log('Checking obra:', obraData.title, 'Technician:', obraData.technicianId);
           
           // Verificar se a obra tem um técnico atribuído
           if (obraData.technicianId) {
             // Criar o chatId para esta conversa
             const chatId = [auth.currentUser.uid, obraData.technicianId].sort().join('_');
-            console.log('Created chatId:', chatId);
             
             // Buscar dados do técnico
             const technicianDoc = await getDoc(doc(db, 'users', obraData.technicianId));
             const technicianData = technicianDoc.exists() ? technicianDoc.data() : null;
-            console.log('Technician data:', technicianData);
             
             // Buscar mensagens desta conversa
             const messagesRef = ref(database, `chats/${chatId}/messages`);
             const messagesSnapshot = await get(messagesRef);
             
+            let lastMessage = null;
+            let unreadCount = 0;
+            
             if (messagesSnapshot.exists()) {
               const messages = messagesSnapshot.val();
-              const lastMessage = Object.values(messages).pop();
-              console.log('Found messages:', messages);
+              const messagesArray = Object.values(messages);
+              lastMessage = messagesArray[messagesArray.length - 1];
               
-              conversationsMap.set(chatId, {
-                chatId,
-                technicianId: obraData.technicianId,
-                technicianName: technicianData?.empresaNome || technicianData?.name || 'Técnico',
-                obraId: obraDoc.id,
-                obraTitle: obraData.title,
-                lastMessage: lastMessage,
-                unreadCount: 0
-              });
-            } else {
-              console.log('No messages found for chat:', chatId);
-              // Se não houver mensagens, ainda criar a conversa
-              conversationsMap.set(chatId, {
-                chatId,
-                technicianId: obraData.technicianId,
-                technicianName: technicianData?.empresaNome || technicianData?.name || 'Técnico',
-                obraId: obraDoc.id,
-                obraTitle: obraData.title,
-                lastMessage: null,
-                unreadCount: 0
-              });
+              // Contar mensagens não lidas
+              unreadCount = messagesArray.filter(msg => 
+                msg.senderId !== auth.currentUser.uid && !msg.read
+              ).length;
             }
+
+            conversationsMap.set(chatId, {
+              chatId,
+              technicianId: obraData.technicianId,
+              technicianName: technicianData?.empresaNome || technicianData?.name || 'Técnico',
+              obraId: obraDoc.id,
+              obraTitle: obraData.title,
+              lastMessage: lastMessage?.text || '',
+              timestamp: lastMessage?.timestamp || null,
+              unreadCount
+            });
           }
         }
 
         // Converter Map para array e ordenar por última mensagem
         const conversationsArray = Array.from(conversationsMap.values()).sort((a, b) => {
-          const aTime = a.lastMessage?.timestamp?.seconds || 0;
-          const bTime = b.lastMessage?.timestamp?.seconds || 0;
-          return bTime - aTime; // Ordenar do mais recente para o mais antigo
+          if (!a.timestamp) return 1;
+          if (!b.timestamp) return -1;
+          return b.timestamp - a.timestamp;
         });
 
-        console.log('Final conversations array:', conversationsArray);
         setConversations(conversationsArray);
-
+        
         // Se não houver conversa selecionada e houver conversas disponíveis, selecionar a primeira
         if (!selectedConversation && conversationsArray.length > 0) {
-          console.log('Selecting first conversation:', conversationsArray[0]);
           setSelectedConversation(conversationsArray[0]);
         }
+        
+        setLoading(false);
       } catch (error) {
         console.error('Error loading conversations:', error);
         setError('Erro ao carregar conversas');
+        setLoading(false);
       }
     };
 
     loadConversations();
-  }, [auth.currentUser]);
+  }, [auth.currentUser, selectedConversation]);
 
-  // Configurar listener de mensagens em tempo real
+  // Carregar mensagens quando uma conversa é selecionada
   useEffect(() => {
-    if (!auth.currentUser || !selectedConversation) {
-      setLoading(false);
-      return;
-    }
+    if (!selectedConversation) return;
 
     const messagesRef = ref(database, `chats/${selectedConversation.chatId}/messages`);
     
-    console.log('Setting up messages listener for chat:', selectedConversation.chatId);
-    
     const unsubscribe = onValue(messagesRef, (snapshot) => {
-      console.log('Received snapshot from database');
       const data = snapshot.val();
-      
       if (data) {
-        // Converter objeto em array e ordenar por timestamp
         const messagesArray = Object.entries(data).map(([id, message]) => ({
           id,
           ...message
         })).sort((a, b) => {
-          // Handle serverTimestamp
           const aTime = a.timestamp?.seconds || a.timestamp;
           const bTime = b.timestamp?.seconds || b.timestamp;
           return aTime - bTime;
         });
         
-        console.log('Messages loaded:', messagesArray);
         setMessages(messagesArray);
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
       } else {
-        console.log('No messages found');
         setMessages([]);
       }
-      
-      setLoading(false);
-      setError(null);
-    }, (error) => {
-      console.error('Error in messages listener:', error);
-      setError('Erro ao carregar mensagens');
-      setLoading(false);
     });
 
-    return () => {
-      console.log('Cleaning up messages listener');
-      unsubscribe();
-    };
-  }, [auth.currentUser, selectedConversation]);
-
-  // Scroll para a última mensagem
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+    return () => unsubscribe();
+  }, [selectedConversation]);
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
-    if (!newMessage.trim() && !selectedFile) return;
+    if (!newMessage.trim() || !selectedConversation) return;
 
     try {
       const messagesRef = ref(database, `chats/${selectedConversation.chatId}/messages`);
       const newMessageRef = push(messagesRef);
 
-      const messageData = {
+      await set(newMessageRef, {
         text: newMessage.trim(),
         senderId: auth.currentUser.uid,
         senderName: userData?.empresaNome || userData?.name || 'Gestor',
         timestamp: serverTimestamp(),
         type: 'text',
         obraId: selectedConversation.obraId,
-        obraTitle: selectedConversation.obraTitle
-      };
+        obraTitle: selectedConversation.obraTitle,
+        read: false
+      });
 
-      if (selectedFile) {
-        messageData.type = 'file';
-        messageData.fileUrl = 'URL_DO_ARQUIVO'; // Implementar upload de arquivo depois
-        messageData.fileName = selectedFile.name;
-      }
-
-      await set(newMessageRef, messageData);
       setNewMessage('');
-      setSelectedFile(null);
     } catch (error) {
-      console.error('Error sending message:', error);
+      console.error('Erro ao enviar mensagem:', error);
       setError('Erro ao enviar mensagem');
     }
   };
 
-  const handleFileSelect = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setSelectedFile(file);
+  const handleConversationSelect = async (conversation) => {
+    setSelectedConversation(conversation);
+    
+    // Mark all messages as read
+    const messagesRef = ref(database, `chats/${conversation.chatId}/messages`);
+    const snapshot = await get(messagesRef);
+    
+    if (snapshot.exists()) {
+      Object.entries(snapshot.val()).forEach(([messageId, message]) => {
+        if (message.senderId !== auth.currentUser.uid && !message.read) {
+          const messageRef = ref(database, `chats/${conversation.chatId}/messages/${messageId}`);
+          set(messageRef, {
+            ...message,
+            read: true
+          });
+        }
+      });
+      
+      // Update local state
+      setConversations(prevConversations => 
+        prevConversations.map(conv => 
+          conv.chatId === conversation.chatId
+            ? { ...conv, unreadCount: 0 }
+            : conv
+        )
+      );
     }
   };
 
-  const handleConversationSelect = (conversation) => {
-    console.log('Selecting conversation:', conversation);
-    setSelectedConversation(conversation);
-  };
-
-  // Add debug effect to monitor state changes
-  useEffect(() => {
-    console.log('Selected conversation changed:', selectedConversation);
-    console.log('Messages state:', messages);
-  }, [selectedConversation, messages]);
+  const filteredConversations = conversations.filter(conv =>
+    conv.technicianName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    conv.obraTitle.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   if (!auth.currentUser) {
     return (
-      <div className="main-content messages-page">
-        <div className="page-header-container">
-          <button className="back-button" onClick={goBackToDashboard}>
-            <FiArrowLeft />
-            <span>Voltar</span>
-          </button>
-          <h1 className="page-title">Mensagens</h1>
+      <div className="messages-page">
+        <div className="no-messages">
+          <p>Por favor, faça login para acessar as mensagens.</p>
         </div>
-        <div className="messages-container">
-          <div className="no-messages">
-            <p>Por favor, faça login para acessar as mensagens.</p>
-          </div>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="messages-page">
+        <div className="loading">
+          <p>Carregando mensagens...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="main-content messages-page">
-      <div className="page-header-container">
-        <button className="back-button" onClick={goBackToDashboard}>
-          <FiArrowLeft />
-          <span>Voltar</span>
-        </button>
-        <h1 className="page-title">Mensagens</h1>
+    <div className="messages-page">
+      <div className="messages-header">
+        <h1 className="messages-title">Mensagens</h1>
       </div>
       
       <div className="messages-container">
         <div className="conversations-sidebar">
+          <div className="conversations-search">
+            <input
+              type="text"
+              className="search-input"
+              placeholder="Pesquisar conversas..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+          
           <div className="conversations-list">
-            {conversations.map((conversation) => (
+            {filteredConversations.map((conversation) => (
               <div
                 key={conversation.chatId}
                 className={`conversation-item ${selectedConversation?.chatId === conversation.chatId ? 'active' : ''}`}
@@ -295,7 +263,6 @@ const Messages = () => {
                 <div className="conversation-info">
                   <h3>{conversation.obraTitle}</h3>
                   <p>Técnico: {conversation.technicianName}</p>
-                  <p className="debug-info">Chat ID: {conversation.chatId}</p>
                 </div>
                 {conversation.unreadCount > 0 && (
                   <span className="unread-badge">{conversation.unreadCount}</span>
@@ -312,9 +279,8 @@ const Messages = () => {
                 <div className="chat-user-info">
                   <FiUser className="user-icon" />
                   <div className="user-details">
-                    <h2>{selectedConversation.obraTitle}</h2>
-                    <span className="obra-title">Conversa com {selectedConversation.technicianName}</span>
-                    <p className="debug-info">Chat ID: {selectedConversation.chatId}</p>
+                    <h2>{selectedConversation.technicianName}</h2>
+                    <span className="obra-title">{selectedConversation.obraTitle}</span>
                   </div>
                 </div>
               </div>
@@ -324,7 +290,6 @@ const Messages = () => {
                 {loading ? (
                   <div className="loading">
                     <p>Carregando mensagens...</p>
-                    <p className="debug-info">Chat ID: {selectedConversation.chatId}</p>
                   </div>
                 ) : messages.length > 0 ? (
                   <div className="messages-list">
@@ -337,15 +302,7 @@ const Messages = () => {
                           <span className="message-sender">
                             {message.senderName}
                           </span>
-                          {message.type === 'text' ? (
-                            <p>{message.text}</p>
-                          ) : (
-                            <div className="file-message">
-                              <a href={message.fileUrl} target="_blank" rel="noopener noreferrer">
-                                {message.fileName}
-                              </a>
-                            </div>
-                          )}
+                          <p>{message.text}</p>
                           <span className="message-time">
                             {message.timestamp?.seconds ? 
                               new Date(message.timestamp.seconds * 1000).toLocaleTimeString() :
@@ -359,23 +316,12 @@ const Messages = () => {
                 ) : (
                   <div className="no-messages">
                     <p>Inicie uma conversa com o técnico</p>
-                    <p className="debug-info">Chat ID: {selectedConversation.chatId}</p>
                   </div>
                 )}
               </div>
 
               <form className="message-input-form" onSubmit={handleSendMessage}>
                 <div className="message-input-container">
-                  <input
-                    type="file"
-                    id="fileInput"
-                    onChange={handleFileSelect}
-                    className="file-input"
-                    accept="image/*,.pdf,.doc,.docx"
-                  />
-                  <label htmlFor="fileInput" className="file-input-label">
-                    <FiPaperclip />
-                  </label>
                   <input
                     type="text"
                     value={newMessage}
@@ -387,11 +333,6 @@ const Messages = () => {
                     <FiSend />
                   </button>
                 </div>
-                {selectedFile && (
-                  <div className="selected-file">
-                    <span>{selectedFile.name}</span>
-                  </div>
-                )}
               </form>
             </>
           ) : (
