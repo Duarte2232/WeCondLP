@@ -278,7 +278,7 @@ const Messages = () => {
                 </div>
               </div>
 
-              <div className="messages-content">
+        <div className="messages-content">
                 {error && <p className="error-message">{error}</p>}
                 {loading ? (
                   <div className="loading">
