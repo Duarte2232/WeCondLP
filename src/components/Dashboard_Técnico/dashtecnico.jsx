@@ -296,7 +296,7 @@ const DashTecnico = () => {
   return (
     <div className="dashboard-container">
       <TopBar />
-      <div className="dashboard-content">
+      <div className="dashboard-content" style={{ padding: location.pathname.includes('/mensagens') ? 0 : undefined }}>
         <Routes>
           <Route path="/" element={renderHomePage()} />
           <Route path="/obras" element={<Jobs jobs={obras} loading={loading} />} />
