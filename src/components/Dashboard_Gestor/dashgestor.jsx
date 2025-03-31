@@ -10,7 +10,6 @@ import { useNavigate, Routes, Route, useLocation } from 'react-router-dom';
 import { CLOUDINARY_CONFIG } from '../../config/cloudinary';
 import LoadingAnimation from '../LoadingAnimation/LoadingAnimation';
 import sha1 from 'crypto-js/sha1';
-import * as messageService from '../../services/messageService';
 
 // Importação dos componentes
 import Metrics from './components/Metrics/Metrics';
@@ -495,38 +494,12 @@ function DashGestor() {
   });
 
   // Função para iniciar uma conversa com o técnico que enviou um orçamento
-  const handleSendMessage = async (workId, fornecedorId, fornecedorNome) => {
+  const handleStartConversation = async (tecnicoId) => {
     try {
-      if (!user?.uid || !fornecedorId || !workId) {
-        alert('Informações incompletas para iniciar conversa. Tente novamente.');
-        return;
-      }
-      
-      console.log('Iniciando conversa com técnico:', { workId, fornecedorId, fornecedorNome });
-      
-      // Buscar título da obra
-      const workRef = doc(db, 'works', workId);
-      const workDoc = await getDoc(workRef);
-      const workTitle = workDoc.exists() ? workDoc.data().title : 'Obra';
-      
-      // Usar o messageService para criar/obter a conversa
-      const conversationId = await messageService.startGestorTecnicoConversation(
-        fornecedorId, // id do técnico
-        user.uid,     // id do gestor
-        workId,
-        workTitle
-      );
-      
-      console.log('Conversa iniciada com ID:', conversationId);
-      
-      // Para garantir que a conversa esteja disponível no componente Messages,
-      // armazenamos temporariamente o ID da conversa
-      localStorage.setItem('activeConversationId', conversationId);
-      
-      // Redirecionar para a página de mensagens
-      navigate('/dashgestor/mensagens');
+      // Navigate directly to messages page
+      navigate('/gestor/messages');
     } catch (error) {
-      console.error('Erro ao iniciar conversa:', error);
+      console.error('Error starting conversation:', error);
       alert('Erro ao iniciar conversa. Tente novamente.');
     }
   };
@@ -775,7 +748,7 @@ function DashGestor() {
               handleViewDetails={handleViewDetails}
               expandedWorks={expandedWorks}
               isLoading={isLoading}
-              onSendMessage={handleSendMessage}
+              onSendMessage={handleStartConversation}
             />
           } />
           <Route path="/calendario" element={<CalendarComponent />} />

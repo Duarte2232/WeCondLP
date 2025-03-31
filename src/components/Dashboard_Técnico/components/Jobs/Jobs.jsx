@@ -1,17 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiMapPin, FiClock, FiPhone, FiArrowLeft, FiTag, FiInfo, FiAlertCircle, FiMessageSquare, FiFile, FiImage, FiDownload } from 'react-icons/fi';
+import { FiMapPin, FiClock, FiPhone, FiArrowLeft, FiTag, FiInfo, FiAlertCircle, FiMessageSquare, FiFile, FiImage, FiDownload, FiEdit2 } from 'react-icons/fi';
 import { db } from '../../../../services/firebase';
-import { collection, doc, getDoc, addDoc, query, where, getDocs, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, getDoc, updateDoc, query, where, getDocs, serverTimestamp } from 'firebase/firestore';
+import { getAuth } from 'firebase/auth';
 import { useAuth } from '../../../../contexts/auth';
-import * as messageService from '../../../../services/messageService';
 import './Jobs.css';
 
 const Jobs = ({ jobs, loading }) => {
   const navigate = useNavigate();
+  const auth = getAuth();
   const { user } = useAuth();
   const [expandedWorks, setExpandedWorks] = useState(new Set());
   const [isMessageLoading, setIsMessageLoading] = useState(false);
+  const [selectedStatus, setSelectedStatus] = useState('');
   
   // Depurar as obras recebidas
   console.log("Jobs recebidos no componente:", jobs);
@@ -64,37 +66,75 @@ const Jobs = ({ jobs, loading }) => {
   };
 
   // Função para iniciar uma conversa com o gestor da obra
-  const handleSendMessage = async (workId, gestorId, workTitle) => {
+  const startConversation = async (job) => {
     try {
-      if (!user?.uid) {
-        alert('Você precisa estar logado para enviar mensagens.');
+      setIsMessageLoading(true);
+      console.log('Starting conversation for job:', job);
+      console.log('Full job data:', JSON.stringify(job, null, 2));
+      
+      // Get the gestor ID from the job's userId (the creator of the job)
+      const gestorId = job.userId;
+      console.log('Gestor ID found:', gestorId);
+      
+      if (!gestorId) {
+        console.error('No gestor ID found for this job. Available properties:', Object.keys(job));
         return;
       }
+
+      // Fetch gestor data from Firestore
+      const gestorDoc = await getDoc(doc(db, 'users', gestorId));
       
-      setIsMessageLoading(true);
-      console.log('Iniciando conversa com gestor:', { workId, gestorId, workTitle });
-      
-      // Usar o messageService para criar/obter a conversa
-      const conversationId = await messageService.startTecnicoGestorConversation(
-        user.uid,
-        gestorId || 'gestor',
-        workId,
-        workTitle || 'Sem título'
-      );
-      
-      console.log('Conversa iniciada com ID:', conversationId);
-      
-      // Para garantir que a conversa esteja disponível no componente Messages,
-      // armazenamos temporariamente o ID da conversa
-      localStorage.setItem('activeConversationId', conversationId);
-      
-      // Redirecionar para a página de mensagens
-      navigate('/dashtecnico/mensagens');
+      if (!gestorDoc.exists()) {
+        console.error('Gestor document not found for ID:', gestorId);
+        return;
+      }
+
+      const gestorData = gestorDoc.data();
+      console.log('Gestor data:', gestorData);
+
+      // Assign the technician to the work
+      const workRef = doc(db, 'works', job.id);
+      await updateDoc(workRef, {
+        technicianId: auth.currentUser.uid,
+        status: 'confirmada'
+      });
+
+      // Navigate to messages with gestor information
+      navigate('/dashtecnico/mensagens', { 
+        state: { 
+          gestorId: gestorId,
+          gestorName: gestorData.email || 'Gestor',
+          obraId: job.id,
+          obraTitle: job.title
+        }
+      });
     } catch (error) {
-      console.error('Erro ao iniciar conversa:', error);
-      alert('Não foi possível iniciar a conversa. Por favor, tente novamente.');
+      console.error('Error starting conversation:', error);
+      alert('Erro ao iniciar conversa. Tente novamente.');
     } finally {
       setIsMessageLoading(false);
+    }
+  };
+
+  // Função para atualizar o status da obra
+  const handleStatusUpdate = async (jobId, newStatus) => {
+    try {
+      const workRef = doc(db, 'works', jobId);
+      await updateDoc(workRef, {
+        status: newStatus,
+        updatedAt: serverTimestamp()
+      });
+      
+      // Atualizar o estado local
+      const updatedJobs = jobs.map(job => 
+        job.id === jobId ? { ...job, status: newStatus } : job
+      );
+      setJobs(updatedJobs);
+      
+      alert('Status atualizado com sucesso!');
+    } catch (error) {
+      console.error('Erro ao atualizar status:', error);
+      alert('Erro ao atualizar status. Tente novamente.');
     }
   };
 
@@ -107,6 +147,11 @@ const Jobs = ({ jobs, loading }) => {
     };
   };
 
+  // Filtrar obras por status
+  const filteredJobs = selectedStatus
+    ? jobs.filter(job => job.status === selectedStatus)
+    : jobs;
+
   return (
     <div className="main-content obras-page">
       <div className="page-header-container">
@@ -115,11 +160,23 @@ const Jobs = ({ jobs, loading }) => {
           <span>Voltar</span>
         </button>
         <h1 className="page-title">Obras</h1>
+        <div className="status-filter">
+          <select 
+            value={selectedStatus} 
+            onChange={(e) => setSelectedStatus(e.target.value)}
+          >
+            <option value="">Todos os Status</option>
+            <option value="disponivel">Disponíveis</option>
+            <option value="confirmada">Confirmadas</option>
+            <option value="em-andamento">Em Andamento</option>
+            <option value="concluida">Concluídas</option>
+          </select>
+        </div>
       </div>
       
       <div className="jobs-list">
-        {jobs && jobs.length > 0 ? (
-          jobs.map((job) => (
+        {filteredJobs && filteredJobs.length > 0 ? (
+          filteredJobs.map((job) => (
             <div key={job.id} className="job-card">
               <div className="job-header">
                 <h2>{job.title}</h2>
@@ -237,13 +294,34 @@ const Jobs = ({ jobs, loading }) => {
                   className="view-details-btn"
                   onClick={() => handleViewDetails(job.id)}
                 >
-                  {expandedWorks.has(job.id) ? "Esconder Detalhes" : "Ver Detalhes"}
+                  {expandedWorks.has(job.id) ? 'Ocultar Detalhes' : 'Ver Detalhes'}
                 </button>
+                
+                {job.status === 'confirmada' && (
+                  <button 
+                    className="status-update-btn"
+                    onClick={() => handleStatusUpdate(job.id, 'em-andamento')}
+                  >
+                    Iniciar Obra
+                  </button>
+                )}
+                
+                {job.status === 'em-andamento' && (
+                  <button 
+                    className="status-update-btn"
+                    onClick={() => handleStatusUpdate(job.id, 'concluida')}
+                  >
+                    Concluir Obra
+                  </button>
+                )}
+                
                 <button 
-                  className="send-message-btn"
-                  onClick={() => handleSendMessage(job.id, job.userId, job.title)}
+                  className={`chat-gestor-btn ${isMessageLoading ? 'loading' : ''}`}
+                  onClick={() => startConversation(job)}
+                  disabled={isMessageLoading}
                 >
-                  <FiMessageSquare /> Mensagem ao Gestor
+                  <FiMessageSquare />
+                  {isMessageLoading ? 'Iniciando conversa...' : 'Conversar com o gestor'}
                 </button>
               </div>
             </div>
