@@ -134,27 +134,50 @@ const Messages = () => {
           const messagesArray = Object.values(data);
           const lastMessage = messagesArray[messagesArray.length - 1];
           
-          // Update unread count
-          const unreadCount = messagesArray.filter(msg => 
-            msg.senderId !== auth.currentUser.uid && !msg.read
-          ).length;
+          // Set unread count to 0 if this conversation is currently selected
+          const isSelected = selectedConversation?.chatId === conversation.chatId;
+          
+          // Only update unread messages if this is not the selected conversation
+          if (!isSelected) {
+            // Only count messages as unread if they're from the other user and not marked as read
+            const unreadCount = messagesArray.filter(msg => 
+              msg.senderId !== auth.currentUser.uid && !msg.read
+            ).length;
 
-          // Update conversations state
-          setConversations(prevConversations => 
-            prevConversations.map(conv => 
-              conv.chatId === conversation.chatId
-                ? { 
-                    ...conv, 
-                    lastMessage: lastMessage?.text || '',
-                    timestamp: lastMessage?.timestamp || null,
-                    unreadCount
-                  }
-                : conv
-            )
-          );
+            // Update conversations state with unread count
+            setConversations(prevConversations => 
+              prevConversations.map(conv => 
+                conv.chatId === conversation.chatId
+                  ? { 
+                      ...conv, 
+                      lastMessage: lastMessage?.text || '',
+                      timestamp: lastMessage?.timestamp || null,
+                      unreadCount: unreadCount
+                    }
+                  : conv
+              )
+            );
+          } else {
+            // For selected conversation, update last message without changing unread count
+            setConversations(prevConversations => 
+              prevConversations.map(conv => 
+                conv.chatId === conversation.chatId
+                  ? { 
+                      ...conv, 
+                      lastMessage: lastMessage?.text || '',
+                      timestamp: lastMessage?.timestamp || null,
+                      // Keep unread count at 0 for selected conversation
+                      unreadCount: 0
+                    }
+                  : conv
+              )
+            );
 
-          // If this is the selected conversation, update messages
-          if (selectedConversation?.chatId === conversation.chatId) {
+            // Check if this is a new message (not initial load)
+            const oldMessages = messages;
+            
+            // If this is the selected conversation, update messages and mark them as read
+            // Map messages with their IDs
             const sortedMessages = Object.entries(data)
               .map(([id, message]) => ({
                 id,
@@ -163,17 +186,49 @@ const Messages = () => {
               .sort((a, b) => {
                 const aTime = a.timestamp?.seconds || a.timestamp;
                 const bTime = b.timestamp?.seconds || b.timestamp;
-                return aTime - bTime;
+                return aTime - bTime; // Sort in ascending order (oldest to newest)
               });
             
+            // Update the messages state
             setMessages(sortedMessages);
             
-            // Only scroll to bottom if the user is already at the bottom
-            const messagesContent = document.querySelector('.messages-content');
-            if (messagesContent) {
-              const isAtBottom = messagesContent.scrollHeight - messagesContent.scrollTop === messagesContent.clientHeight;
-              if (isAtBottom) {
-                messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+            // Find messages that need to be marked as read
+            const updates = {};
+            Object.entries(data).forEach(([messageId, message]) => {
+              if (message.senderId !== auth.currentUser.uid && !message.read) {
+                updates[`${messageId}/read`] = true;
+              }
+            });
+            
+            // Update read status in Firebase if there are unread messages
+            if (Object.keys(updates).length > 0) {
+              update(ref(database, `chats/${conversation.chatId}/messages`), updates);
+            }
+            
+            // Only scroll to bottom if:
+            // 1. This is a new message (more messages than before)
+            // 2. The new message is from the current user
+            const hasNewMessages = sortedMessages.length > oldMessages.length;
+            if (hasNewMessages) {
+              const lastMsg = sortedMessages[sortedMessages.length - 1];
+              const isFromCurrentUser = lastMsg.senderId === auth.currentUser.uid;
+              
+              if (isFromCurrentUser) {
+                // Always scroll to bottom for user's own messages
+                setTimeout(() => {
+                  messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+                }, 100);
+              } else {
+                // For other users' messages, only scroll if near bottom
+                const messagesContent = document.querySelector('.messages-content');
+                if (messagesContent) {
+                  const isNearBottom = messagesContent.scrollHeight - messagesContent.clientHeight - messagesContent.scrollTop < 100;
+                  if (isNearBottom) {
+                    setTimeout(() => {
+                      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+                    }, 100);
+                  }
+                }
               }
             }
           }
@@ -189,16 +244,15 @@ const Messages = () => {
     return () => {
       unsubscribeListeners.forEach(unsubscribe => unsubscribe());
     };
-  }, [auth.currentUser, conversations, selectedConversation]);
+  }, [auth.currentUser, conversations, selectedConversation, messages]);
 
-  // Add scroll to bottom when selecting a conversation
+  // Remove scroll to bottom when selecting a conversation - will be handled in handleConversationSelect
   useEffect(() => {
     if (selectedConversation) {
-      const messagesContent = document.querySelector('.messages-content');
-      if (messagesContent) {
-        messagesContent.scrollTop = messagesContent.scrollHeight;
-      }
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      // Wait for messages to load before scrolling
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      }, 200);
     }
   }, [selectedConversation]);
 
@@ -210,13 +264,13 @@ const Messages = () => {
       const messagesRef = ref(database, `chats/${selectedConversation.chatId}/messages`);
       const newMessageRef = push(messagesRef);
 
-      const currentTime = new Date().getTime(); // Get current timestamp in milliseconds
+      const currentTime = new Date().getTime();
 
       await set(newMessageRef, {
         text: newMessage.trim(),
         senderId: auth.currentUser.uid,
         senderName: userData?.empresaNome || userData?.name || 'Gestor',
-        timestamp: currentTime, // Use static timestamp instead of serverTimestamp
+        timestamp: currentTime,
         read: false
       });
 
@@ -224,11 +278,9 @@ const Messages = () => {
       setError(null);
       
       // Scroll to bottom after sending message
-      const messagesContent = document.querySelector('.messages-content');
-      if (messagesContent) {
-        messagesContent.scrollTop = messagesContent.scrollHeight;
-      }
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      }, 100);
     } catch (error) {
       console.error('Erro ao enviar mensagem:', error);
       if (error.message.includes('PERMISSION_DENIED')) {
@@ -242,32 +294,21 @@ const Messages = () => {
   const handleConversationSelect = async (conversation) => {
     setSelectedConversation(conversation);
     
-    // Mark all messages as read
-    const messagesRef = ref(database, `chats/${conversation.chatId}/messages`);
-    const snapshot = await get(messagesRef);
+    // We don't need to mark messages as read here as the listener will handle it
     
-    if (snapshot.exists()) {
-      const updates = {};
-      Object.entries(snapshot.val()).forEach(([messageId, message]) => {
-        if (message.senderId !== auth.currentUser.uid && !message.read) {
-          updates[`${messageId}/read`] = true;
-        }
-      });
-
-      // Update only the read status of messages
-      if (Object.keys(updates).length > 0) {
-        await update(ref(database, `chats/${conversation.chatId}/messages`), updates);
-      }
-      
-      // Update local state
-      setConversations(prevConversations => 
-        prevConversations.map(conv => 
-          conv.chatId === conversation.chatId
-            ? { ...conv, unreadCount: 0 }
-            : conv
-        )
-      );
-    }
+    // Update local state immediately
+    setConversations(prevConversations => 
+      prevConversations.map(conv => 
+        conv.chatId === conversation.chatId
+          ? { ...conv, unreadCount: 0 }
+          : conv
+      )
+    );
+    
+    // Scroll to bottom when selecting a conversation, but only after a small delay to ensure messages are loaded
+    setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, 200);
   };
 
   const filteredConversations = conversations.filter(conv =>
