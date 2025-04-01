@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiSend, FiPaperclip, FiPlus, FiUser } from 'react-icons/fi';
 import { getAuth } from 'firebase/auth';
-import { ref, onValue, push, set, serverTimestamp, get } from 'firebase/database';
+import { ref, onValue, push, set, serverTimestamp, get, update } from 'firebase/database';
 import { collection, query, where, getDocs, getDoc, doc } from 'firebase/firestore';
 import { db, database } from '../../../../services/firebase.jsx';
 import './Messages.css';
@@ -122,32 +122,84 @@ const Messages = () => {
     loadConversations();
   }, [auth.currentUser, selectedConversation]);
 
-  // Carregar mensagens quando uma conversa é selecionada
+  // Listen for new messages in all conversations
   useEffect(() => {
-    if (!selectedConversation) return;
+    if (!auth.currentUser || !conversations.length) return;
 
-    const messagesRef = ref(database, `chats/${selectedConversation.chatId}/messages`);
-    
-    const unsubscribe = onValue(messagesRef, (snapshot) => {
-      const data = snapshot.val();
-      if (data) {
-        const messagesArray = Object.entries(data).map(([id, message]) => ({
-          id,
-          ...message
-        })).sort((a, b) => {
-          const aTime = a.timestamp?.seconds || a.timestamp;
-          const bTime = b.timestamp?.seconds || b.timestamp;
-          return aTime - bTime;
-        });
-        
-        setMessages(messagesArray);
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-      } else {
-        setMessages([]);
-      }
+    const unsubscribeListeners = conversations.map(conversation => {
+      const messagesRef = ref(database, `chats/${conversation.chatId}/messages`);
+      return onValue(messagesRef, (snapshot) => {
+        const data = snapshot.val();
+        if (data) {
+          const messagesArray = Object.values(data);
+          const lastMessage = messagesArray[messagesArray.length - 1];
+          
+          // Update unread count
+          const unreadCount = messagesArray.filter(msg => 
+            msg.senderId !== auth.currentUser.uid && !msg.read
+          ).length;
+
+          // Update conversations state
+          setConversations(prevConversations => 
+            prevConversations.map(conv => 
+              conv.chatId === conversation.chatId
+                ? { 
+                    ...conv, 
+                    lastMessage: lastMessage?.text || '',
+                    timestamp: lastMessage?.timestamp || null,
+                    unreadCount
+                  }
+                : conv
+            )
+          );
+
+          // If this is the selected conversation, update messages
+          if (selectedConversation?.chatId === conversation.chatId) {
+            const sortedMessages = Object.entries(data)
+              .map(([id, message]) => ({
+                id,
+                ...message
+              }))
+              .sort((a, b) => {
+                const aTime = a.timestamp?.seconds || a.timestamp;
+                const bTime = b.timestamp?.seconds || b.timestamp;
+                return aTime - bTime;
+              });
+            
+            setMessages(sortedMessages);
+            
+            // Only scroll to bottom if the user is already at the bottom
+            const messagesContent = document.querySelector('.messages-content');
+            if (messagesContent) {
+              const isAtBottom = messagesContent.scrollHeight - messagesContent.scrollTop === messagesContent.clientHeight;
+              if (isAtBottom) {
+                messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+              }
+            }
+          }
+        } else {
+          // If there's no data, set empty messages array for the selected conversation
+          if (selectedConversation?.chatId === conversation.chatId) {
+            setMessages([]);
+          }
+        }
+      });
     });
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribeListeners.forEach(unsubscribe => unsubscribe());
+    };
+  }, [auth.currentUser, conversations, selectedConversation]);
+
+  // Add scroll to bottom when selecting a conversation
+  useEffect(() => {
+    if (selectedConversation) {
+      const messagesContent = document.querySelector('.messages-content');
+      if (messagesContent) {
+        messagesContent.scrollTop = messagesContent.scrollHeight;
+      }
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
   }, [selectedConversation]);
 
   const handleSendMessage = async (e) => {
@@ -158,21 +210,32 @@ const Messages = () => {
       const messagesRef = ref(database, `chats/${selectedConversation.chatId}/messages`);
       const newMessageRef = push(messagesRef);
 
+      const currentTime = new Date().getTime(); // Get current timestamp in milliseconds
+
       await set(newMessageRef, {
         text: newMessage.trim(),
         senderId: auth.currentUser.uid,
         senderName: userData?.empresaNome || userData?.name || 'Gestor',
-        timestamp: serverTimestamp(),
-        type: 'text',
-        obraId: selectedConversation.obraId,
-        obraTitle: selectedConversation.obraTitle,
+        timestamp: currentTime, // Use static timestamp instead of serverTimestamp
         read: false
       });
 
       setNewMessage('');
+      setError(null);
+      
+      // Scroll to bottom after sending message
+      const messagesContent = document.querySelector('.messages-content');
+      if (messagesContent) {
+        messagesContent.scrollTop = messagesContent.scrollHeight;
+      }
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     } catch (error) {
       console.error('Erro ao enviar mensagem:', error);
-      setError('Erro ao enviar mensagem');
+      if (error.message.includes('PERMISSION_DENIED')) {
+        setError('Erro de permissão: Você não tem permissão para enviar mensagens neste chat. Por favor, tente fazer login novamente.');
+      } else {
+        setError('Erro ao enviar mensagem. Por favor, tente novamente.');
+      }
     }
   };
 
@@ -187,13 +250,14 @@ const Messages = () => {
       const updates = {};
       Object.entries(snapshot.val()).forEach(([messageId, message]) => {
         if (message.senderId !== auth.currentUser.uid && !message.read) {
-          const messageRef = ref(database, `chats/${conversation.chatId}/messages/${messageId}`);
-          set(messageRef, {
-            ...message,
-            read: true
-          });
+          updates[`${messageId}/read`] = true;
         }
       });
+
+      // Update only the read status of messages
+      if (Object.keys(updates).length > 0) {
+        await update(ref(database, `chats/${conversation.chatId}/messages`), updates);
+      }
       
       // Update local state
       setConversations(prevConversations => 
@@ -210,6 +274,34 @@ const Messages = () => {
     conv.technicianName.toLowerCase().includes(searchQuery.toLowerCase()) ||
     conv.obraTitle.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  // Add a function to format the timestamp
+  const formatTimestamp = (timestamp) => {
+    if (!timestamp) return '';
+    
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diff = now - date;
+    
+    // If less than 24 hours ago
+    if (diff < 24 * 60 * 60 * 1000) {
+      return date.toLocaleTimeString('pt-BR', { 
+        hour: '2-digit', 
+        minute: '2-digit',
+        hour12: false 
+      });
+    }
+    
+    // If more than 24 hours ago
+    return date.toLocaleDateString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    });
+  };
 
   if (!auth.currentUser) {
     return (
@@ -291,12 +383,12 @@ const Messages = () => {
                       className={`message ${message.senderId === auth.currentUser.uid ? 'sent' : 'received'}`}
                     >
                       <div className="message-content">
-                        <span className="message-sender">{message.senderName}</span>
+                        <span className="message-sender">
+                          {message.senderName}
+                        </span>
                         <p>{message.text}</p>
                         <span className="message-time">
-                          {message.timestamp?.seconds
-                            ? new Date(message.timestamp.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                            : new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          {formatTimestamp(message.timestamp)}
                         </span>
                       </div>
                     </div>

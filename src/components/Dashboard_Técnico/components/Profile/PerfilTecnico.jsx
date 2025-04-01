@@ -8,7 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import { CLOUDINARY_CONFIG } from '../../../../config/cloudinary';
 import './PerfilTecnico.css';
 
-const PerfilTecnico = () => {
+const PerfilTecnico = ({ onProfileUpdate }) => {
   const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [formData, setFormData] = useState({
@@ -277,7 +277,13 @@ const PerfilTecnico = () => {
       };
 
       await updateDoc(userRef, dadosAtualizados);
-      alert('Perfil atualizado com sucesso!');
+
+      // Call onProfileUpdate to trigger a refresh of the jobs list
+      if (onProfileUpdate) {
+        onProfileUpdate();
+      }
+
+      navigate('/dashtecnico');
     } catch (error) {
       console.error('Erro ao atualizar perfil:', error);
       alert('Erro ao atualizar perfil. Por favor, tente novamente.');

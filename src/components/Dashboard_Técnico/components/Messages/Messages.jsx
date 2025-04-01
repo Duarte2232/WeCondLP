@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiSend, FiPaperclip, FiPlus, FiUser } from 'react-icons/fi';
 import { getAuth } from 'firebase/auth';
-import { ref, onValue, push, set, serverTimestamp, get } from 'firebase/database';
+import { ref, onValue, push, set, serverTimestamp, get, update } from 'firebase/database';
 import { collection, query, where, getDocs, getDoc, doc } from 'firebase/firestore';
 import { db, database } from '../../../../services/firebase.jsx';
 import './Messages.css';
@@ -119,33 +119,129 @@ const Messages = () => {
     loadConversations();
   }, [auth.currentUser, selectedConversation]);
 
-  // Carregar mensagens quando uma conversa é selecionada
+  // Listen for new messages in all conversations
   useEffect(() => {
-    if (!selectedConversation) return;
+    if (!auth.currentUser || !conversations.length) return;
 
-    const messagesRef = ref(database, `chats/${selectedConversation.chatId}/messages`);
-    
-    const unsubscribe = onValue(messagesRef, (snapshot) => {
-      const data = snapshot.val();
-      if (data) {
-        const messagesArray = Object.entries(data).map(([id, message]) => ({
-          id,
-          ...message
-        })).sort((a, b) => {
-          const aTime = a.timestamp?.seconds || a.timestamp;
-          const bTime = b.timestamp?.seconds || b.timestamp;
-          return aTime - bTime;
-        });
-        
-        setMessages(messagesArray);
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-      } else {
-        setMessages([]);
-      }
+    const unsubscribeListeners = conversations.map(conversation => {
+      const messagesRef = ref(database, `chats/${conversation.chatId}/messages`);
+      return onValue(messagesRef, (snapshot) => {
+        const data = snapshot.val();
+        if (data) {
+          const messagesArray = Object.values(data);
+          const lastMessage = messagesArray[messagesArray.length - 1];
+          
+          // Set unread count to 0 if this conversation is currently selected
+          const isSelected = selectedConversation?.chatId === conversation.chatId;
+          
+          // Only update unread messages if this is not the selected conversation
+          if (!isSelected) {
+            // Only count messages as unread if they're from the other user and not marked as read
+            const unreadCount = messagesArray.filter(msg => 
+              msg.senderId !== auth.currentUser.uid && !msg.read
+            ).length;
+
+            // Update conversations state with unread count
+            setConversations(prevConversations => 
+              prevConversations.map(conv => 
+                conv.chatId === conversation.chatId
+                  ? { 
+                      ...conv, 
+                      lastMessage: lastMessage?.text || '',
+                      timestamp: lastMessage?.timestamp || null,
+                      unreadCount: unreadCount
+                    }
+                  : conv
+              )
+            );
+          } else {
+            // For selected conversation, update last message without changing unread count
+            setConversations(prevConversations => 
+              prevConversations.map(conv => 
+                conv.chatId === conversation.chatId
+                  ? { 
+                      ...conv, 
+                      lastMessage: lastMessage?.text || '',
+                      timestamp: lastMessage?.timestamp || null,
+                      // Keep unread count at 0 for selected conversation
+                      unreadCount: 0
+                    }
+                  : conv
+              )
+            );
+
+            // Check if this is a new message (not initial load)
+            const oldMessages = messages;
+            
+            // If this is the selected conversation, update messages and mark them as read
+            // Map messages with their IDs
+            const sortedMessages = Object.entries(data)
+              .map(([id, message]) => ({
+                id,
+                ...message
+              }))
+              .sort((a, b) => {
+                const aTime = a.timestamp?.seconds || a.timestamp;
+                const bTime = b.timestamp?.seconds || b.timestamp;
+                return aTime - bTime; // Sort in ascending order (oldest to newest)
+              });
+            
+            // Update the messages state
+            setMessages(sortedMessages);
+            
+            // Find messages that need to be marked as read
+            const updates = {};
+            Object.entries(data).forEach(([messageId, message]) => {
+              if (message.senderId !== auth.currentUser.uid && !message.read) {
+                updates[`${messageId}/read`] = true;
+              }
+            });
+            
+            // Update read status in Firebase if there are unread messages
+            if (Object.keys(updates).length > 0) {
+              update(ref(database, `chats/${conversation.chatId}/messages`), updates);
+            }
+            
+            // Only scroll to bottom if:
+            // 1. This is a new message (more messages than before)
+            // 2. The new message is from the current user
+            const hasNewMessages = sortedMessages.length > oldMessages.length;
+            if (hasNewMessages) {
+              const lastMsg = sortedMessages[sortedMessages.length - 1];
+              const isFromCurrentUser = lastMsg.senderId === auth.currentUser.uid;
+              
+              if (isFromCurrentUser) {
+                // Always scroll to bottom for user's own messages
+                setTimeout(() => {
+                  messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+                }, 100);
+              } else {
+                // For other users' messages, only scroll if near bottom
+                const messagesContent = document.querySelector('.messages-content');
+                if (messagesContent) {
+                  const isNearBottom = messagesContent.scrollHeight - messagesContent.clientHeight - messagesContent.scrollTop < 100;
+                  if (isNearBottom) {
+                    setTimeout(() => {
+                      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+                    }, 100);
+                  }
+                }
+              }
+            }
+          }
+        } else {
+          // If there's no data, set empty messages array for the selected conversation
+          if (selectedConversation?.chatId === conversation.chatId) {
+            setMessages([]);
+          }
+        }
+      });
     });
 
-    return () => unsubscribe();
-  }, [selectedConversation]);
+    return () => {
+      unsubscribeListeners.forEach(unsubscribe => unsubscribe());
+    };
+  }, [auth.currentUser, conversations, selectedConversation, messages]);
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
@@ -155,52 +251,51 @@ const Messages = () => {
       const messagesRef = ref(database, `chats/${selectedConversation.chatId}/messages`);
       const newMessageRef = push(messagesRef);
 
+      const currentTime = new Date().getTime();
+
       await set(newMessageRef, {
         text: newMessage.trim(),
         senderId: auth.currentUser.uid,
         senderName: userData?.empresaNome || userData?.name || 'Técnico',
-        timestamp: serverTimestamp(),
-        type: 'text',
-        obraId: selectedConversation.obraId,
-        obraTitle: selectedConversation.obraTitle,
+        timestamp: currentTime,
         read: false
       });
 
       setNewMessage('');
+      setError(null);
+      
+      // Scroll to bottom after sending message
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      }, 100);
     } catch (error) {
       console.error('Erro ao enviar mensagem:', error);
-      setError('Erro ao enviar mensagem');
+      if (error.message.includes('PERMISSION_DENIED')) {
+        setError('Erro de permissão: Você não tem permissão para enviar mensagens neste chat. Por favor, tente fazer login novamente.');
+      } else {
+        setError('Erro ao enviar mensagem. Por favor, tente novamente.');
+      }
     }
   };
 
   const handleConversationSelect = async (conversation) => {
     setSelectedConversation(conversation);
     
-    // Mark all messages as read
-    const messagesRef = ref(database, `chats/${conversation.chatId}/messages`);
-    const snapshot = await get(messagesRef);
+    // We don't need to mark messages as read here as the listener will handle it
     
-    if (snapshot.exists()) {
-      const updates = {};
-      Object.entries(snapshot.val()).forEach(([messageId, message]) => {
-        if (message.senderId !== auth.currentUser.uid && !message.read) {
-          const messageRef = ref(database, `chats/${conversation.chatId}/messages/${messageId}`);
-          set(messageRef, {
-            ...message,
-            read: true
-          });
-        }
-      });
-      
-      // Update local state
-      setConversations(prevConversations => 
-        prevConversations.map(conv => 
-          conv.chatId === conversation.chatId
-            ? { ...conv, unreadCount: 0 }
-            : conv
-        )
-      );
-    }
+    // Update local state immediately
+    setConversations(prevConversations => 
+      prevConversations.map(conv => 
+        conv.chatId === conversation.chatId
+          ? { ...conv, unreadCount: 0 }
+          : conv
+      )
+    );
+    
+    // Scroll to bottom when selecting a conversation, but only after a small delay to ensure messages are loaded
+    setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, 200);
   };
 
   const filteredConversations = conversations.filter(conv =>

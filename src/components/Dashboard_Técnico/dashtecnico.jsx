@@ -17,9 +17,14 @@ const DashTecnico = () => {
   const [perfilCompleto, setPerfilCompleto] = useState(true);
   const [userData, setUserData] = useState(null);
   const [secoesPendentes, setSecoesPendentes] = useState([]);
+  const [profileUpdateTrigger, setProfileUpdateTrigger] = useState(0);
   const auth = getAuth();
   const navigate = useNavigate();
   const location = useLocation();
+
+  const triggerProfileUpdate = () => {
+    setProfileUpdateTrigger(prev => prev + 1);
+  };
 
   useEffect(() => {
     const verificarPerfil = async () => {
@@ -124,11 +129,8 @@ const DashTecnico = () => {
         
         console.log("Especialidades normalizadas:", especialidadesNormalizadas);
 
-        // Buscar todas as obras, mesmo que não tenham status explicitamente definido
+        // Buscar todas as obras
         const obrasRef = collection(db, 'works');
-        
-        // Não vamos mais filtrar apenas por status "disponivel" para garantir que
-        // vemos todas as obras potencialmente relevantes
         const querySnapshot = await getDocs(obrasRef);
         
         console.log("Total de obras encontradas:", querySnapshot.size);
@@ -160,23 +162,45 @@ const DashTecnico = () => {
             ? obraData.category.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
             : "";
           
-          // Verificações especiais para categorias importantes
-          if (categoriaNormalizada.includes("eletr")) {
-            // Caso especial para Eletricidade/Eletrecidade
-            if (especialidadesNormalizadas.some(esp => esp.includes("eletr"))) {
-              console.log("Correspondência encontrada para Eletricidade:", obraData.title);
-              obrasData.push(obraData);
-            }
-          } else {
-            // Para outras categorias, verificação normal
-            const correspondeEspecialidade = especialidadesNormalizadas.some(esp => 
-              categoriaNormalizada.includes(esp) || esp.includes(categoriaNormalizada)
+          // Mapeamento de categorias para palavras-chave de especialidades
+          const categoriaKeywords = {
+            "eletricidade": ["eletr", "eletric", "eletron"],
+            "hidraulica": ["hidraul", "agua", "encanamento", "canos", "tubos"],
+            "pintura": ["pintura", "pintor", "tintas"],
+            "carpintaria": ["carpintaria", "madeira", "marcenaria"],
+            "alvenaria": ["alvenaria", "construcao", "pedreiro", "tijolos", "cimento"],
+            "limpeza": ["limpeza", "faxineiro", "limpar"],
+            "jardim": ["jardim", "jardinagem", "paisagismo", "plantas"],
+            "vidros": ["vidros", "vidraceiro", "janelas"],
+            "metal": ["metal", "ferro", "aluminio", "serralheiro"],
+            "ceramica": ["ceramica", "azulejos", "pisos", "revestimentos"],
+            "gesso": ["gesso", "gessos", "forro", "sancas"],
+            "isolamento": ["isolamento", "isolamento termico", "isolamento acustico"],
+            "impermeabilizacao": ["impermeabilizacao", "impermeabilizante", "infiltracao"],
+            "desentupimento": ["desentupimento", "desentupir", "entupimento"],
+            "desratizacao": ["desratizacao", "pragas", "ratos", "insetos"],
+            "outros": ["outros", "diversos", "geral"]
+          };
+
+          // Verificar se a categoria da obra corresponde a alguma especialidade do técnico
+          let correspondeEspecialidade = false;
+          
+          // Primeiro, verificar correspondência direta
+          correspondeEspecialidade = especialidadesNormalizadas.some(esp => 
+            categoriaNormalizada.includes(esp) || esp.includes(categoriaNormalizada)
+          );
+
+          // Se não houver correspondência direta, verificar palavras-chave
+          if (!correspondeEspecialidade && categoriaKeywords[categoriaNormalizada]) {
+            const keywords = categoriaKeywords[categoriaNormalizada];
+            correspondeEspecialidade = especialidadesNormalizadas.some(esp =>
+              keywords.some(keyword => esp.includes(keyword) || keyword.includes(esp))
             );
-            
-            if (correspondeEspecialidade) {
-              console.log("Obra corresponde à especialidade:", obraData.title);
-              obrasData.push(obraData);
-            }
+          }
+
+          if (correspondeEspecialidade) {
+            console.log("Obra corresponde à especialidade:", obraData.title);
+            obrasData.push(obraData);
           }
         });
 
@@ -190,7 +214,7 @@ const DashTecnico = () => {
     };
 
     fetchObras();
-  }, [auth.currentUser, userData]);
+  }, [auth.currentUser, profileUpdateTrigger]);
 
   // Executar uma vez para corrigir categorias de obras (isso não afeta a interface do usuário)
   useEffect(() => {
@@ -302,7 +326,7 @@ const DashTecnico = () => {
           <Route path="/obras" element={<Jobs jobs={obras} loading={loading} />} />
           <Route path="/calendario" element={<Calendar obras={obras} loading={loading} />} />
           <Route path="/mensagens" element={<Messages />} />
-          <Route path="/perfil" element={<PerfilTecnico />} />
+          <Route path="/perfil" element={<PerfilTecnico onProfileUpdate={triggerProfileUpdate} />} />
         </Routes>
       </div>
     </div>
