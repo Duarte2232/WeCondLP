@@ -10,6 +10,33 @@ import WorkDetailsModal from '../WorkDetailsModal/WorkDetailsModal';
 import './Jobs.css';
 
 function JobCard({ work, onViewDetails }) {
+  // Função para obter a cor da categoria
+  const getCategoryColor = (category) => {
+    const normalizedCategory = category.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, '-');
+    const categoryMap = {
+      'infiltracao': '#3498db',
+      'fissuras': '#e74c3c',
+      'canalizacao': '#2ecc71',
+      'jardinagem': '#27ae60',
+      'fiscalizacao': '#9b59b6',
+      'fachada': '#34495e',
+      'eletricidade': '#f1c40f',
+      'construcao': '#e67e22',
+      'pintura': '#1abc9c'
+    };
+    
+    // Procurar correspondência parcial se não encontrar exata
+    for (const key in categoryMap) {
+      if (normalizedCategory.includes(key) || key.includes(normalizedCategory)) {
+        return categoryMap[key];
+      }
+    }
+    
+    return '#6B7280'; // Cor padrão se não encontrar correspondência
+  };
+  
+  const categoryColor = getCategoryColor(work.category);
+
   return (
     <div 
       className="work-card"
@@ -29,7 +56,15 @@ function JobCard({ work, onViewDetails }) {
         </div>
         <div className="work-card-footer" style={{ clear: 'both' }}>
           <span className="work-card-date">{work.date}</span>
-          <span className="work-card-category">{work.category}</span>
+          <span className="work-card-category" style={{ 
+            color: categoryColor,
+            border: `1px solid ${categoryColor}`,
+            borderRadius: '4px',
+            padding: '2px 8px',
+            fontSize: '0.8rem'
+          }}>
+            {work.category}
+          </span>
         </div>
       </div>
     </div>
