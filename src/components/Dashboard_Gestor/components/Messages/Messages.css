@@ -1,10 +1,10 @@
 .messages-page {
   width: 100%;
-  height: calc(100vh - 120px);
-  margin-top: 56px;
+  height: calc(100vh - 64px);
   display: flex;
   flex-direction: column;
   background-color: #fff;
+  margin-top: 64px;
   overflow: hidden;
 }
 
@@ -15,6 +15,7 @@
   align-items: center;
   border-bottom: 1px solid #e0e0e0;
   height: 56px;
+  flex-shrink: 0;
 }
 
 .messages-title {
@@ -28,6 +29,7 @@
   flex: 1;
   display: flex;
   overflow: hidden;
+  position: relative;
 }
 
 .conversations-sidebar {
@@ -36,11 +38,14 @@
   display: flex;
   flex-direction: column;
   background-color: #fff;
+  overflow: hidden;
+  flex-shrink: 0;
 }
 
 .conversations-search {
   padding: 16px;
   border-bottom: 1px solid #e0e0e0;
+  flex-shrink: 0;
 }
 
 .search-input {
@@ -53,6 +58,13 @@
   background-repeat: no-repeat;
   background-position: 12px center;
   background-size: 16px;
+}
+
+.conversations-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+  position: relative;
 }
 
 .conversation-item {
@@ -107,6 +119,7 @@
   flex-direction: column;
   background-color: #fff;
   overflow: hidden;
+  position: relative;
 }
 
 .chat-header {
@@ -114,6 +127,7 @@
   border-bottom: 1px solid #e0e0e0;
   background-color: #fff;
   height: 64px;
+  flex-shrink: 0;
 }
 
 .chat-user-info {
@@ -152,6 +166,7 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
+  position: relative;
 }
 
 .messages-list {
@@ -161,28 +176,24 @@
 }
 
 .message {
-  max-width: 75%;
-  padding: 12px 16px;
-  border-radius: 12px;
-  position: relative;
+  max-width: 80%;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .message.sent {
   align-self: flex-end;
-  background-color: #2563eb;
-  color: #ffffff;
+}
+
+.message.received {
+  align-self: flex-start;
 }
 
 .message.sent .message-sender,
 .message.sent .message-time,
 .message.sent .message-content p {
   color: #ffffff;
-}
-
-.message.received {
-  align-self: flex-start;
-  background-color: #f3f4f6;
-  color: #111827;
 }
 
 .message.received .message-sender,
@@ -192,20 +203,23 @@
 }
 
 .message-content {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+  max-width: 100%;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.message-content p {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .message-sender {
   font-size: 11px;
   opacity: 0.8;
-}
-
-.message-content p {
-  margin: 0;
-  font-size: 14px;
-  line-height: 1.4;
 }
 
 .message-time {
@@ -218,6 +232,7 @@
   padding: 16px;
   border-top: 1px solid #e0e0e0;
   background-color: #fff;
+  flex-shrink: 0;
 }
 
 .message-input-container {
@@ -235,6 +250,11 @@
   resize: none;
   min-height: 42px;
   max-height: 42px;
+}
+
+.message-input:focus {
+  outline: none;
+  border-color: #2563eb;
 }
 
 .send-button {
@@ -269,6 +289,7 @@
   height: 100%;
   color: #6b7280;
   text-align: center;
+  padding: 2rem;
 }
 
 .file-message {

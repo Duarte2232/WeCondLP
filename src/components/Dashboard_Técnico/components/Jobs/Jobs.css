@@ -248,10 +248,10 @@ h1 {
 }
 
 .job-description {
+  color: #374151;
   font-size: 14px;
-  color: #4B5563;
-  margin-top: 16px;
   line-height: 1.5;
+  margin: 8px 0;
 }
 
 .job-actions {
@@ -261,47 +261,43 @@ h1 {
 }
 
 .status-update-btn {
-  background: #F3F4F6;
+  padding: 8px 16px;
   border: 1px solid #E5E7EB;
   border-radius: 6px;
-  padding: 8px 16px;
+  background: white;
   color: #374151;
   font-size: 14px;
-  font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s;
 }
 
 .status-update-btn:hover {
-  background: #E5E7EB;
   border-color: #D1D5DB;
+  background: #F9FAFB;
 }
 
 .view-details-btn {
-  background: white;
-  border: 1px solid #E5E7EB;
-  border-radius: 6px;
   padding: 8px 16px;
-  color: #374151;
+  border: none;
+  border-radius: 6px;
+  background: #2563EB;
+  color: white;
   font-size: 14px;
-  font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s;
 }
 
 .view-details-btn:hover {
-  background: #F9FAFB;
-  border-color: #D1D5DB;
+  background: #1D4ED8;
 }
 
 @media (max-width: 768px) {
   .main-content {
     padding: 16px;
-    margin-top: 100px;
+    margin-top: 160px;
   }
 
   .job-header {
     flex-direction: column;
+    gap: 8px;
   }
 
   .job-actions {
@@ -309,6 +305,7 @@ h1 {
   }
 }
 
+/* Remover regras conflitantes */
 .main-content.obras-page {
   margin-top: 0;
 }
@@ -322,212 +319,26 @@ h1 {
 .no-jobs-hint {
   color: #6B7280;
   font-size: 14px;
-  margin-top: 8px;
 }
 
-/* Estilos para o botão de enviar mensagem */
-.send-message-btn {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: #8B5CF6;
-  border: 1px solid #7C3AED;
-  border-radius: 6px;
+.chat-gestor-btn {
   padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  background: #10B981;
   color: white;
   font-size: 14px;
-  font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: background-color 0.2s;
 }
 
-.send-message-btn:hover {
-  background: #7C3AED;
+.chat-gestor-btn:hover {
+  background: #059669;
 }
 
-.send-message-btn svg {
+.chat-gestor-btn svg {
   font-size: 16px;
-}
-
-/* Estilos para os detalhes expandidos */
-.expanded-details {
-  margin-top: 16px;
-  border-top: 1px solid #E5E7EB;
-  padding-top: 16px;
-}
-
-.expanded-section {
-  margin-bottom: 20px;
-}
-
-.expanded-title {
-  font-size: 16px;
-  font-weight: 600;
-  color: #111827;
-  margin-bottom: 8px;
-}
-
-.location-details {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-}
-
-.location-details p {
-  margin: 0;
-  font-size: 14px;
-  color: #4B5563;
-}
-
-/* Estilos para os arquivos */
-.files-container {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.files-section {
-  margin-bottom: 16px;
-}
-
-.files-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: #374151;
-  margin-bottom: 8px;
-}
-
-.files-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 12px;
-}
-
-.file-item {
-  border: 1px solid #E5E7EB;
-  border-radius: 6px;
-  overflow: hidden;
-}
-
-.file-preview {
-  height: 100px;
-  background: #F3F4F6;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.file-preview img {
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
-}
-
-.file-info {
-  padding: 8px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: white;
-}
-
-.file-name {
-  font-size: 12px;
-  color: #374151;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 100px;
-}
-
-.file-download-btn {
-  background: none;
-  border: none;
-  color: #3B82F6;
-  cursor: pointer;
-  padding: 4px;
-  border-radius: 4px;
-}
-
-.file-download-btn:hover {
-  background: #EFF6FF;
-}
-
-/* Estilos para documentos */
-.documents-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.document-item {
-  display: flex;
-  align-items: center;
-  padding: 8px;
-  border: 1px solid #E5E7EB;
-  border-radius: 6px;
-  background: white;
-}
-
-.document-icon {
-  color: #4B5563;
-  font-size: 20px;
-  margin-right: 12px;
-}
-
-.document-info {
-  flex: 1;
-}
-
-.document-name {
-  font-size: 14px;
-  color: #374151;
-}
-
-.document-download-btn {
-  background: none;
-  border: none;
-  color: #3B82F6;
-  cursor: pointer;
-  padding: 4px;
-  border-radius: 4px;
-}
-
-.document-download-btn:hover {
-  background: #EFF6FF;
-}
-
-/* Estilos para orçamentos */
-.orcamentos-details {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-}
-
-.orcamentos-details p {
-  margin: 0;
-  font-size: 14px;
-  color: #4B5563;
-}
-
-/* Ajustes responsivos */
-@media (max-width: 768px) {
-  .job-actions {
-    flex-direction: column;
-    width: 100%;
-  }
-  
-  .view-details-btn,
-  .send-message-btn {
-    width: 100%;
-  }
-  
-  .location-details,
-  .orcamentos-details {
-    grid-template-columns: 1fr;
-  }
-  
-  .files-grid {
-    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-  }
 } 
