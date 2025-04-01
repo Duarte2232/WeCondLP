@@ -23,6 +23,7 @@ import MessagesComponent from './components/Messages/Messages';
 import CalendarComponent from './components/Calendar/Calendar';
 import JobsComponent from './components/Jobs/Jobs';
 import MaintenanceComponent from './components/Maintenance/Maintenance';
+import WorkDetailsModal from './components/WorkDetailsModal/WorkDetailsModal';
 
 function DashGestor() {
   const { user } = useAuth();
@@ -47,6 +48,7 @@ function DashGestor() {
   const [unviewedOrcamentos, setUnviewedOrcamentos] = useState({});
   const [expandedItem, setExpandedItem] = useState(null);
   const [showItemDetails, setShowItemDetails] = useState(false);
+  const [selectedRecentWork, setSelectedRecentWork] = useState(null);
 
   const [newWork, setNewWork] = useState({
     title: '',
@@ -182,24 +184,68 @@ function DashGestor() {
   };
 
   const handleFileUpload = async (e) => {
-    const files = Array.from(e.target.files);
-    const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB in bytes
-    
-    for (const file of files) {
-      if (file.size > MAX_FILE_SIZE) {
-        alert(`O arquivo ${file.name} excede o limite de 10MB`);
-        continue;
+    try {
+      console.log('Iniciando upload de arquivos...');
+      
+      // Obter os arquivos do evento (seja do input ou do drop)
+      const files = e.dataTransfer 
+        ? Array.from(e.dataTransfer.files) 
+        : Array.from(e.target.files);
+      
+      console.log('Arquivos recebidos:', files.map(f => ({ name: f.name, type: f.type, size: f.size })));
+      
+      if (!files || files.length === 0) {
+        console.log('Nenhum arquivo selecionado');
+        return;
       }
 
-      try {
-        const fileData = await uploadToCloudinary(file);
-        setNewWork(prev => ({
-          ...prev,
-          files: [...(prev.files || []), fileData]
-        }));
-      } catch (error) {
-        alert(`Erro ao fazer upload de ${file.name}`);
+      const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB in bytes
+      
+      for (const file of files) {
+        console.log('Processando arquivo:', file.name);
+        
+        // Verificar o tipo do arquivo
+        const fileType = file.type.split('/')[0];
+        const allowedTypes = ['image', 'video', 'application'];
+        
+        if (!allowedTypes.includes(fileType)) {
+          console.warn(`Tipo de arquivo não permitido: ${fileType} para ${file.name}`);
+          alert(`O arquivo ${file.name} não é um tipo permitido. Apenas imagens, vídeos e documentos são aceitos.`);
+          continue;
+        }
+
+        // Verificar o tamanho do arquivo
+        if (file.size > MAX_FILE_SIZE) {
+          console.warn(`Arquivo muito grande: ${file.name} (${file.size} bytes)`);
+          alert(`O arquivo ${file.name} excede o limite de 10MB`);
+          continue;
+        }
+
+        // Criar URL temporária para visualização
+        const tempUrl = URL.createObjectURL(file);
+        console.log('URL temporária criada:', tempUrl);
+        
+        // Adicionar o arquivo ao estado
+        setNewWork(prev => {
+          const newFiles = [...(prev.files || []), {
+            name: file.name,
+            type: fileType,
+            url: tempUrl,
+            file: file, // Manter referência ao arquivo original para upload posterior
+            size: file.size
+          }];
+          console.log('Novos arquivos no estado:', newFiles);
+          return {
+            ...prev,
+            files: newFiles
+          };
+        });
+
+        console.log(`Arquivo ${file.name} adicionado com sucesso`);
       }
+    } catch (error) {
+      console.error('Erro ao processar arquivos:', error);
+      alert('Ocorreu um erro ao processar os arquivos. Por favor, tente novamente.');
     }
   };
 
@@ -221,9 +267,31 @@ function DashGestor() {
 
     try {
       if (!editingWork) {
+        // Processar os arquivos primeiro
+        const processedFiles = [];
+        if (newWork.files && newWork.files.length > 0) {
+          for (const file of newWork.files) {
+            // Se o arquivo já foi processado (tem url do Cloudinary), apenas adicione-o
+            if (file.url && file.url.includes('cloudinary')) {
+              processedFiles.push(file);
+              continue;
+            }
+            
+            // Se é um novo arquivo, faça o upload
+            try {
+              const fileData = await uploadToCloudinary(file.file);
+              processedFiles.push(fileData);
+            } catch (error) {
+              console.error(`Erro ao fazer upload do arquivo ${file.name}:`, error);
+              // Continue com os outros arquivos mesmo se um falhar
+            }
+          }
+        }
+
         // Lógica existente para criar nova obra
         const workData = {
           ...newWork,
+          files: processedFiles, // Use os arquivos processados
           userEmail: user.email,
           userId: user.uid,
           createdAt: serverTimestamp(),
@@ -759,6 +827,7 @@ function DashGestor() {
               maintenances={maintenances}
               handleSubmitMaintenance={handleSubmitMaintenance}
               isLoading={isLoading}
+              user={user}
             />
           } />
         </Routes>
@@ -827,7 +896,6 @@ function DashGestor() {
                     works
                       .filter(work => !work.isMaintenance)
                       .sort((a, b) => {
-                        // Sort by created date, newest first
                         const dateA = a.createdAt ? new Date(a.createdAt.seconds * 1000) : new Date(0);
                         const dateB = b.createdAt ? new Date(b.createdAt.seconds * 1000) : new Date(0);
                         return dateB - dateA;
@@ -836,30 +904,32 @@ function DashGestor() {
                       .map(work => (
                         <div 
                           key={work.id} 
-                          className="recent-item" 
-                          onClick={() => handleItemClick(work)}
+                          className="recent-item"
+                          onClick={() => handleRecentWorkClick(work)}
+                          style={{ cursor: 'pointer' }}
                         >
-                          <div className="recent-item-title">
+                          <div className="recent-item-header">
                             <h4>{work.title}</h4>
-                            <span className={`status-badge ${work.status?.toLowerCase().replace(' ', '-')}`}>
+                            <span className={`status-badge ${work.status.toLowerCase()}`}>
                               {work.status}
                             </span>
                           </div>
-                          <div className="recent-item-details">
-                            <p className="recent-item-description">{work.description}</p>
-                            <div className="recent-item-meta">
-                              <span className="recent-item-date">
-                                {work.date && new Date(work.date).toLocaleDateString()}
-                              </span>
-                              <span className={`category-badge ${work.category?.toLowerCase().replace(/\s+/g, '-')}`}>
-                                {work.category}
-                              </span>
-                            </div>
+                          <p className="recent-item-description">{work.description}</p>
+                          <div className="recent-item-footer">
+                            <span className="recent-item-date">
+                              {work.date && new Date(work.date).toLocaleDateString()}
+                            </span>
+                            <span className="recent-item-category">{work.category}</span>
                           </div>
                         </div>
                       ))
                   ) : (
-                    <p className="no-items">Nenhuma obra encontrada.</p>
+                    <div className="no-items-message">
+                      <p>Nenhuma obra recente</p>
+                      <button onClick={() => navigate('/dashgestor/obras')} className="create-btn">
+                        <FiPlusCircle /> Criar Nova Obra
+                      </button>
+                    </div>
                   )}
                 </div>
               </div>
@@ -873,13 +943,13 @@ function DashGestor() {
                   </button>
                 </div>
                 
+                
                 <div className="recent-items-list">
                   {isLoading ? (
                     <div className="loading">Carregando...</div>
                   ) : maintenances.length > 0 ? (
                     maintenances
                       .sort((a, b) => {
-                        // Sort by created date, newest first
                         const dateA = a.createdAt ? new Date(a.createdAt.seconds * 1000) : new Date(0);
                         const dateB = b.createdAt ? new Date(b.createdAt.seconds * 1000) : new Date(0);
                         return dateB - dateA;
@@ -888,33 +958,37 @@ function DashGestor() {
                       .map(maintenance => (
                         <div 
                           key={maintenance.id} 
-                          className="recent-item" 
+                          className="recent-item"
                           onClick={() => handleItemClick(maintenance)}
+                          style={{ cursor: 'pointer' }}
                         >
-                          <div className="recent-item-title">
+                          <div className="recent-item-header">
                             <h4>{maintenance.title}</h4>
                             <span className={`status-badge ${maintenance.status?.toLowerCase().replace(' ', '-')}`}>
                               {maintenance.status}
                             </span>
                           </div>
-                          <div className="recent-item-details">
-                            <p className="recent-item-description">{maintenance.description}</p>
-                            <div className="recent-item-meta">
-                              <span className="recent-item-date">
-                                {maintenance.date && new Date(maintenance.date).toLocaleDateString()}
-                              </span>
-                              <span className="frequency-badge">
-                                {maintenance.frequency || 'Única'}
-                              </span>
-                              <span className={`category-badge ${maintenance.category?.toLowerCase().replace(/\s+/g, '-')}`}>
-                                {maintenance.category}
-                              </span>
-                            </div>
+                          <p className="recent-item-description">{maintenance.description}</p>
+                          <div className="recent-item-footer">
+                            <span className="recent-item-date">
+                              {maintenance.date && new Date(maintenance.date).toLocaleDateString()}
+                            </span>
+                            <span className="frequency-badge">
+                              {maintenance.frequency || 'Única'}
+                            </span>
+                            <span className={`category-badge ${maintenance.category?.toLowerCase().replace(/\s+/g, '-')}`}>
+                              {maintenance.category}
+                            </span>
                           </div>
                         </div>
                       ))
                   ) : (
-                    <p className="no-items">Nenhuma manutenção encontrada.</p>
+                    <div className="no-items-message">
+                      <p>Nenhuma manutenção recente</p>
+                      <button onClick={() => navigate('/dashgestor/manutencoes')} className="create-btn">
+                        <FiPlusCircle /> Criar Nova Manutenção
+                      </button>
+                    </div>
                   )}
                 </div>
               </div>
@@ -935,6 +1009,18 @@ function DashGestor() {
             onSubmit={handleSubmit}
             onCancel={() => setShowNewWorkForm(false)}
             editMode={false}
+          />
+        )}
+
+        {selectedRecentWork && (
+          <WorkDetailsModal
+            work={selectedRecentWork}
+            onClose={() => setSelectedRecentWork(null)}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+            onComplete={handleComplete}
+            onStatusChange={handleStatusChange}
+            onFileDownload={handleFileDownload}
           />
         )}
       </div>
@@ -1198,6 +1284,11 @@ function DashGestor() {
 
     fetchWorks();
   }, [user, db]);
+
+  // Função para lidar com o clique em uma obra recente
+  const handleRecentWorkClick = (work) => {
+    setSelectedRecentWork(work);
+  };
 
   return content;
 }

@@ -172,16 +172,54 @@ const categorias = [
 ];
 
 function MaintenanceForm({ 
-  newMaintenance, 
-  setNewMaintenance, 
-  handleFileUpload, 
-  handleRemoveFile, 
-  isSubmitting,
   onSubmit,
   onCancel,
-  editMode
+  isSubmitting,
+  editMode,
+  initialData,
+  handleFileUpload: handleFileUploadProp,
+  handleRemoveFile: handleRemoveFileProp
 }) {
+  const [newMaintenance, setNewMaintenance] = useState(initialData || {
+    title: '',
+    description: '',
+    category: '',
+    subcategoria: '',
+    priority: '',
+    date: new Date().toISOString().split('T')[0],
+    status: 'disponivel',
+    files: [],
+    location: {
+      morada: '',
+      codigoPostal: '',
+      cidade: '',
+      andar: ''
+    },
+    orcamentos: {
+      minimo: '',
+      maximo: ''
+    },
+    prazoOrcamentos: ''
+  });
   const [availableSubcategories, setAvailableSubcategories] = useState([]);
+
+  const handleLocalFileUpload = async (e) => {
+    const newFiles = await handleFileUploadProp(e);
+    if (newFiles && newFiles.length > 0) {
+      setNewMaintenance(prev => ({
+        ...prev,
+        files: [...prev.files, ...newFiles]
+      }));
+    }
+  };
+
+  const handleLocalRemoveFile = (fileToRemove) => {
+    handleRemoveFileProp(fileToRemove);
+    setNewMaintenance(prev => ({
+      ...prev,
+      files: prev.files.filter(file => file.url !== fileToRemove.url)
+    }));
+  };
 
   // Atualizar subcategorias disponíveis quando a categoria muda
   useEffect(() => {
@@ -197,6 +235,11 @@ function MaintenanceForm({
     }
   }, [newMaintenance.category]);
 
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onSubmit(newMaintenance);
+  };
+
   return (
     <div className="modal-overlay">
       <div className="modal-content">
@@ -206,7 +249,7 @@ function MaintenanceForm({
             <FiX />
           </button>
         </div>
-        <form className="new-work-form" onSubmit={onSubmit}>
+        <form className="new-work-form" onSubmit={handleSubmit}>
           <div className="form-row">
             <div className="form-group">
               <label>Título da Manutenção</label>
@@ -277,7 +320,7 @@ function MaintenanceForm({
           
           <div className="form-row two-columns">
             <div className="form-group">
-              <label>Data Programada</label>
+              <label>Data</label>
               <input
                 type="date"
                 required
@@ -312,8 +355,11 @@ function MaintenanceForm({
                 required
                 value={newMaintenance.location.morada}
                 onChange={(e) => setNewMaintenance({
-                  ...newMaintenance, 
-                  location: {...newMaintenance.location, morada: e.target.value}
+                  ...newMaintenance,
+                  location: {
+                    ...newMaintenance.location,
+                    morada: e.target.value
+                  }
                 })}
                 placeholder="Rua, Número"
               />
@@ -328,12 +374,16 @@ function MaintenanceForm({
                 required
                 value={newMaintenance.location.codigoPostal}
                 onChange={(e) => setNewMaintenance({
-                  ...newMaintenance, 
-                  location: {...newMaintenance.location, codigoPostal: e.target.value}
+                  ...newMaintenance,
+                  location: {
+                    ...newMaintenance.location,
+                    codigoPostal: e.target.value
+                  }
                 })}
                 placeholder="0000-000"
               />
             </div>
+
             <div className="form-group">
               <label>Cidade</label>
               <input
@@ -341,14 +391,17 @@ function MaintenanceForm({
                 required
                 value={newMaintenance.location.cidade}
                 onChange={(e) => setNewMaintenance({
-                  ...newMaintenance, 
-                  location: {...newMaintenance.location, cidade: e.target.value}
+                  ...newMaintenance,
+                  location: {
+                    ...newMaintenance.location,
+                    cidade: e.target.value
+                  }
                 })}
                 placeholder="Ex: Lisboa"
               />
             </div>
           </div>
-          
+
           <div className="form-row">
             <div className="form-group">
               <label>Andar (opcional)</label>
@@ -356,8 +409,11 @@ function MaintenanceForm({
                 type="text"
                 value={newMaintenance.location.andar || ''}
                 onChange={(e) => setNewMaintenance({
-                  ...newMaintenance, 
-                  location: {...newMaintenance.location, andar: e.target.value}
+                  ...newMaintenance,
+                  location: {
+                    ...newMaintenance.location,
+                    andar: e.target.value
+                  }
                 })}
                 placeholder="Ex: 3º Esquerdo"
               />
@@ -366,18 +422,126 @@ function MaintenanceForm({
           
           <div className="form-row">
             <div className="form-group">
+              <label>Orçamento Estimado (€)</label>
+              <div className="orcamento-range">
+                <div className="form-group">
+                  <label>Mínimo</label>
+                  <input
+                    type="number"
+                    value={newMaintenance.orcamentos?.minimo || ''}
+                    onChange={(e) => setNewMaintenance({
+                      ...newMaintenance,
+                      orcamentos: {
+                        ...newMaintenance.orcamentos,
+                        minimo: e.target.value
+                      }
+                    })}
+                    placeholder="0"
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Máximo</label>
+                  <input
+                    type="number"
+                    value={newMaintenance.orcamentos?.maximo || ''}
+                    onChange={(e) => setNewMaintenance({
+                      ...newMaintenance,
+                      orcamentos: {
+                        ...newMaintenance.orcamentos,
+                        maximo: e.target.value
+                      }
+                    })}
+                    placeholder="0"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="form-row">
+            <div className="form-group">
+              <label>Prazo para Orçamentos</label>
+              <input
+                type="date"
+                value={newMaintenance.prazoOrcamentos || ''}
+                onChange={(e) => setNewMaintenance({
+                  ...newMaintenance,
+                  prazoOrcamentos: e.target.value
+                })}
+                placeholder="dd/mm/aaaa"
+              />
+            </div>
+          </div>
+          
+          <div className="form-row">
+            <div className="form-group">
               <label>Arquivos</label>
-              <div className="file-input-container">
+              <div 
+                className="file-input-container"
+                onClick={() => document.getElementById('file-input').click()}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  e.currentTarget.classList.add('dragging');
+                }}
+                onDragLeave={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  e.currentTarget.classList.remove('dragging');
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  e.currentTarget.classList.remove('dragging');
+                  handleLocalFileUpload(e);
+                }}
+                style={{
+                  border: '2px dashed #e5e7eb',
+                  borderRadius: '8px',
+                  padding: '2rem',
+                  textAlign: 'center',
+                  position: 'relative',
+                  cursor: 'pointer',
+                  backgroundColor: '#f9fafb',
+                  transition: 'all 0.2s ease'
+                }}
+              >
                 <input
                   type="file"
+                  id="file-input"
                   multiple
                   className="file-input"
-                  onChange={handleFileUpload}
+                  onChange={handleLocalFileUpload}
+                  accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx"
+                  style={{ 
+                    opacity: 0, 
+                    position: 'absolute', 
+                    top: 0,
+                    left: 0,
+                    width: '100%', 
+                    height: '100%', 
+                    cursor: 'pointer',
+                    zIndex: 2
+                  }}
                 />
-                <div className="file-input-text">
-                  <FiUpload />
-                  <p>Arraste arquivos ou clique para fazer upload</p>
-                  <span>Suporta imagens, vídeos e documentos (máx. 10MB)</span>
+                <div 
+                  className="file-input-text"
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    color: '#6b7280',
+                    pointerEvents: 'none'
+                  }}
+                >
+                  <FiUpload style={{ fontSize: '2rem', marginBottom: '0.5rem' }} />
+                  <p style={{ margin: 0, fontSize: '1rem', fontWeight: 500 }}>
+                    Arraste arquivos ou clique para fazer upload
+                  </p>
+                  <span style={{ fontSize: '0.875rem' }}>
+                    Suporta imagens, vídeos e documentos (máx. 10MB)
+                  </span>
                 </div>
               </div>
             </div>
@@ -392,6 +556,10 @@ function MaintenanceForm({
                     <div key={index} className="selected-file">
                       {file.type === 'image' ? (
                         <img src={file.url} alt={file.name} />
+                      ) : file.type === 'video' ? (
+                        <div className="file-preview">
+                          <video src={file.url} controls />
+                        </div>
                       ) : (
                         <div className="file-icon">
                           <FiFile />
@@ -402,7 +570,7 @@ function MaintenanceForm({
                         <button 
                           type="button" 
                           className="remove-file-btn"
-                          onClick={() => handleRemoveFile(file)}
+                          onClick={() => handleLocalRemoveFile(file)}
                         >
                           <FiX />
                         </button>

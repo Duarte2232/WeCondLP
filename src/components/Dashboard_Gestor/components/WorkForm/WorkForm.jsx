@@ -281,7 +281,7 @@ function WorkForm({
           
           <div className="form-row">
             <div className="form-group">
-              <label>Orçamento Estimado (€)</label>
+              <label>Orçamento Estimado </label>
               <div className="orcamento-range">
                 <div className="form-group">
                   <label>Mínimo</label>
@@ -325,16 +325,37 @@ function WorkForm({
           <div className="form-row">
             <div className="form-group">
               <label>Arquivos</label>
-              <div className="file-input-container">
+              <div 
+                className="file-input-container"
+                onClick={() => document.querySelector('.file-input').click()}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  e.currentTarget.classList.add('dragging');
+                }}
+                onDragLeave={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  e.currentTarget.classList.remove('dragging');
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  e.currentTarget.classList.remove('dragging');
+                  handleFileUpload(e);
+                }}
+              >
                 <input
                   type="file"
                   multiple
                   className="file-input"
                   onChange={handleFileUpload}
+                  accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx"
+                  style={{ display: 'none' }}
                 />
                 <div className="file-input-text">
                   <FiUpload />
-                  <p>Arraste arquivos ou clique para fazer upload</p>
+                  <p>Clique ou arraste arquivos para fazer upload</p>
                   <span>Suporta imagens, vídeos e documentos (máx. 10MB)</span>
                 </div>
               </div>
@@ -385,7 +406,7 @@ function WorkForm({
               className="save-btn"
               disabled={isSubmitting}
             >
-              {isSubmitting ? 'Salvando...' : editMode ? 'Atualizar' : 'Salvar'}
+              {isSubmitting ? 'A guardar...' : editMode ? 'Atualizar' : 'Guardar'}
             </button>
           </div>
         </form>

@@ -1,12 +1,40 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiArrowLeft, FiPlus, FiFilter, FiGrid, FiList } from 'react-icons/fi';
+import { FiArrowLeft, FiPlus, FiFilter, FiGrid, FiList, FiFile } from 'react-icons/fi';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../../../../services/firebase';
 import { useAuth } from '../../../../contexts/auth';
 import WorksTable from '../WorksTable/WorksTable';
 import WorkForm from '../WorkForm/WorkForm';
+import WorkDetailsModal from '../WorkDetailsModal/WorkDetailsModal';
 import './Jobs.css';
+
+function JobCard({ work, onViewDetails }) {
+  return (
+    <div 
+      className="work-card"
+      onClick={() => onViewDetails(work.id)}
+      style={{ cursor: 'pointer' }}
+    >
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+        <h3 className="work-card-title">{work.title}</h3>
+        <p className="work-card-description multiline-truncate">
+          {work.description}
+        </p>
+        <div style={{ marginTop: 'auto' }}>
+          <span className={`work-card-status ${work.status.toLowerCase()}`} 
+                style={{ float: 'left', marginBottom: '8px' }}>
+            {work.status}
+          </span>
+        </div>
+        <div className="work-card-footer" style={{ clear: 'both' }}>
+          <span className="work-card-date">{work.date}</span>
+          <span className="work-card-category">{work.category}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 const Jobs = ({ 
   works = [], 
@@ -31,6 +59,7 @@ const Jobs = ({
   const [viewMode, setViewMode] = useState('grid'); // 'grid' ou 'list'
   const [showNewWorkForm, setShowNewWorkForm] = useState(false);
   const [localNewWork, setLocalNewWork] = useState(newWork);
+  const [selectedWork, setSelectedWork] = useState(null);
 
   // Definir todas as categorias possíveis
   const categorias = [
@@ -181,6 +210,30 @@ const Jobs = ({
   };
 
   const handleCreateWork = () => {
+    // Resetar o formulário com valores iniciais
+    const emptyWork = {
+      title: '',
+      description: '',
+      category: '',
+      priority: '',
+      location: {
+        morada: '',
+        codigoPostal: '',
+        cidade: '',
+        andar: ''
+      },
+      date: new Date().toISOString().split('T')[0],
+      status: 'Pendente',
+      files: [],
+      orcamentos: {
+        minimo: '',
+        maximo: ''
+      },
+      prazoOrcamentos: ''
+    };
+    
+    setLocalNewWork(emptyWork);
+    setNewWork(emptyWork);
     setShowNewWorkForm(true);
   };
 
@@ -232,6 +285,11 @@ const Jobs = ({
       })
     : works;
 
+  const handleWorkClick = (workId) => {
+    const work = works.find(w => w.id === workId);
+    setSelectedWork(work);
+  };
+
   return (
     <div className="jobs-container">
       <div className="jobs-header">
@@ -277,13 +335,11 @@ const Jobs = ({
           </button>
         </div>
 
-        {/* Se uma categoria estiver selecionada OU o modo de visualização for 'list', 
-            exibimos a tabela de obras. Caso contrário, exibimos a grade de cards */}
         {selectedCategory || viewMode === 'list' ? (
           <WorksTable 
             works={filteredWorks}
             expandedWorks={expandedWorks}
-            onViewDetails={handleViewDetails}
+            onViewDetails={handleWorkClick}
             onEdit={handleEdit}
             onDelete={handleDelete}
             onComplete={handleComplete}
@@ -293,43 +349,29 @@ const Jobs = ({
             isSimplified={false}
           />
         ) : (
-          <div className="works-grid">
-            {filteredWorks.length > 0 ? (
-              filteredWorks.map(work => (
-                <div 
-                  key={work.id} 
-                  className="work-card"
-                  onClick={() => handleViewDetails(work.id)}
-                >
-                  <div className="work-card-header">
-                    <h3>{work.title}</h3>
-                    <span className={`status-badge ${work.status.toLowerCase().replace(' ', '-')}`}>
-                      {work.status}
-                    </span>
-                  </div>
-                  <p className="work-card-description">
-                    {work.description.length > 120 
-                      ? `${work.description.substring(0, 120)}...` 
-                      : work.description}
-                  </p>
-                  <div className="work-card-footer">
-                    <span className="work-card-date">
-                      {new Date(work.date).toLocaleDateString()}
-                    </span>
-                    <span className={`category-badge ${work.category.toLowerCase().replace(/\s+/g, '-')}`}>
-                      {work.category}
-                    </span>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <p className="no-works-message">
-                Nenhuma obra encontrada
-              </p>
-            )}
+          <div className="work-cards-grid">
+            {filteredWorks.map(work => (
+              <JobCard 
+                key={work.id} 
+                work={work} 
+                onViewDetails={handleWorkClick}
+              />
+            ))}
           </div>
         )}
       </div>
+
+      {selectedWork && (
+        <WorkDetailsModal
+          work={selectedWork}
+          onClose={() => setSelectedWork(null)}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+          onComplete={handleComplete}
+          onStatusChange={handleStatusChange}
+          onFileDownload={handleFileDownload}
+        />
+      )}
 
       {showNewWorkForm && (
         <WorkForm 

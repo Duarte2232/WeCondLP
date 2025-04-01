@@ -2,7 +2,7 @@
   width: 100%;
   max-width: 1280px;
   margin: 0 auto;
-  padding: 20px;
+  padding: 24px;
   padding-top: 80px;
   background-color: #f9fafb;
 }
@@ -14,13 +14,11 @@
   margin-bottom: 24px;
 }
 
-.maintenance-header h1 {
-  font-size: 1.75rem;
+.maintenance-header h2 {
+  font-size: 24px;
   font-weight: 600;
   color: #111827;
   margin: 0;
-  flex-grow: 1;
-  text-align: center;
 }
 
 .back-button {
@@ -180,6 +178,7 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 24px;
+  padding: 0 8px;
 }
 
 .maintenance-list-header h2 {
@@ -486,7 +485,7 @@
     gap: 16px;
   }
   
-  .maintenance-header h1 {
+  .maintenance-header h2 {
     font-size: 1.5rem;
     text-align: left;
   }
@@ -523,4 +522,145 @@
   .maintenance-grid {
     grid-template-columns: 1fr;
   }
+}
+
+/* Reuse the work-card styles from Jobs.css */
+.work-card {
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  height: 100%;
+  min-height: 180px;
+}
+
+.work-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.work-card-title {
+  font-weight: 600;
+  font-size: 1.2rem;
+  margin-bottom: 10px;
+  color: #333;
+}
+
+.work-card-description {
+  color: #666;
+  line-height: 1.4;
+  font-size: 0.9rem;
+  text-align: left;
+  width: 100%;
+}
+
+.work-card-status {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+.work-card-status.disponivel {
+  background-color: rgba(46, 213, 115, 0.15);
+  color: #2ed573;
+}
+
+.work-card-status.pendente {
+  background-color: rgba(255, 171, 25, 0.15);
+  color: #ffab19;
+}
+
+.work-card-status.concluido {
+  background-color: rgba(54, 162, 235, 0.15);
+  color: #36a2eb;
+}
+
+.work-card-footer {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 10px;
+  font-size: 0.85rem;
+  color: #888;
+}
+
+.work-card-date, .work-card-category {
+  display: inline-block;
+}
+
+.work-card-category {
+  font-weight: 500;
+}
+
+.truncate {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.multiline-truncate {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: left;
+  width: 100%;
+  height: auto;
+  min-height: 3.8em;
+  max-height: 4.2em;
+  padding-bottom: 4px;
+  margin-bottom: 15px;
+}
+
+.work-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 24px;
+  padding: 24px;
+}
+
+.loading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 200px;
+}
+
+.create-maintenance-btn-header {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background-color: #2563eb;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.create-maintenance-btn-header:hover {
+  background-color: #1d4ed8;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.create-maintenance-btn-header svg {
+  width: 18px;
+  height: 18px;
+}
+
+.create-maintenance-btn-header:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 } 

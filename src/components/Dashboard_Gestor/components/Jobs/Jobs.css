@@ -280,59 +280,172 @@
 }
 
 .work-card {
-  background-color: #F9FAFB;
-  border: 1px solid #E5E7EB;
+  background-color: white;
   border-radius: 8px;
-  padding: 16px;
-  transition: all 0.2s ease;
-  height: 100%;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  padding: 20px;
   display: flex;
   flex-direction: column;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  height: 100%;
+  min-height: 180px;
 }
 
 .work-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-  border-color: #D1D5DB;
+  transform: translateY(-5px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
 }
 
-.work-card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 12px;
-}
-
-.work-card-header h3 {
-  font-size: 16px;
+.work-card-title {
   font-weight: 600;
-  color: #111827;
-  margin: 0;
-  padding-right: 12px;
+  font-size: 1.2rem;
+  margin-bottom: 10px;
+  color: #333;
 }
 
 .work-card-description {
-  font-size: 14px;
-  color: #6B7280;
-  margin: 0 0 16px 0;
-  flex-grow: 1;
-  overflow: hidden;
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  line-height: 1.5;
+  color: #666;
+  line-height: 1.4;
+  font-size: 0.9rem;
+  text-align: left;
+  width: 100%;
+}
+
+.work-card-status {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+.work-card-status.disponivel {
+  background-color: rgba(46, 213, 115, 0.15);
+  color: #2ed573;
+}
+
+.work-card-status.pendente {
+  background-color: rgba(255, 171, 25, 0.15);
+  color: #ffab19;
+}
+
+.work-card-status.concluido {
+  background-color: rgba(54, 162, 235, 0.15);
+  color: #36a2eb;
 }
 
 .work-card-footer {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-top: auto;
+  margin-top: 10px;
+  font-size: 0.85rem;
+  color: #888;
 }
 
-.work-card-date {
+.work-card-date, .work-card-category {
+  display: inline-block;
+}
+
+.work-card-category {
+  font-weight: 500;
+}
+
+.truncate {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.multiline-truncate {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: left;
+  width: 100%;
+  height: auto;
+  min-height: 3.8em;
+  max-height: 4.2em;
+  padding-bottom: 4px;
+  margin-bottom: 15px;
+}
+
+.files-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 16px;
+  margin-top: 12px;
+}
+
+.file-preview-item {
+  border: 1px solid #E5E7EB;
+  border-radius: 8px;
+  overflow: hidden;
+  position: relative;
+}
+
+.file-preview-item img,
+.file-preview-item video {
+  width: 100%;
+  height: 120px;
+  object-fit: cover;
+}
+
+.file-icon {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background-color: #F9FAFB;
+  height: 120px;
+}
+
+.file-icon span {
   font-size: 12px;
   color: #6B7280;
+  margin-top: 8px;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.work-card-header {
+  margin-bottom: 16px;
+}
+
+.work-card-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1F2937;
+  margin-bottom: 12px;
+}
+
+.work-card-description {
+  font-size: 14px;
+  color: #6B7280;
+  margin-bottom: 16px;
+  line-height: 1.5;
+}
+
+.work-card-description.truncate {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.work-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 24px;
+  padding: 24px;
 }
 
 .no-works-message {
@@ -341,6 +454,7 @@
   color: #6B7280;
   padding: 32px 0;
   font-style: italic;
+  font-size: 14px;
 }
 
 /* Status e categoria badges */
@@ -432,4 +546,153 @@
 .category-badge.pintura {
   background-color: #ECFEFF;
   color: #155E75;
+}
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 12px;
+  padding: 0;
+  width: 90%;
+  max-width: 800px;
+  max-height: 90vh;
+  overflow-y: auto;
+  position: relative;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+.modal-header {
+  padding: 20px 24px;
+  border-bottom: 1px solid #E5E7EB;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: sticky;
+  top: 0;
+  background: white;
+  z-index: 1;
+  border-radius: 12px 12px 0 0;
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.close-button {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: #6B7280;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  line-height: 1;
+}
+
+.close-button:hover {
+  background-color: #F3F4F6;
+  color: #111827;
+}
+
+.modal-body {
+  padding: 24px;
+}
+
+.status-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 8px;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.action-buttons button {
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.edit-btn {
+  background-color: #EFF6FF;
+  color: #1D4ED8;
+  border: 1px solid #BFDBFE;
+}
+
+.edit-btn:hover {
+  background-color: #DBEAFE;
+}
+
+.delete-btn {
+  background-color: #FEF2F2;
+  color: #DC2626;
+  border: 1px solid #FECACA;
+}
+
+.delete-btn:hover {
+  background-color: #FEE2E2;
+}
+
+.complete-btn {
+  background-color: #ECFDF5;
+  color: #059669;
+  border: 1px solid #A7F3D0;
+}
+
+.complete-btn:hover {
+  background-color: #D1FAE5;
+}
+
+/* Ajustes para os arquivos no modal */
+.modal-body .files-grid {
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+}
+
+.modal-body .file-preview-item {
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.modal-body .file-preview-item:hover {
+  transform: scale(1.02);
+}
+
+/* Estilo para scrollbar personalizado no modal */
+.modal-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.modal-content::-webkit-scrollbar-track {
+  background: #F3F4F6;
+  border-radius: 0 12px 12px 0;
+}
+
+.modal-content::-webkit-scrollbar-thumb {
+  background: #D1D5DB;
+  border-radius: 20px;
+}
+
+.modal-content::-webkit-scrollbar-thumb:hover {
+  background: #9CA3AF;
 } 

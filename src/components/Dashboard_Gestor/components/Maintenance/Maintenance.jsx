@@ -3,131 +3,440 @@ import { useNavigate } from 'react-router-dom';
 import { FiArrowLeft, FiPlus, FiGrid, FiList, FiFilter } from 'react-icons/fi';
 import NewMaintenanceButton from './NewMaintenanceButton';
 import MaintenanceForm from './MaintenanceForm';
+import WorkDetailsModal from '../WorkDetailsModal/WorkDetailsModal';
+import { CLOUDINARY_CONFIG } from '../../../../config/cloudinary';
+import { db } from '../../../../services/firebase';
+import { collection, addDoc, serverTimestamp, query, where, getDocs } from 'firebase/firestore';
 import './Maintenance.css';
 
-const Maintenance = ({ maintenances = [], handleSubmitMaintenance, isLoading = false }) => {
+// Definir todas as categorias possíveis
+const categorias = [
+  { 
+    id: 'infiltracao', 
+    nome: 'Infiltração', 
+    icone: '💧', 
+    cor: '#3498db',
+    subcategorias: [
+      'Infiltração em coberturas e terraços',
+      'Infiltração em paredes e fachadas',
+      'Infiltração em garagens e caves',
+      'Diagnóstico e identificação de causas',
+      'Soluções de impermeabilização'
+    ]
+  },
+  { 
+    id: 'fissuras', 
+    nome: 'Fissuras e rachaduras', 
+    icone: '🧱', 
+    cor: '#e74c3c',
+    subcategorias: [
+      'Fissuras estruturais',
+      'Rachaduras em paredes interiores e exteriores',
+      'Rachaduras em fachadas e varandas',
+      'Monitorização e avaliação periódica',
+      'Técnicas de reparação e reforço estrutural'
+    ]
+  },
+  { 
+    id: 'canalizacao', 
+    nome: 'Canalização', 
+    icone: '🚿', 
+    cor: '#2ecc71',
+    subcategorias: [
+      'Deteção e reparação de fugas de água',
+      'Substituição e manutenção de tubagens',
+      'Limpeza e desobstrução de esgotos',
+      'Sistemas de pressurização e bombagem',
+      'Manutenção de reservatórios e depósitos de água'
+    ]
+  },
+  { 
+    id: 'jardinagem', 
+    nome: 'Jardinagem', 
+    icone: '🌱', 
+    cor: '#27ae60',
+    subcategorias: [
+      'Manutenção e conservação de jardins comuns',
+      'Poda e remoção de árvores e arbustos',
+      'Instalação e manutenção de sistemas de rega',
+      'Controlo de pragas e doenças',
+      'Requalificação de espaços verdes'
+    ]
+  },
+  { 
+    id: 'fiscalizacao', 
+    nome: 'Fiscalização', 
+    icone: '📋', 
+    cor: '#9b59b6',
+    subcategorias: [
+      'Inspeção periódica de infraestruturas',
+      'Fiscalização do cumprimento de normas e regulamentos',
+      'Relatórios técnicos e auditorias',
+      'Avaliação da qualidade dos serviços prestados',
+      'Gestão de obras e intervenções externas'
+    ]
+  },
+  { 
+    id: 'fachada', 
+    nome: 'Reabilitação de Fachada', 
+    icone: '🏢', 
+    cor: '#34495e',
+    subcategorias: [
+      'Recuperação e restauro de fachadas',
+      'Tratamento de fissuras e infiltrações',
+      'Impermeabilização de superfícies externas',
+      'Pintura e renovação estética',
+      'Limpeza de fachadas e remoção de grafitis'
+    ]
+  },
+  { 
+    id: 'eletricidade', 
+    nome: 'Eletricidade', 
+    icone: '⚡', 
+    cor: '#f1c40f',
+    subcategorias: [
+      'Manutenção de instalações elétricas do condomínio',
+      'Substituição de quadros elétricos e cablagens',
+      'Iluminação de áreas comuns (escadas, garagem, elevadores)',
+      'Sistemas de emergência e iluminação de segurança',
+      'Inspeção e conformidade com normas elétricas'
+    ]
+  },
+  { 
+    id: 'construcao', 
+    nome: 'Construção', 
+    icone: '🏗️', 
+    cor: '#e67e22',
+    subcategorias: [
+      'Pequenas obras e remodelações em áreas comuns',
+      'Reparação de estruturas e fundações',
+      'Substituição de revestimentos e pavimentos',
+      'Ampliação e melhoria de infraestruturas',
+      'Gestão de licenças e autorizações'
+    ]
+  },
+  { 
+    id: 'pintura', 
+    nome: 'Pintura', 
+    icone: '🎨', 
+    cor: '#1abc9c',
+    subcategorias: [
+      'Pintura de fachadas e zonas comuns',
+      'Pintura de garagens e parques de estacionamento',
+      'Marcação de lugares e sinalização em pavimentos',
+      'Preparação e tratamento de superfícies antes da pintura',
+      'Utilização de tintas específicas para exterior e interior'
+    ]
+  },
+  { 
+    id: 'elevadores', 
+    nome: 'Elevadores', 
+    icone: '⬆️', 
+    cor: '#0ea5e9',
+    subcategorias: [
+      'Manutenção preventiva regular',
+      'Substituição de peças desgastadas',
+      'Modernização de sistemas de segurança',
+      'Reparação de avarias',
+      'Inspeção técnica periódica'
+    ]
+  },
+  { 
+    id: 'avac', 
+    nome: 'Sistemas AVAC', 
+    icone: '❄️', 
+    cor: '#0ea5e9',
+    subcategorias: [
+      'Limpeza de filtros e condutas',
+      'Verificação de sistemas de refrigeração',
+      'Manutenção de caldeiras e bombas de calor',
+      'Substituição de componentes',
+      'Otimização de eficiência energética'
+    ]
+  },
+  { 
+    id: 'seguranca', 
+    nome: 'Sistemas de Segurança', 
+    icone: '🔒', 
+    cor: '#ef4444',
+    subcategorias: [
+      'Manutenção de sistemas de alarme',
+      'Verificação de equipamentos contra incêndios',
+      'Testes de funcionamento de sensores',
+      'Atualização de software de segurança',
+      'Substituição de baterias e componentes'
+    ]
+  },
+  { 
+    id: 'limpeza', 
+    nome: 'Limpeza', 
+    icone: '🧹', 
+    cor: '#22c55e',
+    subcategorias: [
+      'Limpeza profunda de áreas comuns',
+      'Lavagem de pavimentos e escadas',
+      'Limpeza de vidros e fachadas',
+      'Remoção de grafitis',
+      'Tratamento e polimento de pavimentos'
+    ]
+  },
+  { 
+    id: 'hidraulica', 
+    nome: 'Hidráulica', 
+    icone: '🔧', 
+    cor: '#0ea5e9',
+    subcategorias: [
+      'Verificação de fugas em canalizações',
+      'Manutenção de bombas de água',
+      'Limpeza de ralos e caleiras',
+      'Desentupimento de esgotos',
+      'Purga de ar em radiadores'
+    ]
+  },
+  { 
+    id: 'equipamentos', 
+    nome: 'Equipamentos', 
+    icone: '🏋️', 
+    cor: '#64748b',
+    subcategorias: [
+      'Manutenção de sistemas de ginásio',
+      'Verificação de equipamentos de lazer',
+      'Reparação de mobiliário de áreas comuns',
+      'Manutenção de piscinas e spas',
+      'Calibração de equipamentos técnicos'
+    ]
+  }
+];
+
+function MaintenanceCard({ maintenance, onViewDetails }) {
+  return (
+    <div 
+      className="work-card"
+      onClick={() => onViewDetails(maintenance)}
+      style={{ cursor: 'pointer' }}
+    >
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+        <h3 className="work-card-title">{maintenance.title}</h3>
+        <p className="work-card-description multiline-truncate">
+          {maintenance.description}
+        </p>
+        <div style={{ marginTop: 'auto' }}>
+          <span className={`work-card-status ${maintenance.status.toLowerCase()}`}
+                style={{ float: 'left', marginBottom: '8px' }}>
+            {maintenance.status}
+          </span>
+        </div>
+        <div className="work-card-footer" style={{ clear: 'both' }}>
+          <span className="work-card-date">
+            {maintenance.date && new Date(maintenance.date).toLocaleDateString()}
+          </span>
+          <span className="work-card-category">{maintenance.category}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const Maintenance = ({ maintenances = [], handleSubmitMaintenance, isLoading = false, user }) => {
   const navigate = useNavigate();
   const [selectedCategory, setSelectedCategory] = useState(null);
-  const [viewMode, setViewMode] = useState('grid'); // 'grid' ou 'list'
-  const [showNewMaintenanceForm, setShowNewMaintenanceForm] = useState(false);
+  const [viewMode, setViewMode] = useState('grid');
+  const [showMaintenanceForm, setShowMaintenanceForm] = useState(false);
   const [localMaintenances, setLocalMaintenances] = useState(maintenances);
+  const [selectedMaintenance, setSelectedMaintenance] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [newMaintenance, setNewMaintenance] = useState({
-    title: '',
-    description: '',
-    category: '',
-    priority: '',
-    location: {
-      morada: '',
-      codigoPostal: '',
-      cidade: '',
-      andar: ''
-    },
-    date: new Date().toISOString().split('T')[0],
-    status: 'Pendente',
-    files: [],
-    isMaintenance: true,
-    frequency: ''
-  });
 
-  // Update local maintenances when prop changes
+  // Efeito para carregar manutenções quando o componente montar
   useEffect(() => {
-    setLocalMaintenances(maintenances);
-  }, [maintenances]);
+    const loadMaintenances = async () => {
+      if (!user?.email) return;
+      
+      try {
+        const worksRef = collection(db, 'works');
+        const q = query(
+          worksRef,
+          where('userEmail', '==', user.email),
+          where('isMaintenance', '==', true)
+        );
+        
+        const snapshot = await getDocs(q);
+        const maintenancesData = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        
+        setLocalMaintenances(maintenancesData);
+      } catch (error) {
+        console.error('Erro ao carregar manutenções:', error);
+      }
+    };
 
-  // Definir categorias - usando as mesmas das Obras
-  const categorias = [
-    { 
-      id: 'infiltracao', 
-      nome: 'Infiltração', 
-      icone: '💧', 
-      cor: '#3498db'
-    },
-    { 
-      id: 'fissuras', 
-      nome: 'Fissuras e rachaduras', 
-      icone: '🧱', 
-      cor: '#e74c3c'
-    },
-    { 
-      id: 'canalizacao', 
-      nome: 'Canalização', 
-      icone: '🚿', 
-      cor: '#2ecc71'
-    },
-    { 
-      id: 'jardinagem', 
-      nome: 'Jardinagem', 
-      icone: '🌱', 
-      cor: '#27ae60'
-    },
-    { 
-      id: 'fiscalizacao', 
-      nome: 'Fiscalização', 
-      icone: '📋', 
-      cor: '#9b59b6'
-    },
-    { 
-      id: 'fachada', 
-      nome: 'Reabilitação de Fachada', 
-      icone: '🏢', 
-      cor: '#34495e'
-    },
-    { 
-      id: 'eletricidade', 
-      nome: 'Eletricidade', 
-      icone: '⚡', 
-      cor: '#f1c40f'
-    },
-    { 
-      id: 'construcao', 
-      nome: 'Construção', 
-      icone: '🏗️', 
-      cor: '#e67e22'
-    },
-    { 
-      id: 'pintura', 
-      nome: 'Pintura', 
-      icone: '🎨', 
-      cor: '#1abc9c'
-    },
-    { 
-      id: 'elevadores', 
-      nome: 'Elevadores', 
-      icone: '🛗', 
-      cor: '#a569bd'
-    },
-    { 
-      id: 'avac', 
-      nome: 'Sistemas AVAC', 
-      icone: '❄️', 
-      cor: '#3498db'
-    },
-    { 
-      id: 'seguranca', 
-      nome: 'Sistemas de Segurança', 
-      icone: '🚨', 
-      cor: '#e74c3c'
-    },
-    { 
-      id: 'limpeza', 
-      nome: 'Limpeza', 
-      icone: '🧹', 
-      cor: '#2ecc71'
-    },
-    { 
-      id: 'hidraulica', 
-      nome: 'Hidráulica', 
-      icone: '🔧', 
-      cor: '#3498db'
-    },
-    { 
-      id: 'equipamentos', 
-      nome: 'Equipamentos', 
-      icone: '🔌', 
-      cor: '#e67e22'
+    loadMaintenances();
+  }, [user?.email]);
+
+  const uploadToCloudinary = async (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('upload_preset', CLOUDINARY_CONFIG.uploadPreset);
+
+    try {
+      const response = await fetch(
+        `https://api.cloudinary.com/v1_1/${CLOUDINARY_CONFIG.cloudName}/auto/upload`,
+        {
+          method: 'POST',
+          body: formData
+        }
+      );
+      
+      if (!response.ok) {
+        throw new Error('Upload falhou');
+      }
+
+      const data = await response.json();
+      return {
+        name: file.name,
+        type: file.type.split('/')[0],
+        url: data.secure_url,
+        publicId: data.public_id,
+        size: file.size
+      };
+    } catch (error) {
+      console.error('Erro no upload para Cloudinary:', error);
+      throw error;
     }
-  ];
+  };
+
+  const handleFileUpload = async (e) => {
+    try {
+      console.log('Iniciando upload de arquivos...');
+      
+      // Obter os arquivos do evento (seja do input ou do drop)
+      const files = e.dataTransfer 
+        ? Array.from(e.dataTransfer.files) 
+        : Array.from(e.target.files);
+      
+      console.log('Arquivos recebidos:', files.map(f => ({ name: f.name, type: f.type, size: f.size })));
+      
+      if (!files || files.length === 0) {
+        console.log('Nenhum arquivo selecionado');
+        return;
+      }
+
+      const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB in bytes
+      
+      const newFiles = [];
+      for (const file of files) {
+        console.log('Processando arquivo:', file.name);
+        
+        // Verificar o tipo do arquivo
+        const fileType = file.type.split('/')[0];
+        const allowedTypes = ['image', 'video', 'application'];
+        
+        if (!allowedTypes.includes(fileType)) {
+          console.warn(`Tipo de arquivo não permitido: ${fileType} para ${file.name}`);
+          alert(`O arquivo ${file.name} não é um tipo permitido. Apenas imagens, vídeos e documentos são aceitos.`);
+          continue;
+        }
+
+        // Verificar o tamanho do arquivo
+        if (file.size > MAX_FILE_SIZE) {
+          console.warn(`Arquivo muito grande: ${file.name} (${file.size} bytes)`);
+          alert(`O arquivo ${file.name} excede o limite de 10MB`);
+          continue;
+        }
+
+        // Criar URL temporária para visualização
+        const tempUrl = URL.createObjectURL(file);
+        console.log('URL temporária criada:', tempUrl);
+        
+        newFiles.push({
+          name: file.name,
+          type: fileType,
+          url: tempUrl,
+          file: file, // Manter referência ao arquivo original para upload posterior
+          size: file.size
+        });
+      }
+
+      return newFiles;
+    } catch (error) {
+      console.error('Erro ao processar arquivos:', error);
+      alert('Ocorreu um erro ao processar os arquivos. Por favor, tente novamente.');
+      return [];
+    }
+  };
+
+  const handleRemoveFile = (fileToRemove) => {
+    if (fileToRemove.url && fileToRemove.url.startsWith('blob:')) {
+      URL.revokeObjectURL(fileToRemove.url);
+    }
+  };
+
+  const handleMaintenanceSubmit = async (maintenanceData) => {
+    setIsSubmitting(true);
+
+    try {
+      // Processar os arquivos primeiro
+      const processedFiles = [];
+      if (maintenanceData.files && maintenanceData.files.length > 0) {
+        for (const file of maintenanceData.files) {
+          // Se o arquivo já foi processado (tem url do Cloudinary), apenas adicione-o
+          if (file.url && file.url.includes('cloudinary')) {
+            processedFiles.push(file);
+            continue;
+          }
+          
+          // Se é um novo arquivo, faça o upload
+          try {
+            const fileData = await uploadToCloudinary(file.file);
+            processedFiles.push(fileData);
+          } catch (error) {
+            console.error(`Erro ao fazer upload do arquivo ${file.name}:`, error);
+            // Continue com os outros arquivos mesmo se um falhar
+          }
+        }
+      }
+
+      // Preparar dados da manutenção
+      const maintenanceDataToSave = {
+        ...maintenanceData,
+        files: processedFiles,
+        userEmail: user.email,
+        userId: user.uid,
+        createdAt: serverTimestamp(),
+        date: maintenanceData.date || new Date().toISOString().split('T')[0],
+        status: "disponivel",
+        isMaintenance: true
+      };
+
+      // Salvar no Firebase (alterado de 'maintenances' para 'works')
+      const docRef = await addDoc(collection(db, 'works'), maintenanceDataToSave);
+      
+      // Recarregar manutenções
+      const worksRef = collection(db, 'works');
+      const q = query(
+        worksRef,
+        where('userEmail', '==', user.email),
+        where('isMaintenance', '==', true)
+      );
+      
+      const snapshot = await getDocs(q);
+      const maintenancesData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      
+      setLocalMaintenances(maintenancesData);
+      
+      setShowMaintenanceForm(false);
+      alert('Manutenção criada com sucesso!');
+    } catch (error) {
+      console.error('Erro ao criar manutenção:', error);
+      alert('Erro ao criar manutenção. Por favor, tente novamente.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const handleBack = () => {
     navigate('/dashgestor');
@@ -135,103 +444,20 @@ const Maintenance = ({ maintenances = [], handleSubmitMaintenance, isLoading = f
 
   const handleCategoryClick = (category) => {
     if (selectedCategory === category.id) {
-      setSelectedCategory(null); // Desselecionar se clicar na mesma categoria
+      setSelectedCategory(null);
     } else {
       setSelectedCategory(category.id);
-      // Mudamos automaticamente para o modo de tabela quando uma categoria é selecionada
-      setViewMode('list');
     }
   };
 
   const handleCreateMaintenance = () => {
-    // If a category is selected, pre-populate the form with it
-    if (selectedCategory) {
-      const selectedCategoryObj = categorias.find(cat => cat.id === selectedCategory);
-      if (selectedCategoryObj) {
-        setNewMaintenance(prev => ({
-          ...prev,
-          category: selectedCategoryObj.nome
-        }));
-      }
-    }
-    setShowNewMaintenanceForm(true);
+    setShowMaintenanceForm(true);
   };
 
-  const handleFileUpload = (e) => {
-    // Logic to handle file uploads
-    const files = Array.from(e.target.files).map(file => ({
-      name: file.name,
-      type: file.type.startsWith('image/') ? 'image' : 'file',
-      url: URL.createObjectURL(file),
-      file: file
-    }));
-    
-    setNewMaintenance(prev => ({
-      ...prev,
-      files: [...(prev.files || []), ...files]
-    }));
+  const handleViewDetails = (maintenance) => {
+    setSelectedMaintenance(maintenance);
   };
 
-  const handleRemoveFile = (fileToRemove) => {
-    setNewMaintenance(prev => ({
-      ...prev,
-      files: prev.files.filter(file => file.name !== fileToRemove.name)
-    }));
-  };
-
-  const handleSubmitMaintenanceForm = async (e) => {
-    e.preventDefault();
-    setIsSubmitting(true);
-    
-    try {
-      // Use the function from props to save the maintenance to Firestore
-      if (handleSubmitMaintenance) {
-        const result = await handleSubmitMaintenance(newMaintenance);
-        
-        if (result) {
-          // Add the newly created maintenance to the local state if not already added by props
-          setLocalMaintenances(prev => {
-            // Check if already exists
-            if (!prev.find(m => m.id === result.id)) {
-              return [result, ...prev];
-            }
-            return prev;
-          });
-          
-          // Reset form and close modal
-          setNewMaintenance({
-            title: '',
-            description: '',
-            category: '',
-            priority: '',
-            location: {
-              morada: '',
-              codigoPostal: '',
-              cidade: '',
-              andar: ''
-            },
-            date: new Date().toISOString().split('T')[0],
-            status: 'Pendente',
-            files: [],
-            isMaintenance: true,
-            frequency: ''
-          });
-          
-          setShowNewMaintenanceForm(false);
-        }
-      } else {
-        console.error("handleSubmitMaintenance function not provided as prop");
-        alert("Erro: função de submissão não disponível");
-      }
-    } catch (error) {
-      console.error("Error submitting maintenance:", error);
-      alert("Erro ao criar manutenção. Tente novamente.");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  // Função para renderizar o grid de categorias de forma horizontal
   const renderCategoriesGrid = () => {
     return (
       <div className="categories-grid">
@@ -242,7 +468,7 @@ const Maintenance = ({ maintenances = [], handleSubmitMaintenance, isLoading = f
             style={{ 
               borderColor: selectedCategory === categoria.id ? categoria.cor : 'transparent',
               backgroundColor: selectedCategory === categoria.id ? `${categoria.cor}20` : '#f9fafb'
-            }}
+            }} 
             onClick={() => handleCategoryClick(categoria)}
           >
             <div className="category-icon" style={{ backgroundColor: categoria.cor }}>
@@ -257,7 +483,6 @@ const Maintenance = ({ maintenances = [], handleSubmitMaintenance, isLoading = f
     );
   };
 
-  // Filtrar manutenções pela categoria selecionada (como em Jobs)
   const filteredMaintenances = selectedCategory 
     ? localMaintenances.filter(maintenance => {
         const categoryNome = categorias.find(cat => cat.id === selectedCategory)?.nome || '';
@@ -273,26 +498,10 @@ const Maintenance = ({ maintenances = [], handleSubmitMaintenance, isLoading = f
           <span>Voltar</span>
         </button>
         <h1>Manutenções</h1>
-        {!selectedCategory && (
-          <div className="view-toggle">
-            <button 
-              className={`view-toggle-btn ${viewMode === 'grid' ? 'active' : ''}`} 
-              onClick={() => setViewMode('grid')}
-            >
-              <FiGrid />
-            </button>
-            <button 
-              className={`view-toggle-btn ${viewMode === 'list' ? 'active' : ''}`} 
-              onClick={() => setViewMode('list')}
-            >
-              <FiList />
-            </button>
-          </div>
-        )}
       </div>
 
       <div className="categories-container">
-        <h2>Categorias de Manutenções</h2>
+        <h2>Categorias de Manutenção</h2>
         {renderCategoriesGrid()}
       </div>
 
@@ -300,118 +509,100 @@ const Maintenance = ({ maintenances = [], handleSubmitMaintenance, isLoading = f
         <div className="maintenance-list-header">
           <h2>{selectedCategory 
               ? `Manutenções de ${categorias.find(cat => cat.id === selectedCategory)?.nome}` 
-              : 'Manutenções'}
+              : 'Todas as Manutenções'}
           </h2>
-          <NewMaintenanceButton onClick={handleCreateMaintenance} />
+          <button 
+            className="create-maintenance-btn-header"
+            onClick={handleCreateMaintenance}
+          >
+            <FiPlus /> Nova Manutenção
+          </button>
         </div>
 
-        {selectedCategory || viewMode === 'list' ? (
-          <div className="maintenance-table">
-            {isLoading ? (
-              <div className="loading-message">Carregando manutenções...</div>
-            ) : filteredMaintenances.length > 0 ? (
-              <table className="maintenance-table-content">
-                <thead>
-                  <tr>
-                    <th>Título</th>
-                    <th>Categoria</th>
-                    <th>Data</th>
-                    <th>Frequência</th>
-                    <th>Prioridade</th>
-                    <th>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredMaintenances.map(maintenance => (
-                    <tr key={maintenance.id} className="maintenance-table-row">
-                      <td>{maintenance.title}</td>
-                      <td>
-                        <span className={`category-badge ${maintenance.category?.toLowerCase().replace(/\s+/g, '-')}`}>
-                          {maintenance.category}
-                        </span>
-                      </td>
-                      <td>{maintenance.date && new Date(maintenance.date).toLocaleDateString()}</td>
-                      <td>{maintenance.frequency || 'Única'}</td>
-                      <td>
-                        <span className={`priority-badge ${maintenance.priority?.toLowerCase()}`}>
-                          {maintenance.priority}
-                        </span>
-                      </td>
-                      <td>
-                        <span className={`status-badge ${maintenance.status?.toLowerCase().replace(' ', '-')}`}>
-                          {maintenance.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            ) : (
-              <div className="no-maintenances-message">
-                <p>Nenhuma manutenção encontrada</p>
-                <NewMaintenanceButton onClick={handleCreateMaintenance} />
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="maintenance-grid">
-            {isLoading ? (
-              <div className="loading-message">Carregando manutenções...</div>
-            ) : filteredMaintenances.length > 0 ? (
-              filteredMaintenances.map(maintenance => (
-                <div 
-                  key={maintenance.id} 
-                  className="maintenance-card"
-                >
-                  <div className="maintenance-card-header">
-                    <h3>{maintenance.title}</h3>
-                    <span className={`status-badge ${maintenance.status?.toLowerCase().replace(' ', '-')}`}>
-                      {maintenance.status}
-                    </span>
-                  </div>
-                  <p className="maintenance-card-description">
-                    {maintenance.description}
-                  </p>
-                  <div className="maintenance-card-details">
-                    <div className="maintenance-card-detail">
-                      <span className="detail-label">Frequência:</span>
-                      <span className="detail-value">{maintenance.frequency || 'Única'}</span>
-                    </div>
-                    <div className="maintenance-card-detail">
-                      <span className="detail-label">Data:</span>
-                      <span className="detail-value">{maintenance.date && new Date(maintenance.date).toLocaleDateString()}</span>
-                    </div>
-                  </div>
-                  <div className="maintenance-card-footer">
-                    <span className={`priority-badge ${maintenance.priority?.toLowerCase()}`}>
-                      {maintenance.priority}
-                    </span>
-                    <span className={`category-badge ${maintenance.category?.toLowerCase().replace(/\s+/g, '-')}`}>
-                      {maintenance.category}
-                    </span>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="no-maintenances-message">
-                <p>Nenhuma manutenção encontrada</p>
-                <NewMaintenanceButton onClick={handleCreateMaintenance} />
-              </div>
-            )}
-          </div>
-        )}
+        <div className="work-cards-grid">
+          {isLoading ? (
+            <div className="loading">Carregando...</div>
+          ) : filteredMaintenances.length > 0 ? (
+            filteredMaintenances.map(maintenance => (
+              <MaintenanceCard 
+                key={maintenance.id} 
+                maintenance={maintenance} 
+                onViewDetails={handleViewDetails}
+              />
+            ))
+          ) : (
+            <div className="no-items-message">
+              {selectedCategory ? (
+                <p>Nenhuma manutenção encontrada nesta categoria</p>
+              ) : (
+                <>
+                  <p>Nenhuma manutenção encontrada</p>
+                  <button onClick={handleCreateMaintenance} className="create-btn">
+                    <FiPlus /> Criar Nova Manutenção
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
-      {showNewMaintenanceForm && (
-        <MaintenanceForm
-          newMaintenance={newMaintenance}
-          setNewMaintenance={setNewMaintenance}
+      {selectedMaintenance && (
+        <WorkDetailsModal
+          work={selectedMaintenance}
+          onClose={() => setSelectedMaintenance(null)}
+          onEdit={(maintenance) => {
+            // Implementar edição
+            console.log('Editar manutenção:', maintenance);
+          }}
+          onDelete={(maintenanceId) => {
+            // Implementar exclusão
+            console.log('Excluir manutenção:', maintenanceId);
+          }}
+          onComplete={(maintenanceId) => {
+            // Implementar conclusão
+            console.log('Concluir manutenção:', maintenanceId);
+          }}
+          onStatusChange={(maintenanceId, newStatus) => {
+            // Implementar mudança de status
+            console.log('Mudar status da manutenção:', maintenanceId, newStatus);
+          }}
+          onFileDownload={(file) => {
+            // Implementar download de arquivo
+            console.log('Download de arquivo:', file);
+          }}
+        />
+      )}
+
+      {showMaintenanceForm && (
+        <MaintenanceForm 
+          onSubmit={handleMaintenanceSubmit}
+          onCancel={() => setShowMaintenanceForm(false)}
+          isSubmitting={isSubmitting}
+          editMode={false}
           handleFileUpload={handleFileUpload}
           handleRemoveFile={handleRemoveFile}
-          isSubmitting={isSubmitting}
-          onSubmit={handleSubmitMaintenanceForm}
-          onCancel={() => setShowNewMaintenanceForm(false)}
-          editMode={false}
+          initialData={{
+            title: '',
+            description: '',
+            category: '',
+            subcategoria: '',
+            priority: '',
+            date: new Date().toISOString().split('T')[0],
+            status: 'disponivel',
+            files: [],
+            location: {
+              morada: '',
+              codigoPostal: '',
+              cidade: '',
+              andar: ''
+            },
+            orcamentos: {
+              minimo: '',
+              maximo: ''
+            },
+            prazoOrcamentos: ''
+          }}
         />
       )}
     </div>

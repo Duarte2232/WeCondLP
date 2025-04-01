@@ -167,65 +167,204 @@
 }
 
 .recent-item {
-  padding: 12px;
-  border-radius: 6px;
-  border: 1px solid #e5e7eb;
+  background: white;
+  border: 1px solid #E5E7EB;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 12px;
   transition: all 0.2s ease;
-  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .recent-item:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  border-color: #D1D5DB;
 }
 
-.recent-item-title {
+.recent-item-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
   margin-bottom: 8px;
 }
 
-.recent-item-title h4 {
+.recent-item-header h4 {
+  margin: 0;
   font-size: 16px;
   font-weight: 600;
   color: #111827;
-  margin: 0;
-  max-width: 70%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  flex: 1;
+  margin-right: 12px;
 }
 
 .recent-item-description {
-  color: #6b7280;
+  color: #4B5563;
   font-size: 14px;
+  line-height: 1.5;
   margin: 8px 0;
-  overflow: hidden;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
-  line-height: 1.4;
+  overflow: hidden;
 }
 
-.recent-item-meta {
+.recent-item-footer {
   display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 12px;
+  font-size: 12px;
 }
 
 .recent-item-date {
-  color: #6b7280;
+  color: #6B7280;
+}
+
+.recent-item-category {
+  background-color: #F3F4F6;
+  color: #4B5563;
+  padding: 4px 8px;
+  border-radius: 12px;
   font-size: 12px;
+  font-weight: 500;
+}
+
+.no-items-message {
+  text-align: center;
+  padding: 24px;
+  background: #F9FAFB;
+  border-radius: 8px;
+  border: 1px dashed #D1D5DB;
+}
+
+.no-items-message p {
+  color: #6B7280;
+  margin: 0 0 16px 0;
+}
+
+.create-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background-color: #EFF6FF;
+  color: #1D4ED8;
+  border: 1px solid #BFDBFE;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.create-btn:hover {
+  background-color: #DBEAFE;
+}
+
+.create-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Manter os estilos existentes dos badges */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.status-badge.pendente {
+  background-color: #FEF3C7;
+  color: #92400E;
+}
+
+.status-badge.em-andamento {
+  background-color: #E0E7FF;
+  color: #3730A3;
+}
+
+.status-badge.concluido {
+  background-color: #D1FAE5;
+  color: #065F46;
+}
+
+.status-badge.disponivel {
+  background-color: #E0E7FF;
+  color: #3730A3;
+}
+
+.status-badge.confirmada {
+  background-color: #D1FAE5;
+  color: #065F46;
+}
+
+.recent-item-badges {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 2px 0;
+}
+
+.recent-item-footer {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: auto;
+}
+
+.category-badge {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 500;
+  background-color: #F3F4F6;
+  color: #374151;
+  white-space: nowrap;
 }
 
 .frequency-badge {
-  background-color: #818cf8;
-  color: white;
-  font-size: 12px;
-  padding: 2px 8px;
+  padding: 4px 8px;
   border-radius: 4px;
+  font-size: 13px;
   font-weight: 500;
+  background-color: #E0E7FF;
+  color: #3730A3;
+  white-space: nowrap;
+}
+
+/* Specific category colors */
+.category-badge.eletricidade {
+  background-color: #FEF3C7;
+  color: #92400E;
+}
+
+.category-badge.jardinagem {
+  background-color: #D1FAE5;
+  color: #065F46;
+}
+
+.category-badge.hidráulica {
+  background-color: #DBEAFE;
+  color: #1E40AF;
+}
+
+.category-badge.pintura {
+  background-color: #FCE7F3;
+  color: #831843;
+}
+
+.category-badge.construção {
+  background-color: #FEE2E2;
+  color: #991B1B;
+}
+
+.category-badge.manutenção {
+  background-color: #E0E7FF;
+  color: #3730A3;
 }
 
 .loading {
