@@ -201,9 +201,10 @@ h1 {
   color: #D97706;
 }
 
-.status-badge.confirmada {
-  background: #DBEAFE;
-  color: #2563EB;
+.status-badge.confirmada,
+.work-card-status.confirmada {
+  background-color: #BBF7D0;
+  color: #166534;
 }
 
 .status-badge.concluida {

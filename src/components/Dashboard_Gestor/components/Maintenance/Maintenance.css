@@ -387,6 +387,11 @@
   color: #3730A3;
 }
 
+.status-badge.confirmada {
+  background-color: #BBF7D0;
+  color: #166534;
+}
+
 /* Badges para as categorias */
 .category-badge {
   padding: 4px 8px;
@@ -528,48 +533,91 @@
 .work-card {
   background-color: white;
   border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  padding: 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  padding: 16px;
   display: flex;
   flex-direction: column;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  cursor: pointer;
+  transition: all 0.2s ease;
   height: 100%;
-  min-height: 180px;
-  border: none;
+  min-height: 200px;
+  max-height: 250px;
+  position: relative;
 }
 
 .work-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
 .work-card-title {
+  font-size: 1rem;
   font-weight: 600;
-  font-size: 1.2rem;
-  margin-bottom: 10px;
-  color: #333;
+  color: #111827;
+  margin: 0 0 8px 0;
+  line-height: 1.4;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .work-card-description {
-  color: #666;
-  line-height: 1.4;
-  font-size: 0.9rem;
-  text-align: left;
+  color: #6B7280;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  margin-bottom: 16px;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  flex: 1;
+}
+
+.work-card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: auto;
   width: 100%;
 }
 
+.work-card-date {
+  color: #6B7280;
+  font-size: 0.75rem;
+}
+
+.work-card-category {
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.work-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 24px;
+  padding: 16px 0;
+}
+
 .work-card-status {
-  display: inline-block;
-  padding: 4px 12px;
-  border-radius: 20px;
-  font-size: 0.85rem;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
   font-weight: 500;
-  text-transform: capitalize;
+  margin-bottom: 12px;
+  display: inline-block;
 }
 
 .work-card-status.disponivel {
-  background-color: rgba(46, 213, 115, 0.15);
-  color: #2ed573;
+  background-color: #FEF9C3;
+  color: #854D0E;
+}
+
+.work-card-status.confirmado {
+  background-color: #BBF7D0;
+  color: #166534;
 }
 
 .work-card-status.pendente {
@@ -580,22 +628,6 @@
 .work-card-status.concluido {
   background-color: rgba(54, 162, 235, 0.15);
   color: #36a2eb;
-}
-
-.work-card-footer {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 10px;
-  font-size: 0.85rem;
-  color: #888;
-}
-
-.work-card-date, .work-card-category {
-  display: inline-block;
-}
-
-.work-card-category {
-  font-weight: 500;
 }
 
 .truncate {
@@ -620,18 +652,24 @@
   margin-bottom: 15px;
 }
 
-.work-cards-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 24px;
-  padding: 24px;
-}
-
 .loading-container {
   display: flex;
   justify-content: center;
   align-items: center;
+  width: 100%;
   min-height: 200px;
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #6B7280;
+  font-size: 1rem;
+  padding: 1rem;
+  background-color: #f9fafb;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .create-maintenance-btn-header {
@@ -664,4 +702,22 @@
 .create-maintenance-btn-header:active {
   transform: translateY(0);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+@media (max-width: 1200px) {
+  .work-cards-grid {
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  }
+}
+
+@media (max-width: 992px) {
+  .work-cards-grid {
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .work-cards-grid {
+    grid-template-columns: 1fr;
+  }
 } 

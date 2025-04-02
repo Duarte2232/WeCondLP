@@ -6,7 +6,7 @@ import MaintenanceForm from './MaintenanceForm';
 import WorkDetailsModal from '../WorkDetailsModal/WorkDetailsModal';
 import { CLOUDINARY_CONFIG } from '../../../../config/cloudinary';
 import { db } from '../../../../services/firebase';
-import { collection, addDoc, serverTimestamp, query, where, getDocs } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, query, where, getDocs, orderBy } from 'firebase/firestore';
 import './Maintenance.css';
 
 // Definir todas as categorias possíveis
@@ -209,7 +209,6 @@ const categorias = [
 ];
 
 function MaintenanceCard({ maintenance, onViewDetails }) {
-  // Função para obter a cor da categoria
   const getCategoryColor = (category) => {
     const normalizedCategory = category.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, '-');
     const categoryMap = {
@@ -230,14 +229,13 @@ function MaintenanceCard({ maintenance, onViewDetails }) {
       'equipamentos': '#64748b'
     };
     
-    // Procurar correspondência parcial se não encontrar exata
     for (const key in categoryMap) {
       if (normalizedCategory.includes(key) || key.includes(normalizedCategory)) {
         return categoryMap[key];
       }
     }
     
-    return '#6B7280'; // Cor padrão se não encontrar correspondência
+    return '#6B7280';
   };
   
   const categoryColor = getCategoryColor(maintenance.category);
@@ -246,33 +244,24 @@ function MaintenanceCard({ maintenance, onViewDetails }) {
     <div 
       className="work-card"
       onClick={() => onViewDetails(maintenance)}
-      style={{ cursor: 'pointer' }}
     >
-      <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-        <h3 className="work-card-title">{maintenance.title}</h3>
-        <p className="work-card-description multiline-truncate">
-          {maintenance.description}
-        </p>
-        <div style={{ marginTop: 'auto' }}>
-          <span className={`work-card-status ${maintenance.status.toLowerCase()}`}
-                style={{ float: 'left', marginBottom: '8px' }}>
-            {maintenance.status}
-          </span>
-        </div>
-        <div className="work-card-footer" style={{ clear: 'both' }}>
-          <span className="work-card-date">
-            {maintenance.date && new Date(maintenance.date).toLocaleDateString()}
-          </span>
-          <span className="work-card-category" style={{ 
-            color: categoryColor,
-            border: `1px solid ${categoryColor}`,
-            borderRadius: '4px',
-            padding: '2px 8px',
-            fontSize: '0.8rem'
-          }}>
-            {maintenance.category}
-          </span>
-        </div>
+      <h3 className="work-card-title">{maintenance.title}</h3>
+      <p className="work-card-description">{maintenance.description}</p>
+      <div>
+        <span className={`work-card-status ${maintenance.status.toLowerCase()}`}>
+          {maintenance.status}
+        </span>
+      </div>
+      <div className="work-card-footer">
+        <span className="work-card-date">
+          {maintenance.date && new Date(maintenance.date).toLocaleDateString()}
+        </span>
+        <span className="work-card-category" style={{ 
+          color: categoryColor,
+          border: `1px solid ${categoryColor}`,
+        }}>
+          {maintenance.category}
+        </span>
       </div>
     </div>
   );
@@ -286,29 +275,39 @@ const Maintenance = ({ maintenances = [], handleSubmitMaintenance, isLoading = f
   const [localMaintenances, setLocalMaintenances] = useState(maintenances);
   const [selectedMaintenance, setSelectedMaintenance] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoadingData, setIsLoadingData] = useState(true);
 
   // Efeito para carregar manutenções quando o componente montar
   useEffect(() => {
     const loadMaintenances = async () => {
-      if (!user?.email) return;
-      
+      setIsLoadingData(true);
       try {
-        const worksRef = collection(db, 'works');
+        if (!user) return;
+
+        // Query simplificada sem orderBy
         const q = query(
-          worksRef,
-          where('userEmail', '==', user.email),
-          where('isMaintenance', '==', true)
+          collection(db, 'maintenances'),
+          where('userEmail', '==', user.email)
         );
-        
-        const snapshot = await getDocs(q);
-        const maintenancesData = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
-        
+
+        const querySnapshot = await getDocs(q);
+        const maintenancesData = querySnapshot.docs
+          .map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          }))
+          .sort((a, b) => {
+            // Ordenação manual por data de criação
+            const dateA = a.createdAt?.toDate?.() || new Date(a.createdAt);
+            const dateB = b.createdAt?.toDate?.() || new Date(b.createdAt);
+            return dateB - dateA;
+          });
+
         setLocalMaintenances(maintenancesData);
       } catch (error) {
-        console.error('Erro ao carregar manutenções:', error);
+        console.error('Error loading maintenances:', error);
+      } finally {
+        setIsLoadingData(false);
       }
     };
 
@@ -321,6 +320,12 @@ const Maintenance = ({ maintenances = [], handleSubmitMaintenance, isLoading = f
     formData.append('upload_preset', CLOUDINARY_CONFIG.uploadPreset);
 
     try {
+      console.log('Iniciando upload para Cloudinary:', {
+        fileName: file.name,
+        fileType: file.type,
+        fileSize: file.size
+      });
+
       const response = await fetch(
         `https://api.cloudinary.com/v1_1/${CLOUDINARY_CONFIG.cloudName}/auto/upload`,
         {
@@ -330,10 +335,14 @@ const Maintenance = ({ maintenances = [], handleSubmitMaintenance, isLoading = f
       );
       
       if (!response.ok) {
-        throw new Error('Upload falhou');
+        const errorData = await response.json();
+        console.error('Erro detalhado do Cloudinary:', errorData);
+        throw new Error(`Upload falhou: ${errorData.error?.message || 'Erro desconhecido'}`);
       }
 
       const data = await response.json();
+      console.log('Upload bem-sucedido:', data);
+
       return {
         name: file.name,
         type: file.type.split('/')[0],
@@ -391,10 +400,10 @@ const Maintenance = ({ maintenances = [], handleSubmitMaintenance, isLoading = f
         console.log('URL temporária criada:', tempUrl);
         
         newFiles.push({
+          file: file,
           name: file.name,
           type: fileType,
           url: tempUrl,
-          file: file, // Manter referência ao arquivo original para upload posterior
           size: file.size
         });
       }
@@ -415,65 +424,36 @@ const Maintenance = ({ maintenances = [], handleSubmitMaintenance, isLoading = f
 
   const handleMaintenanceSubmit = async (maintenanceData) => {
     setIsSubmitting(true);
-
     try {
-      // Processar os arquivos primeiro
-      const processedFiles = [];
-      if (maintenanceData.files && maintenanceData.files.length > 0) {
-        for (const file of maintenanceData.files) {
-          // Se o arquivo já foi processado (tem url do Cloudinary), apenas adicione-o
-          if (file.url && file.url.includes('cloudinary')) {
-            processedFiles.push(file);
-            continue;
-          }
-          
-          // Se é um novo arquivo, faça o upload
-          try {
-            const fileData = await uploadToCloudinary(file.file);
-            processedFiles.push(fileData);
-          } catch (error) {
-            console.error(`Erro ao fazer upload do arquivo ${file.name}:`, error);
-            // Continue com os outros arquivos mesmo se um falhar
-          }
-        }
-      }
-
-      // Preparar dados da manutenção
       const maintenanceDataToSave = {
         ...maintenanceData,
-        files: processedFiles,
         userEmail: user.email,
-        userId: user.uid,
         createdAt: serverTimestamp(),
-        date: maintenanceData.date || new Date().toISOString().split('T')[0],
-        status: "disponivel",
-        isMaintenance: true
+        files: []
       };
 
-      // Salvar no Firebase (alterado de 'maintenances' para 'works')
-      const docRef = await addDoc(collection(db, 'works'), maintenanceDataToSave);
-      
-      // Recarregar manutenções
-      const worksRef = collection(db, 'works');
-      const q = query(
-        worksRef,
-        where('userEmail', '==', user.email),
-        where('isMaintenance', '==', true)
-      );
-      
-      const snapshot = await getDocs(q);
-      const maintenancesData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-      
-      setLocalMaintenances(maintenancesData);
-      
+      if (maintenanceData.files && maintenanceData.files.length > 0) {
+        const uploadedFiles = await Promise.all(
+          maintenanceData.files.map(file => uploadToCloudinary(file.file || file))
+        );
+        maintenanceDataToSave.files = uploadedFiles;
+      }
+
+      const docRef = await addDoc(collection(db, 'maintenances'), maintenanceDataToSave);
+      const newMaintenance = {
+        id: docRef.id,
+        ...maintenanceDataToSave,
+        createdAt: new Date() // Para exibição imediata
+      };
+
+      setLocalMaintenances(prevMaintenances => [newMaintenance, ...prevMaintenances]);
       setShowMaintenanceForm(false);
       alert('Manutenção criada com sucesso!');
+      return true;
     } catch (error) {
-      console.error('Erro ao criar manutenção:', error);
+      console.error('Error creating maintenance:', error);
       alert('Erro ao criar manutenção. Por favor, tente novamente.');
+      return false;
     } finally {
       setIsSubmitting(false);
     }
@@ -561,8 +541,10 @@ const Maintenance = ({ maintenances = [], handleSubmitMaintenance, isLoading = f
         </div>
 
         <div className="work-cards-grid">
-          {isLoading ? (
-            <div className="loading">Carregando...</div>
+          {isLoadingData ? (
+            <div className="loading-container">
+              <div className="loading">Carregando manutenções...</div>
+            </div>
           ) : filteredMaintenances.length > 0 ? (
             filteredMaintenances.map(maintenance => (
               <MaintenanceCard 

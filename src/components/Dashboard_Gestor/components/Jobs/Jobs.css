@@ -336,6 +336,11 @@
   color: #36a2eb;
 }
 
+.work-card-status.confirmada {
+  background-color: #BBF7D0;
+  color: #166534;
+}
+
 .work-card-footer {
   display: flex;
   justify-content: space-between;
@@ -486,6 +491,11 @@
 .status-badge.disponivel {
   background-color: #E0E7FF;
   color: #3730A3;
+}
+
+.status-badge.confirmada {
+  background-color: #BBF7D0;
+  color: #166534;
 }
 
 .category-badge {

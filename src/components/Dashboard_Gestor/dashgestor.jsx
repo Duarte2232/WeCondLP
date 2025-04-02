@@ -19,11 +19,12 @@ import WorkForm from './components/WorkForm/WorkForm';
 import WorksTable from './components/WorksTable/WorksTable';
 import TopBar from './components/TopBar/TopBar';
 import ProfileComponent from './components/Profile/Profile';
-import MessagesComponent from './components/Messages/Messages';
+import Messages from './components/Messages/Messages';
 import CalendarComponent from './components/Calendar/Calendar';
 import JobsComponent from './components/Jobs/Jobs';
 import MaintenanceComponent from './components/Maintenance/Maintenance';
 import WorkDetailsModal from './components/WorkDetailsModal/WorkDetailsModal';
+
 
 function DashGestor() {
   const { user } = useAuth();
@@ -820,7 +821,7 @@ function DashGestor() {
             />
           } />
           <Route path="/calendario" element={<CalendarComponent />} />
-          <Route path="/mensagens" element={<MessagesComponent />} />
+          <Route path="/mensagens" element={<Messages />} />
           <Route path="/perfil" element={<ProfileComponent />} />
           <Route path="/manutencoes" element={
             <MaintenanceComponent 
