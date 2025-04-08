@@ -66,8 +66,8 @@ const WorkDetailsModal = ({ work, onClose, onEdit, onDelete, onComplete, onFileD
             <div className="work-details-section">
               <h3>Orçamentos</h3>
               <div className="orcamentos-details">
-                <p><strong>Mínimo:</strong> {work.orcamentos.minimo}</p>
-                <p><strong>Máximo:</strong> {work.orcamentos.maximo}</p>
+                <p><strong>Mínimo:</strong> {work.orcamentos?.minimo || '-'}</p>
+                <p><strong>Máximo:</strong> {work.orcamentos?.maximo || '-'}</p>
                 {work.prazoOrcamentos && (
                   <p><strong>Prazo:</strong> {work.prazoOrcamentos}</p>
                 )}

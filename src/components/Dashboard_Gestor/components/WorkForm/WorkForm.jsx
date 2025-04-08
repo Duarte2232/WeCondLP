@@ -287,10 +287,10 @@ function WorkForm({
                   <label>Mínimo</label>
                   <input
                     type="number"
-                    value={newWork.orcamentos.minimo}
+                    value={newWork.orcamentos?.minimo || ''}
                     onChange={(e) => setNewWork({
                       ...newWork, 
-                      orcamentos: {...newWork.orcamentos, minimo: e.target.value}
+                      orcamentos: {...(newWork.orcamentos || {}), minimo: e.target.value}
                     })}
                     placeholder="0"
                   />
@@ -299,10 +299,10 @@ function WorkForm({
                   <label>Máximo</label>
                   <input
                     type="number"
-                    value={newWork.orcamentos.maximo}
+                    value={newWork.orcamentos?.maximo || ''}
                     onChange={(e) => setNewWork({
                       ...newWork, 
-                      orcamentos: {...newWork.orcamentos, maximo: e.target.value}
+                      orcamentos: {...(newWork.orcamentos || {}), maximo: e.target.value}
                     })}
                     placeholder="0"
                   />
