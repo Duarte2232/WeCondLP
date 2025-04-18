@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
 import './dashgestor.css';
-import { FiPlusCircle, FiFilter, FiSearch, FiBell, FiEdit2, FiEye, FiCheck, FiX, FiCalendar, FiUpload, FiArrowLeft, FiFile, FiDownload, FiAlertCircle } from 'react-icons/fi';
+import { FiPlusCircle, FiFilter, FiSearch, FiBell, FiEdit2, FiEye, FiCheck, FiX, FiCalendar, FiUpload, FiArrowLeft, FiFile, FiDownload, FiAlertCircle, FiTag, FiMapPin } from 'react-icons/fi';
 import { useAuth } from '../../contexts/auth';
 import { db } from '../../services/firebase';
 import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, getDoc, serverTimestamp, writeBatch } from 'firebase/firestore';
@@ -10,6 +10,8 @@ import { useNavigate, Routes, Route, useLocation } from 'react-router-dom';
 import { CLOUDINARY_CONFIG } from '../../config/cloudinary';
 import LoadingAnimation from '../LoadingAnimation/LoadingAnimation';
 import sha1 from 'crypto-js/sha1';
+import { FaEye, FaEdit, FaTrash } from 'react-icons/fa';
+import { toast } from 'react-hot-toast';
 
 // Importação dos componentes
 import Metrics from './components/Metrics/Metrics';
@@ -35,7 +37,8 @@ function DashGestor() {
     status: '',
     category: '',
     priority: '',
-    date: ''
+    date: '',
+    location: ''
   });
   const [showCalendar, setShowCalendar] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -50,6 +53,7 @@ function DashGestor() {
   const [expandedItem, setExpandedItem] = useState(null);
   const [showItemDetails, setShowItemDetails] = useState(false);
   const [selectedRecentWork, setSelectedRecentWork] = useState(null);
+  const [selectedWork, setSelectedWork] = useState(null);
 
   const [newWork, setNewWork] = useState({
     title: '',
@@ -126,30 +130,33 @@ function DashGestor() {
     }
   };
 
-  const handleEdit = async (work) => {
+  const handleEdit = async (workId) => {
     try {
-      // Verificar se é admin ou dono da obra
-      const userRef = doc(db, 'users', user.uid);
-      const userDoc = await getDoc(userRef);
-      const isAdmin = userDoc.exists() && userDoc.data().role === 'admin';
-      
-      // Se não for admin, verifica se é o dono da obra
-      if (!isAdmin && work.userId !== user.uid) {
-        throw new Error('Você não tem permissão para editar esta obra');
+      const work = works.find((w) => w.id === workId);
+      if (!work) {
+        toast.error('Obra não encontrada');
+        return;
       }
-
-      setEditingWork(work);
-      setNewWork(work);
-      setShowNewWorkForm(true);
+      navigate(`/edit-work/${workId}`);
     } catch (error) {
-      console.error('Erro ao editar:', error);
-      alert('Erro ao editar obra: ' + error.message);
+      console.error('Error editing work:', error);
+      toast.error('Erro ao editar a obra');
     }
   };
 
-  const handleComplete = (workId) => {
-    const work = works.find(w => w.id === workId);
-    handleStatusChange(workId, 'Concluído');
+  const handleComplete = async (workId, newStatus) => {
+    try {
+      // Aqui você deve implementar a chamada à API para atualizar o status
+      // Por enquanto, vamos apenas atualizar o estado local
+      setWorks(works.map(work => 
+        work.id === workId 
+          ? { ...work, status: newStatus }
+          : work
+      ));
+      setSelectedWork(null);
+    } catch (error) {
+      console.error('Erro ao atualizar o status da obra:', error);
+    }
   };
 
   const uploadToCloudinary = async (file) => {
@@ -559,7 +566,11 @@ function DashGestor() {
     const matchesPriority = selectedFilters.priority === '' || 
                            work.priority.toLowerCase() === selectedFilters.priority.toLowerCase();
 
-    return matchesSearch && matchesStatus && matchesCategory && matchesPriority;
+    const matchesLocation = selectedFilters.location === '' || 
+                          (work.location && work.location.morada && 
+                           work.location.morada.toLowerCase().includes(selectedFilters.location.toLowerCase()));
+
+    return matchesSearch && matchesStatus && matchesCategory && matchesPriority && matchesLocation;
   });
 
   // Função para iniciar uma conversa com o técnico que enviou um orçamento
@@ -747,7 +758,7 @@ function DashGestor() {
                 className="edit-button"
                 onClick={() => {
                   closeItemDetails();
-                  handleEdit(expandedItem);
+                  handleEdit(expandedItem.id);
                 }}
               >
                 <FiEdit2 /> Editar
@@ -788,6 +799,169 @@ function DashGestor() {
           </div>
         </div>
       </div>
+    );
+  };
+
+  const handleCloseModal = () => {
+    setSelectedWork(null);
+  };
+
+  const renderRecentActions = () => {
+    return (
+      <>
+        <h2>Gestão de Obras e Manutenções</h2>
+        
+        <div className="metrics">
+          <div className="metric-card">
+            <h3>Total de Serviços</h3>
+            <div className="metric-value">{works.length}</div>
+          </div>
+          <div className="metric-card">
+            <h3>Serviços Pendentes</h3>
+            <div className="metric-value">{works.filter(w => w.status === 'disponivel').length}</div>
+          </div>
+          <div className="metric-card">
+            <h3>Em Andamento</h3>
+            <div className="metric-value">{works.filter(w => w.status === 'em-andamento').length}</div>
+          </div>
+          <div className="metric-card">
+            <h3>Concluídas</h3>
+            <div className="metric-value">{works.filter(w => w.status === 'concluido').length}</div>
+          </div>
+        </div>
+
+        <div className="filters-row">
+          <div className="search-filter">
+            <FiSearch className="search-icon" />
+            <input 
+              type="text" 
+              placeholder="Pesquisar obras..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          
+          <div className="filter-dropdown">
+            <select 
+              value={selectedFilters.status}
+              onChange={(e) => setSelectedFilters(prev => ({...prev, status: e.target.value}))}
+            >
+              <option value="">Status</option>
+              <option value="disponivel">Disponível</option>
+              <option value="em-andamento">Em andamento</option>
+              <option value="concluido">Concluído</option>
+            </select>
+          </div>
+          
+          <div className="filter-dropdown">
+            <select 
+              value={selectedFilters.category}
+              onChange={(e) => setSelectedFilters(prev => ({...prev, category: e.target.value}))}
+            >
+              <option value="">Categoria</option>
+              <option value="eletricidade">Eletricidade</option>
+              <option value="hidraulica">Hidráulica</option>
+              <option value="pintura">Pintura</option>
+              <option value="construcao">Construção</option>
+              <option value="jardinagem">Jardinagem</option>
+              <option value="fissuras e rachaduras">Fissuras e rachaduras</option>
+              <option value="reabilitacao de fachadas">Reabilitação de fachadas</option>
+              <option value="canalizacao">Canalização</option>
+              <option value="ficalização">Fiscalização</option>
+            </select>
+          </div>
+          
+          <div className="filter-dropdown">
+            <select 
+              value={selectedFilters.priority}
+              onChange={(e) => setSelectedFilters(prev => ({...prev, priority: e.target.value}))}
+            >
+              <option value="">Prioridade</option>
+              <option value="alta">Alta</option>
+              <option value="media">Média</option>
+              <option value="baixa">Baixa</option>
+              <option value="urgente">URGENTE (24h-48h)</option>
+            </select>
+          </div>
+
+          <div className="filter-dropdown">
+            <input 
+              type="text"
+              placeholder="Filtrar por localização..."
+              value={selectedFilters.location}
+              onChange={(e) => setSelectedFilters(prev => ({...prev, location: e.target.value}))}
+              className="location-filter"
+            />
+          </div>
+        </div>
+
+        <div className="obras-table">
+          <table>
+            <thead>
+              <tr>
+                <th>Título</th>
+                <th>Data</th>
+                <th>Categoria</th>
+                <th>Prioridade</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {isLoading ? (
+                <tr>
+                  <td colSpan="5" className="loading">Carregando...</td>
+                </tr>
+              ) : filteredWorks.length > 0 ? (
+                filteredWorks
+                  .sort((a, b) => {
+                    const dateA = a.createdAt ? new Date(a.createdAt.seconds * 1000) : new Date(0);
+                    const dateB = b.createdAt ? new Date(b.createdAt.seconds * 1000) : new Date(0);
+                    return dateB - dateA;
+                  })
+                  .map(work => (
+                    <tr key={work.id} className="work-row" onClick={() => handleWorkClick(work)}>
+                      <td>
+                        <div className="work-title">{work.title}</div>
+                        {work.location?.morada && (
+                          <div className="work-subtitle">{work.location.morada}</div>
+                        )}
+                      </td>
+                      <td>{work.date ? new Date(work.date).toLocaleDateString() : ''}</td>
+                      <td>{work.category || 'Não especificada'}</td>
+                      <td>
+                        <span className={`priority-badge ${work.priority?.toLowerCase() || 'baixa'}`}>
+                          {work.priority || 'Baixa'}
+                        </span>
+                      </td>
+                      <td>
+                        <span className={`status-badge ${work.status?.toLowerCase() || 'disponivel'}`}>
+                          {work.status === 'concluido' ? 'Concluída' :
+                           work.status === 'em-andamento' ? 'Em andamento' :
+                           'Disponível'}
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+              ) : (
+                <tr>
+                  <td colSpan="5" className="no-obras">
+                    <p>Nenhuma obra encontrada</p>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        <WorkDetailsModal
+          work={selectedWork}
+          onClose={handleCloseModal}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+          onComplete={handleComplete}
+          onFileDownload={handleFileDownload}
+        />
+      </>
     );
   };
 
@@ -837,194 +1011,15 @@ function DashGestor() {
   } else {
     // Esta é a interface padrão do dashboard
     content = (
-      <div className="dashboard-container">
+      <>
         <TopBar />
-        
-        <div className="dashboard-content">
-          <div className="dashboard-header">
-            <h1>Dashboard</h1>
-            <div className="dashboard-actions">
-              <button 
-                className="notifications-btn"
-                onClick={() => setShowNotifications(!showNotifications)}
-              >
-                <FiBell />
-                {notifications.length > 0 && <span className="notification-badge">{notifications.length}</span>}
-              </button>
-            </div>
-            {renderNotifications()}
-          </div>
-          
-          <div className="metrics-container">
-            <Metrics metrics={metrics} />
-          </div>
-          
-          <div className="search-filters-container">
-            <SearchFilters 
-              searchTerm={searchTerm}
-              setSearchTerm={setSearchTerm}
-              selectedFilters={selectedFilters}
-              setSelectedFilters={setSelectedFilters}
-            />
-          </div>
-          
-          {showCalendar && (
-            <div className="mini-calendar-container">
-              <Calendar 
-                onChange={setSelectedDate}
-                value={selectedDate}
-              />
-            </div>
-          )}
-          
-          <div className="recent-actions-section">
-            <h2>Ações Recentes</h2>
-            
-            <div className="recent-actions-container">
-              {/* Recent Works */}
-              <div className="recent-works">
-                <div className="section-header">
-                  <h3>Obras Recentes</h3>
-                  <button onClick={() => navigate('/dashgestor/obras')} className="view-all-btn">
-                    Ver todas
-                  </button>
-                </div>
-                
-                <div className="recent-items-list">
-                  {isLoading ? (
-                    <div className="loading">Carregando...</div>
-                  ) : works.length > 0 ? (
-                    works
-                      .filter(work => !work.isMaintenance)
-                      .sort((a, b) => {
-                        const dateA = a.createdAt ? new Date(a.createdAt.seconds * 1000) : new Date(0);
-                        const dateB = b.createdAt ? new Date(b.createdAt.seconds * 1000) : new Date(0);
-                        return dateB - dateA;
-                      })
-                      .slice(0, 5)
-                      .map(work => (
-                        <div 
-                          key={work.id} 
-                          className="recent-item"
-                          onClick={() => handleRecentWorkClick(work)}
-                          style={{ cursor: 'pointer' }}
-                        >
-                          <div className="recent-item-header">
-                            <h4>{work.title}</h4>
-                            <span className={`status-badge ${work.status.toLowerCase()}`}>
-                              {work.status}
-                            </span>
-                          </div>
-                          <p className="recent-item-description">{work.description}</p>
-                          <div className="recent-item-footer">
-                            <span className="recent-item-date">
-                              {work.date && new Date(work.date).toLocaleDateString()}
-                            </span>
-                            <span className="recent-item-category">{work.category}</span>
-                          </div>
-                        </div>
-                      ))
-                  ) : (
-                    <div className="no-items-message">
-                      <p>Nenhuma obra recente</p>
-                      <button onClick={() => navigate('/dashgestor/obras')} className="create-btn">
-                        <FiPlusCircle /> Criar Nova Obra
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-              
-              {/* Recent Maintenances */}
-              <div className="recent-maintenances">
-                <div className="section-header">
-                  <h3>Manutenções Recentes</h3>
-                  <button onClick={() => navigate('/dashgestor/manutencoes')} className="view-all-btn">
-                    Ver todas
-                  </button>
-                </div>
-                
-                
-                <div className="recent-items-list">
-                  {isLoading ? (
-                    <div className="loading">Carregando...</div>
-                  ) : maintenances.length > 0 ? (
-                    maintenances
-                      .sort((a, b) => {
-                        const dateA = a.createdAt ? new Date(a.createdAt.seconds * 1000) : new Date(0);
-                        const dateB = b.createdAt ? new Date(b.createdAt.seconds * 1000) : new Date(0);
-                        return dateB - dateA;
-                      })
-                      .slice(0, 5)
-                      .map(maintenance => (
-                        <div 
-                          key={maintenance.id} 
-                          className="recent-item"
-                          onClick={() => handleItemClick(maintenance)}
-                          style={{ cursor: 'pointer' }}
-                        >
-                          <div className="recent-item-header">
-                            <h4>{maintenance.title}</h4>
-                            <span className={`status-badge ${maintenance.status?.toLowerCase().replace(' ', '-')}`}>
-                              {maintenance.status}
-                            </span>
-                          </div>
-                          <p className="recent-item-description">{maintenance.description}</p>
-                          <div className="recent-item-footer">
-                            <span className="recent-item-date">
-                              {maintenance.date && new Date(maintenance.date).toLocaleDateString()}
-                            </span>
-                            <span className="frequency-badge">
-                              {maintenance.frequency || 'Única'}
-                            </span>
-                            <span className={`category-badge ${maintenance.category?.toLowerCase().replace(/\s+/g, '-')}`}>
-                              {maintenance.category}
-                            </span>
-                          </div>
-                        </div>
-                      ))
-                  ) : (
-                    <div className="no-items-message">
-                      <p>Nenhuma manutenção recente</p>
-                      <button onClick={() => navigate('/dashgestor/manutencoes')} className="create-btn">
-                        <FiPlusCircle /> Criar Nova Manutenção
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
+        <div className="dashboard-container">
+          <div className="dashboard-content">
+            {renderRecentActions()}
+            {renderItemDetails()}
           </div>
         </div>
-
-        {/* Render item details modal */}
-        {renderItemDetails()}
-
-        {showNewWorkForm && (
-          <WorkForm
-            newWork={newWork}
-            setNewWork={setNewWork}
-            handleFileUpload={handleFileUpload}
-            handleRemoveFile={handleRemoveFile}
-            isSubmitting={isSubmitting}
-            onSubmit={handleSubmit}
-            onCancel={() => setShowNewWorkForm(false)}
-            editMode={false}
-          />
-        )}
-
-        {selectedRecentWork && (
-          <WorkDetailsModal
-            work={selectedRecentWork}
-            onClose={() => setSelectedRecentWork(null)}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-            onComplete={handleComplete}
-            onStatusChange={handleStatusChange}
-            onFileDownload={handleFileDownload}
-          />
-        )}
-      </div>
+      </>
     );
   }
 
@@ -1289,6 +1284,11 @@ function DashGestor() {
   // Função para lidar com o clique em uma obra recente
   const handleRecentWorkClick = (work) => {
     setSelectedRecentWork(work);
+  };
+
+  // Add this function to handle work selection
+  const handleWorkClick = (work) => {
+    setSelectedWork(work);
   };
 
   return content;

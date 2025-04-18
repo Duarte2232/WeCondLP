@@ -87,8 +87,8 @@
 }
 
 .status-badge.disponivel {
-  background-color: #DEF7EC;
-  color: #03543F;
+  background-color: #FFF7E6 !important;
+  color: #D48806 !important;
 }
 
 .status-badge.pendente {
@@ -97,13 +97,13 @@
 }
 
 .status-badge.em-andamento {
-  background-color: #E0E7FF;
-  color: #3730A3;
+  background-color: #FFF2E8 !important;
+  color: #FA541C !important;
 }
 
 .status-badge.concluido {
-  background-color: #D1FAE5;
-  color: #065F46;
+  background-color: #F6FFED !important;
+  color: #52C41A !important;
 }
 
 .category-badge {
@@ -166,6 +166,16 @@
 
 .action-btn.complete:hover {
   background-color: #D1FAE5;
+}
+
+.action-btn.undo {
+  background-color: #FFF7E6;
+  color: #D48806;
+  border-color: #FFE58F;
+}
+
+.action-btn.undo:hover {
+  background-color: #FFF1B8;
 }
 
 .work-details-section {

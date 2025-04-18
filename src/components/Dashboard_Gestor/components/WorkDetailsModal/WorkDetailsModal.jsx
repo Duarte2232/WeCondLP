@@ -1,9 +1,14 @@
 import React from 'react';
-import { FiX, FiEdit2, FiTrash2, FiCheck, FiDownload } from 'react-icons/fi';
+import { FiX, FiEdit2, FiTrash2, FiCheck, FiDownload, FiRotateCcw } from 'react-icons/fi';
 import './WorkDetailsModal.css';
 
 const WorkDetailsModal = ({ work, onClose, onEdit, onDelete, onComplete, onFileDownload }) => {
   if (!work) return null;
+
+  const handleComplete = () => {
+    const newStatus = work.status === 'concluido' ? 'disponivel' : 'concluido';
+    onComplete(work.id, newStatus);
+  };
 
   return (
     <div className="work-details-modal-overlay" onClick={onClose}>
@@ -32,11 +37,22 @@ const WorkDetailsModal = ({ work, onClose, onEdit, onDelete, onComplete, onFileD
               <button onClick={() => onDelete(work.id)} className="action-btn delete">
                 <FiTrash2 /> Excluir
               </button>
-              {work.status !== 'Concluído' && (
-                <button onClick={() => onComplete(work.id)} className="action-btn complete">
-                  <FiCheck /> Concluir
-                </button>
-              )}
+              <button 
+                className={`action-btn ${work.status === 'concluido' ? 'undo' : 'complete'}`}
+                onClick={handleComplete}
+              >
+                {work.status === 'concluido' ? (
+                  <>
+                    <FiRotateCcw />
+                    Anular
+                  </>
+                ) : (
+                  <>
+                    <FiCheck />
+                    Concluir
+                  </>
+                )}
+              </button>
             </div>
           </div>
 

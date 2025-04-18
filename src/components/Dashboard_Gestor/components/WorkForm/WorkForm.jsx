@@ -123,6 +123,28 @@ function WorkForm({
     }
   }, [newWork.category]);
 
+  const handlePriorityChange = (e) => {
+    const newPriority = e.target.value;
+    if (newPriority === 'Urgente') {
+      // Se for urgente, limpa os campos de orçamento
+      setNewWork({
+        ...newWork,
+        priority: newPriority,
+        orcamentos: {
+          minimo: '',
+          maximo: ''
+        },
+        prazoOrcamentos: ''
+      });
+    } else {
+      // Se não for urgente, apenas atualiza a prioridade
+      setNewWork({
+        ...newWork,
+        priority: newPriority
+      });
+    }
+  };
+
   return (
     <div className="modal-overlay">
       <div className="modal-content">
@@ -197,12 +219,13 @@ function WorkForm({
               <select
                 required
                 value={newWork.priority}
-                onChange={(e) => setNewWork({...newWork, priority: e.target.value})}
+                onChange={handlePriorityChange}
               >
                 <option value="">Selecione a prioridade</option>
                 <option value="Baixa">Baixa</option>
                 <option value="Média">Média</option>
                 <option value="Alta">Alta</option>
+                <option value="Urgente">Urgente (24h-48h)</option>
               </select>
             </div>
           </div>
@@ -279,48 +302,53 @@ function WorkForm({
             </div>
           </div>
           
-          <div className="form-row">
-            <div className="form-group">
-              <label>Orçamento Estimado </label>
-              <div className="orcamento-range">
+          {/* Campos de orçamento e prazo só aparecem se não for urgente */}
+          {newWork.priority !== 'Urgente' && (
+            <>
+              <div className="form-row">
                 <div className="form-group">
-                  <label>Mínimo</label>
-                  <input
-                    type="number"
-                    value={newWork.orcamentos?.minimo || ''}
-                    onChange={(e) => setNewWork({
-                      ...newWork, 
-                      orcamentos: {...(newWork.orcamentos || {}), minimo: e.target.value}
-                    })}
-                    placeholder="0"
-                  />
+                  <label>Orçamento Estimado </label>
+                  <div className="orcamento-range">
+                    <div className="form-group">
+                      <label>Mínimo</label>
+                      <input
+                        type="number"
+                        value={newWork.orcamentos?.minimo || ''}
+                        onChange={(e) => setNewWork({
+                          ...newWork, 
+                          orcamentos: {...(newWork.orcamentos || {}), minimo: e.target.value}
+                        })}
+                        placeholder="0"
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>Máximo</label>
+                      <input
+                        type="number"
+                        value={newWork.orcamentos?.maximo || ''}
+                        onChange={(e) => setNewWork({
+                          ...newWork, 
+                          orcamentos: {...(newWork.orcamentos || {}), maximo: e.target.value}
+                        })}
+                        placeholder="0"
+                      />
+                    </div>
+                  </div>
                 </div>
+              </div>
+              
+              <div className="form-row">
                 <div className="form-group">
-                  <label>Máximo</label>
+                  <label>Prazo para Orçamentos</label>
                   <input
-                    type="number"
-                    value={newWork.orcamentos?.maximo || ''}
-                    onChange={(e) => setNewWork({
-                      ...newWork, 
-                      orcamentos: {...(newWork.orcamentos || {}), maximo: e.target.value}
-                    })}
-                    placeholder="0"
+                    type="date"
+                    value={newWork.prazoOrcamentos}
+                    onChange={(e) => setNewWork({...newWork, prazoOrcamentos: e.target.value})}
                   />
                 </div>
               </div>
-            </div>
-          </div>
-          
-          <div className="form-row">
-            <div className="form-group">
-              <label>Prazo para Orçamentos</label>
-              <input
-                type="date"
-                value={newWork.prazoOrcamentos}
-                onChange={(e) => setNewWork({...newWork, prazoOrcamentos: e.target.value})}
-              />
-            </div>
-          </div>
+            </>
+          )}
           
           <div className="form-row">
             <div className="form-group">
