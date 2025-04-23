@@ -33,21 +33,36 @@ function Maintenance() {
   const fetchManutencoes = async (currentUser) => {
     try {
       setLoading(true);
+      console.log('Fetching maintenances for user:', currentUser?.email);
       const q = query(
-        collection(db, 'maintenances'),
-        where('userEmail', '==', currentUser.email)
+        collection(db, 'works'),
+        where('userEmail', '==', currentUser.email),
+        where('isMaintenance', '==', true)
       );
       const querySnapshot = await getDocs(q);
+      console.log('Firestore query executed. Docs found:', querySnapshot.docs.length);
+      
       const manutencoesData = querySnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
       }));
-      setManutencoes(manutencoesData);
-      setFilteredManutencoes(manutencoesData);
+      console.log('Mapped maintenances data:', manutencoesData);
+      
+      const sortedManutencoes = manutencoesData.sort((a, b) => {
+          const dateA = a.createdAt?.toDate?.() || new Date(0);
+          const dateB = b.createdAt?.toDate?.() || new Date(0);
+          return dateB - dateA;
+      });
+      console.log('Sorted maintenances data:', sortedManutencoes);
+      
+      setManutencoes(sortedManutencoes);
+      setFilteredManutencoes(sortedManutencoes);
+      console.log('Maintenance state updated.');
     } catch (error) {
       console.error('Erro ao carregar manutenções:', error);
     } finally {
       setLoading(false);
+      console.log('Finished fetching maintenances. Loading state set to false.');
     }
   };
 
