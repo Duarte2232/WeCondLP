@@ -720,4 +720,245 @@
   .work-cards-grid {
     grid-template-columns: 1fr;
   }
+}
+
+.jobs-container {
+  padding: 16px;
+  min-height: 100vh;
+  background-color: white;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.jobs-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 8px;
+}
+
+.jobs-header h1 {
+  font-size: 24px;
+  color: #333;
+  margin: 0;
+  font-weight: 500;
+}
+
+.filters-container {
+  background-color: white;
+  padding: 16px;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.filters-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  width: 100%;
+  padding-bottom: 8px;
+}
+
+.filters-inline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 8px;
+  background-color: white;
+  width: 100%;
+}
+
+.search-box {
+  position: relative;
+  width: 170px;
+}
+
+.search-box input {
+  width: 100%;
+  padding: 10px 12px 10px 36px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 14px;
+  height: 40px;
+  color: #6b7280;
+  background-color: #f9fafb;
+}
+
+.search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #999;
+}
+
+.filter-select {
+  padding: 10px 12px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 14px;
+  background-color: #f9fafb;
+  color: #333;
+  width: 120px;
+}
+
+.location-filter {
+  width: 140px;
+}
+
+.new-maintenance-btn {
+  background-color: #2563EB;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 16px;
+  height: 40px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  transition: background-color 0.2s;
+  width: 170px;
+}
+
+.obras-table-container {
+  margin-top: 16px;
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  padding: 16px;
+  overflow-x: auto;
+}
+
+.obras-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  border: 1px solid #f0f0f0;
+  border-radius: 8px;
+  margin-top: 16px;
+  background-color: white;
+}
+
+.obras-table th,
+.obras-table td {
+  vertical-align: middle;
+}
+
+.obras-table th {
+  font-weight: 600;
+  color: #333;
+  background-color: #FAFAFA;
+  padding: 16px;
+  text-align: left;
+  border-bottom: 2px solid #f0f0f0;
+}
+
+.obras-table td {
+  padding: 16px;
+  color: #333;
+  border-bottom: 1px solid #f0f0f0;
+  text-align: left;
+}
+
+.work-row {
+  cursor: pointer;
+  transition: background-color 0.2s;
+  min-height: 72px; /* Altura mínima fixa para as linhas */
+}
+
+.work-row:hover {
+  background-color: #f5f5f5;
+}
+
+.title-cell {
+  max-width: 0;
+  width: 30%;
+}
+
+.work-title {
+  font-weight: 500;
+  color: #333;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.work-subtitle {
+  font-size: 12px;
+  color: #666666;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+}
+
+.status-badge {
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 500;
+  background-color: #f5f5f5;
+  color: #333;
+}
+
+.priority-badge {
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 500;
+  background-color: #f5f5f5;
+  color: #333;
+}
+
+.loading-message, .no-data-message {
+  text-align: center;
+  padding: 20px;
+  color: #666;
+}
+
+/* Responsividade */
+@media (max-width: 1200px) {
+  .filters-row {
+    gap: 8px;
+  }
+  
+  .search-box, .filter-select {
+    flex-shrink: 1;
+  }
+}
+
+@media (max-width: 768px) {
+  .jobs-container {
+    padding: 16px;
+  }
+
+  .filters-row {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  
+  .search-box {
+    flex: 1 1 100%;
+  }
+  
+  .filter-select {
+    flex: 1 1 calc(50% - 8px);
+  }
+  
+  .new-maintenance-btn {
+    flex: 1 1 100%;
+    margin-top: 8px;
+    justify-content: center;
+  }
 } 

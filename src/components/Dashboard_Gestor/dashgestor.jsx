@@ -920,7 +920,7 @@ function DashGestor() {
                   })
                   .map(work => (
                     <tr key={work.id} className="work-row" onClick={() => handleWorkClick(work)}>
-                      <td>
+                      <td className="title-cell">
                         <div className="work-title">{work.title}</div>
                         {work.location?.morada && (
                           <div className="work-subtitle">{work.location.morada}</div>
@@ -970,7 +970,8 @@ function DashGestor() {
       location.pathname.includes('/dashgestor/calendario') || 
       location.pathname.includes('/dashgestor/mensagens') || 
       location.pathname.includes('/dashgestor/perfil') || 
-      location.pathname.includes('/dashgestor/manutencoes')) {
+      location.pathname.includes('/dashgestor/manutencoes') ||
+      location.pathname.includes('/dashgestor/workform')) {
     content = (
       <>
         <TopBar />
@@ -992,6 +993,18 @@ function DashGestor() {
               expandedWorks={expandedWorks}
               isLoading={isLoading}
               onSendMessage={handleStartConversation}
+            />
+          } />
+          <Route path="/workform" element={
+            <WorkForm 
+              newWork={newWork}
+              setNewWork={setNewWork}
+              handleFileUpload={handleFileUpload}
+              handleRemoveFile={handleRemoveFile}
+              isSubmitting={isSubmitting}
+              onSubmit={handleSubmit}
+              onCancel={() => navigate('/dashgestor/obras')}
+              editMode={false}
             />
           } />
           <Route path="/calendario" element={<CalendarComponent />} />

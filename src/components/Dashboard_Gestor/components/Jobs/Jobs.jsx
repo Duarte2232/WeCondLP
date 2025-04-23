@@ -1,328 +1,109 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiArrowLeft, FiPlus, FiFilter, FiGrid, FiList, FiFile } from 'react-icons/fi';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { FiArrowLeft, FiSearch, FiPlus } from 'react-icons/fi';
+import { collection, query, where, getDocs, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../../../services/firebase';
 import { useAuth } from '../../../../contexts/auth';
-import WorksTable from '../WorksTable/WorksTable';
-import WorkForm from '../WorkForm/WorkForm';
-import WorkDetailsModal from '../WorkDetailsModal/WorkDetailsModal';
 import './Jobs.css';
+import WorkDetailsModal from '../WorkDetailsModal/WorkDetailsModal';
 
-function JobCard({ work, onViewDetails }) {
-  // Função para obter a cor da categoria
-  const getCategoryColor = (category) => {
-    const normalizedCategory = category.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, '-');
-    const categoryMap = {
-      'infiltracao': '#3498db',
-      'fissuras': '#e74c3c',
-      'canalizacao': '#2ecc71',
-      'jardinagem': '#27ae60',
-      'fiscalizacao': '#9b59b6',
-      'fachada': '#34495e',
-      'eletricidade': '#f1c40f',
-      'construcao': '#e67e22',
-      'pintura': '#1abc9c'
-    };
-    
-    // Procurar correspondência parcial se não encontrar exata
-    for (const key in categoryMap) {
-      if (normalizedCategory.includes(key) || key.includes(normalizedCategory)) {
-        return categoryMap[key];
-      }
-    }
-    
-    return '#6B7280'; // Cor padrão se não encontrar correspondência
-  };
-  
-  const categoryColor = getCategoryColor(work.category);
-
-  return (
-    <div 
-      className="work-card"
-      onClick={() => onViewDetails(work.id)}
-      style={{ cursor: 'pointer' }}
-    >
-      <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-        <h3 className="work-card-title">{work.title}</h3>
-        <p className="work-card-description multiline-truncate">
-          {work.description}
-        </p>
-        <div style={{ marginTop: 'auto' }}>
-          <span className={`work-card-status ${work.status.toLowerCase()}`} 
-                style={{ float: 'left', marginBottom: '8px' }}>
-            {work.status}
-          </span>
-        </div>
-        <div className="work-card-footer" style={{ clear: 'both' }}>
-          <span className="work-card-date">{work.date}</span>
-          <span className="work-card-category" style={{ 
-            color: categoryColor,
-            border: `1px solid ${categoryColor}`,
-            borderRadius: '4px',
-            padding: '2px 8px',
-            fontSize: '0.8rem'
-          }}>
-            {work.category}
-          </span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-const Jobs = ({ 
-  works = [], 
-  handleSubmit,
-  setNewWork,
-  newWork,
-  handleFileUpload,
-  handleRemoveFile,
-  handleViewDetails,
-  expandedWorks,
-  isLoading = false,
-  handleEdit,
-  handleDelete,
-  handleComplete,
-  handleStatusChange,
-  handleFileDownload,
-  onSendMessage
-}) => {
+function Jobs() {
   const navigate = useNavigate();
+  const [obras, setObras] = useState([]);
+  const [loading, setLoading] = useState(true);
   const { user } = useAuth();
-  const [selectedCategory, setSelectedCategory] = useState(null);
-  const [viewMode, setViewMode] = useState('grid'); // 'grid' ou 'list'
-  const [showNewWorkForm, setShowNewWorkForm] = useState(false);
-  const [localNewWork, setLocalNewWork] = useState(newWork);
   const [selectedWork, setSelectedWork] = useState(null);
 
-  // Definir todas as categorias possíveis
-  const categorias = [
-    { 
-      id: 'infiltracao', 
-      nome: 'Infiltração', 
-      icone: '💧', 
-      cor: '#3498db',
-      subcategorias: [
-        'Infiltração em coberturas e terraços',
-        'Infiltração em paredes e fachadas',
-        'Infiltração em garagens e caves',
-        'Diagnóstico e identificação de causas',
-        'Soluções de impermeabilização'
-      ]
-    },
-    { 
-      id: 'fissuras', 
-      nome: 'Fissuras e rachaduras', 
-      icone: '🧱', 
-      cor: '#e74c3c',
-      subcategorias: [
-        'Fissuras estruturais',
-        'Rachaduras em paredes interiores e exteriores',
-        'Rachaduras em fachadas e varandas',
-        'Monitorização e avaliação periódica',
-        'Técnicas de reparação e reforço estrutural'
-      ]
-    },
-    { 
-      id: 'canalizacao', 
-      nome: 'Canalização', 
-      icone: '🚿', 
-      cor: '#2ecc71',
-      subcategorias: [
-        'Deteção e reparação de fugas de água',
-        'Substituição e manutenção de tubagens',
-        'Limpeza e desobstrução de esgotos',
-        'Sistemas de pressurização e bombagem',
-        'Manutenção de reservatórios e depósitos de água'
-      ]
-    },
-    { 
-      id: 'jardinagem', 
-      nome: 'Jardinagem', 
-      icone: '🌱', 
-      cor: '#27ae60',
-      subcategorias: [
-        'Manutenção e conservação de jardins comuns',
-        'Poda e remoção de árvores e arbustos',
-        'Instalação e manutenção de sistemas de rega',
-        'Controlo de pragas e doenças',
-        'Requalificação de espaços verdes'
-      ]
-    },
-    { 
-      id: 'fiscalizacao', 
-      nome: 'Fiscalização', 
-      icone: '📋', 
-      cor: '#9b59b6',
-      subcategorias: [
-        'Inspeção periódica de infraestruturas',
-        'Fiscalização do cumprimento de normas e regulamentos',
-        'Relatórios técnicos e auditorias',
-        'Avaliação da qualidade dos serviços prestados',
-        'Gestão de obras e intervenções externas'
-      ]
-    },
-    { 
-      id: 'fachada', 
-      nome: 'Reabilitação de Fachada', 
-      icone: '🏢', 
-      cor: '#34495e',
-      subcategorias: [
-        'Recuperação e restauro de fachadas',
-        'Tratamento de fissuras e infiltrações',
-        'Impermeabilização de superfícies externas',
-        'Pintura e renovação estética',
-        'Limpeza de fachadas e remoção de grafitis'
-      ]
-    },
-    { 
-      id: 'eletricidade', 
-      nome: 'Eletricidade', 
-      icone: '⚡', 
-      cor: '#f1c40f',
-      subcategorias: [
-        'Manutenção de instalações elétricas do condomínio',
-        'Substituição de quadros elétricos e cablagens',
-        'Iluminação de áreas comuns (escadas, garagem, elevadores)',
-        'Sistemas de emergência e iluminação de segurança',
-        'Inspeção e conformidade com normas elétricas'
-      ]
-    },
-    { 
-      id: 'construcao', 
-      nome: 'Construção', 
-      icone: '🏗️', 
-      cor: '#e67e22',
-      subcategorias: [
-        'Pequenas obras e remodelações em áreas comuns',
-        'Reparação de estruturas e fundações',
-        'Substituição de revestimentos e pavimentos',
-        'Ampliação e melhoria de infraestruturas',
-        'Gestão de licenças e autorizações'
-      ]
-    },
-    { 
-      id: 'pintura', 
-      nome: 'Pintura', 
-      icone: '🎨', 
-      cor: '#1abc9c',
-      subcategorias: [
-        'Pintura de fachadas e zonas comuns',
-        'Pintura de garagens e parques de estacionamento',
-        'Marcação de lugares e sinalização em pavimentos',
-        'Preparação e tratamento de superfícies antes da pintura',
-        'Utilização de tintas específicas para exterior e interior'
-      ]
-    }
-  ];
+  // Estados para filtros
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [priorityFilter, setPriorityFilter] = useState('all');
+  const [locationFilter, setLocationFilter] = useState('');
 
-  // Sincronizar o estado local do newWork quando as props mudam
   useEffect(() => {
-    setLocalNewWork(newWork);
-  }, [newWork]);
+    fetchObras();
+  }, [user]);
+
+  const fetchObras = async () => {
+    try {
+      setLoading(true);
+      if (!user?.uid) return;
+      
+      const worksRef = collection(db, 'works');
+      const q = query(worksRef, where('userId', '==', user.uid));
+      const querySnapshot = await getDocs(q);
+      
+      const obrasData = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+
+      const sortedObras = obrasData.sort((a, b) => 
+        new Date(b.date) - new Date(a.date)
+      );
+      
+      setObras(sortedObras);
+    } catch (error) {
+      console.error("Erro ao buscar obras:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredObras = obras.filter(obra => {
+    const matchesSearch = obra.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         obra.description?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = statusFilter === 'all' || obra.status === statusFilter;
+    const matchesCategory = categoryFilter === 'all' || obra.category === categoryFilter;
+    const matchesPriority = priorityFilter === 'all' || obra.priority === priorityFilter;
+    const matchesLocation = !locationFilter || 
+                          (obra.location && 
+                           (obra.location.morada?.toLowerCase().includes(locationFilter.toLowerCase()) ||
+                            obra.location.cidade?.toLowerCase().includes(locationFilter.toLowerCase()) ||
+                            obra.location.codigoPostal?.toLowerCase().includes(locationFilter.toLowerCase())));
+
+    return matchesSearch && matchesStatus && matchesCategory && matchesPriority && matchesLocation;
+  });
 
   const handleBack = () => {
     navigate('/dashgestor');
   };
 
-  const handleCategoryClick = (category) => {
-    if (selectedCategory === category.id) {
-      setSelectedCategory(null); // Desselecionar se clicar na mesma categoria
-    } else {
-      setSelectedCategory(category.id);
-      // Mudamos automaticamente para o modo de tabela quando uma categoria é selecionada
-      setViewMode('list');
+  const handleObraClick = (obra) => {
+    setSelectedWork(obra);
+  };
+
+  const handleCloseModal = () => {
+    setSelectedWork(null);
+  };
+
+  const handleNewWork = () => {
+    navigate('/dashgestor/workform');
+  };
+
+  const handleComplete = async (workId, newStatus) => {
+    try {
+      const workRef = doc(db, 'works', workId);
+      await updateDoc(workRef, {
+        status: newStatus
+      });
       
-      // Pré-configurar o novo trabalho com a categoria selecionada
-      const updatedWork = {
-        ...localNewWork,
-        category: category.nome
-      };
-      setLocalNewWork(updatedWork);
-      setNewWork(updatedWork);
+      // Update the local state
+      setObras(prevObras => 
+        prevObras.map(obra => 
+          obra.id === workId ? { ...obra, status: newStatus } : obra
+        )
+      );
+      
+      // Close the modal
+      setSelectedWork(null);
+      
+      // Optionally refresh the data
+      fetchObras();
+    } catch (error) {
+      console.error("Erro ao atualizar status da obra:", error);
     }
-  };
-
-  const handleCreateWork = () => {
-    // Resetar o formulário com valores iniciais
-    const emptyWork = {
-      title: '',
-      description: '',
-      category: '',
-      priority: '',
-      location: {
-        morada: '',
-        codigoPostal: '',
-        cidade: '',
-        andar: ''
-      },
-      date: new Date().toISOString().split('T')[0],
-      status: 'Pendente',
-      files: [],
-      orcamentos: {
-        minimo: '',
-        maximo: ''
-      },
-      prazoOrcamentos: ''
-    };
-    
-    setLocalNewWork(emptyWork);
-    setNewWork(emptyWork);
-    setShowNewWorkForm(true);
-  };
-
-  const handleLocalSubmit = (e) => {
-    handleSubmit(e);
-    setShowNewWorkForm(false);
-  };
-
-  // Função para renderizar o grid de categorias de forma horizontal
-  const renderCategoriesGrid = () => {
-    return (
-      <div className="categories-grid">
-        {categorias.map(categoria => (
-          <div 
-            key={categoria.id}
-            className={`category-card ${selectedCategory === categoria.id ? 'active' : ''}`}
-            style={{ 
-              borderColor: selectedCategory === categoria.id ? categoria.cor : 'transparent',
-              backgroundColor: selectedCategory === categoria.id ? `${categoria.cor}20` : '#f9fafb'
-            }}
-            onClick={() => handleCategoryClick(categoria)}
-          >
-            <div className="category-icon" style={{ backgroundColor: categoria.cor }}>
-              {categoria.icone}
-            </div>
-            <div className="category-content">
-              <div className="category-name">{categoria.nome}</div>
-            </div>
-          </div>
-        ))}
-      </div>
-    );
-  };
-
-  // Função auxiliar para normalizar strings para comparação de categorias
-  const normalizeString = (str) => {
-    return str.toLowerCase()
-      .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // Remove acentos
-      .replace(/\s+/g, '-')
-      .replace(/[^\w-]/g, ''); // Remove caracteres especiais
-  };
-
-  // Filtrar obras pela categoria selecionada
-  const filteredWorks = selectedCategory 
-    ? works.filter(work => {
-        const categoryNome = categorias.find(cat => cat.id === selectedCategory)?.nome || '';
-        return normalizeString(work.category).includes(normalizeString(selectedCategory)) ||
-               normalizeString(work.category) === normalizeString(categoryNome);
-      })
-    : works;
-
-  const handleWorkClick = (workId) => {
-    const work = works.find(w => w.id === workId);
-    setSelectedWork(work);
   };
 
   return (
@@ -332,99 +113,146 @@ const Jobs = ({
           <FiArrowLeft />
           <span>Voltar</span>
         </button>
-        <h1>Obras</h1>
-        {!selectedCategory && (
-          <div className="view-toggle">
-            <button 
-              className={`view-toggle-btn ${viewMode === 'grid' ? 'active' : ''}`} 
-              onClick={() => setViewMode('grid')}
-            >
-              <FiGrid />
-            </button>
-            <button 
-              className={`view-toggle-btn ${viewMode === 'list' ? 'active' : ''}`} 
-              onClick={() => setViewMode('list')}
-            >
-              <FiList />
-            </button>
+      </div>
+
+      <h1 className="main-title">Gestão de Obras</h1>
+
+      <div className="filters-container">
+        <div className="filters-inline">
+          <div className="search-box">
+            <FiSearch className="search-icon" />
+            <input
+              type="text"
+              placeholder="Pesquisar obras..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
           </div>
-        )}
-      </div>
 
-      <div className="categories-container">
-        <h2>Categorias de Obras</h2>
-        {renderCategoriesGrid()}
-      </div>
-
-      <div className="works-list-container">
-        <div className="works-list-header">
-          <h2>{selectedCategory 
-              ? `Obras de ${categorias.find(cat => cat.id === selectedCategory)?.nome}` 
-              : 'Obras'}
-          </h2>
-          <button 
-            className="create-work-btn-header"
-            onClick={handleCreateWork}
+          <select 
+            className="filter-select"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
           >
+            <option value="all">Status</option>
+            <option value="disponivel">Disponível</option>
+            <option value="em-andamento">Em andamento</option>
+            <option value="concluido">Concluído</option>
+          </select>
+
+          <select 
+            className="filter-select"
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value)}
+          >
+            <option value="all">Categorias</option>
+            <option value="Infiltração">Infiltração</option>
+            <option value="Fissuras e rachaduras">Fissuras</option>
+            <option value="Canalização">Canalização</option>
+            <option value="Jardinagem">Jardinagem</option>
+            <option value="Fiscalização">Fiscalização</option>
+            <option value="Reabilitação de Fachada">Fachada</option>
+            <option value="Eletricidade">Eletricidade</option>
+            <option value="Construção">Construção</option>
+            <option value="Pintura">Pintura</option>
+          </select>
+
+          <select 
+            className="filter-select"
+            value={priorityFilter}
+            onChange={(e) => setPriorityFilter(e.target.value)}
+          >
+            <option value="all">Prioridade</option>
+            <option value="Baixa">Baixa</option>
+            <option value="Média">Média</option>
+            <option value="Alta">Alta</option>
+            <option value="Urgente">Urgente</option>
+          </select>
+
+          <input
+            type="text"
+            placeholder="Localização"
+            className="filter-select location-filter"
+            value={locationFilter}
+            onChange={(e) => setLocationFilter(e.target.value)}
+          />
+
+          <button className="new-work-button" onClick={handleNewWork}>
             <FiPlus /> Nova Obra
           </button>
         </div>
-
-        {selectedCategory || viewMode === 'list' ? (
-          <WorksTable 
-            works={filteredWorks}
-            expandedWorks={expandedWorks}
-            onViewDetails={handleWorkClick}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-            onComplete={handleComplete}
-            onStatusChange={handleStatusChange}
-            onFileDownload={handleFileDownload}
-            onSendMessage={onSendMessage}
-            isSimplified={false}
-          />
-        ) : (
-          <div className="work-cards-grid">
-            {filteredWorks.map(work => (
-              <JobCard 
-                key={work.id} 
-                work={work} 
-                onViewDetails={handleWorkClick}
-              />
-            ))}
-          </div>
-        )}
+      </div>
+      
+      <div className="obras-table-container">
+        <table className="obras-table">
+          <thead>
+            <tr>
+              <th>Título</th>
+              <th>Data</th>
+              <th>Categoria</th>
+              <th>Prioridade</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
+              <tr>
+                <td colSpan="5" style={{ textAlign: 'center', padding: '20px' }}>
+                  Carregando obras...
+                </td>
+              </tr>
+            ) : filteredObras.length === 0 ? (
+              <tr>
+                <td colSpan="5" style={{ textAlign: 'center', padding: '20px' }}>
+                  Nenhuma obra encontrada
+                </td>
+              </tr>
+            ) : (
+              filteredObras.map((obra) => (
+                <tr 
+                  key={obra.id} 
+                  className="work-row"
+                  onClick={() => handleObraClick(obra)}
+                >
+                  <td className="title-cell">
+                    <div className="work-title">{obra.title}</div>
+                    {obra.description && (
+                      <div className="work-subtitle">{obra.description}</div>
+                    )}
+                  </td>
+                  <td>{obra.date}</td>
+                  <td>{obra.category}</td>
+                  <td>
+                    <span className={`priority-badge ${obra.priority?.toLowerCase() || ''}`}>
+                      {obra.priority || 'Normal'}
+                    </span>
+                  </td>
+                  <td>
+                    <span className={`status-badge ${obra.status?.toLowerCase() || ''}`}>
+                      {obra.status === 'concluido' ? 'Concluída' :
+                       obra.status === 'em-andamento' ? 'Em andamento' :
+                       'Disponível'}
+                    </span>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
       </div>
 
       {selectedWork && (
         <WorkDetailsModal
           work={selectedWork}
-          onClose={() => setSelectedWork(null)}
-          onEdit={handleEdit}
-          onDelete={handleDelete}
+          onClose={handleCloseModal}
+          onEdit={() => {}}
+          onDelete={() => {}}
           onComplete={handleComplete}
-          onStatusChange={handleStatusChange}
-          onFileDownload={handleFileDownload}
-        />
-      )}
-
-      {showNewWorkForm && (
-        <WorkForm 
-          newWork={localNewWork}
-          setNewWork={(work) => {
-            setLocalNewWork(work);
-            setNewWork(work);
-          }}
-          handleFileUpload={handleFileUpload}
-          handleRemoveFile={handleRemoveFile}
-          onSubmit={handleLocalSubmit}
-          onCancel={() => setShowNewWorkForm(false)}
-          editMode={false}
-          isSubmitting={isLoading}
+          onFileDownload={() => {}}
         />
       )}
     </div>
   );
-};
+}
 
 export default Jobs; 
