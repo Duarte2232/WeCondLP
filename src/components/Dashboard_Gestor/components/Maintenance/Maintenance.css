@@ -764,7 +764,6 @@
 .filters-inline {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 10px;
   padding: 10px;
   border-radius: 8px;
@@ -774,7 +773,8 @@
 
 .search-box {
   position: relative;
-  width: 170px;
+  flex: 1 1 25%;
+  min-width: 150px;
 }
 
 .search-box input {
@@ -803,11 +803,13 @@
   font-size: 14px;
   background-color: #f9fafb;
   color: #333;
-  width: 120px;
+  flex: 1 1 15%;
+  min-width: 100px;
 }
 
 .location-filter {
-  width: 140px;
+  flex: 1 1 15%;
+  min-width: 120px;
 }
 
 .new-maintenance-btn {
@@ -825,7 +827,7 @@
   gap: 8px;
   white-space: nowrap;
   transition: background-color 0.2s;
-  width: 170px;
+  flex: 0 0 auto;
 }
 
 .obras-table-container {

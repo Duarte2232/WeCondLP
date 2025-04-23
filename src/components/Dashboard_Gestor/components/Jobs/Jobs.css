@@ -713,10 +713,20 @@
   padding-bottom: 8px;
 }
 
+.filters-inline {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 8px;
+  background-color: white;
+  width: 100%;
+}
+
 .search-box {
   position: relative;
-  flex: 1 1 250px;
-  min-width: 200px;
+  flex: 1 1 25%;
+  min-width: 150px;
 }
 
 .search-box input {
@@ -737,8 +747,31 @@
   font-size: 14px;
   background-color: #f9fafb;
   color: #333;
-  flex: 1 1 140px;
-  min-width: 140px;
+  flex: 1 1 15%;
+  min-width: 100px;
+}
+
+.location-filter {
+  flex: 1 1 15%;
+  min-width: 120px;
+}
+
+.new-work-button {
+  background-color: #2563EB;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 16px;
+  height: 40px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  transition: background-color 0.2s;
+  flex: 0 0 auto;
 }
 
 .obras-table-container {
