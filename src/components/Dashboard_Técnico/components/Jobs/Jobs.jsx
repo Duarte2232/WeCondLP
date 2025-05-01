@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useReducer } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiMapPin, FiClock, FiPhone, FiArrowLeft, FiTag, FiInfo, FiAlertCircle, FiMessageSquare, FiDollarSign } from 'react-icons/fi';
 import { getAuth } from 'firebase/auth';
@@ -7,113 +7,149 @@ import { db } from '../../../../services/firebase.jsx';
 import './Jobs.css';
 import JobDetailsModal from '../JobDetailsModal/JobDetailsModal';
 import BudgetModal from '../BudgetModal/BudgetModal';
+import { toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+
+// Initial state for the jobs reducer
+const initialState = {
+  selectedJob: null,
+  showBudgetModal: false,
+  showDetailsModal: false,
+  jobsWithBudgetStatus: [],
+  isLoadingBudgetStatus: false,
+  error: null
+};
+
+// Action types
+const ACTIONS = {
+  SET_SELECTED_JOB: 'SET_SELECTED_JOB',
+  TOGGLE_BUDGET_MODAL: 'TOGGLE_BUDGET_MODAL',
+  TOGGLE_DETAILS_MODAL: 'TOGGLE_DETAILS_MODAL',
+  SET_JOBS_WITH_BUDGET_STATUS: 'SET_JOBS_WITH_BUDGET_STATUS',
+  SET_LOADING_BUDGET_STATUS: 'SET_LOADING_BUDGET_STATUS',
+  SET_ERROR: 'SET_ERROR',
+  CLEAR_ERROR: 'CLEAR_ERROR'
+};
+
+// Reducer function
+function jobsReducer(state, action) {
+  switch (action.type) {
+    case ACTIONS.SET_SELECTED_JOB:
+      return { ...state, selectedJob: action.payload };
+    case ACTIONS.TOGGLE_BUDGET_MODAL:
+      return { ...state, showBudgetModal: action.payload };
+    case ACTIONS.TOGGLE_DETAILS_MODAL:
+      return { ...state, showDetailsModal: action.payload };
+    case ACTIONS.SET_JOBS_WITH_BUDGET_STATUS:
+      return { ...state, jobsWithBudgetStatus: action.payload };
+    case ACTIONS.SET_LOADING_BUDGET_STATUS:
+      return { ...state, isLoadingBudgetStatus: action.payload };
+    case ACTIONS.SET_ERROR:
+      return { ...state, error: action.payload };
+    case ACTIONS.CLEAR_ERROR:
+      return { ...state, error: null };
+    default:
+      return state;
+  }
+}
 
 const Jobs = ({ jobs, loading }) => {
   const navigate = useNavigate();
   const auth = getAuth();
-  const [selectedJob, setSelectedJob] = useState(null);
-  const [showBudgetModal, setShowBudgetModal] = useState(false);
-  const [showDetailsModal, setShowDetailsModal] = useState(false);
-  const [jobsWithBudgetStatus, setJobsWithBudgetStatus] = useState([]);
-  
-  useEffect(() => {
-    const checkBudgetStatus = async () => {
-      if (!jobs) return;
+  const [state, dispatch] = useReducer(jobsReducer, initialState);
+
+  const checkBudgetStatus = async () => {
+    if (!jobs) return;
+    
+    try {
+      dispatch({ type: ACTIONS.SET_LOADING_BUDGET_STATUS, payload: true });
+      dispatch({ type: ACTIONS.CLEAR_ERROR });
       
       const jobsWithStatus = await Promise.all(jobs.map(async (job) => {
-        // Verificar se existe orçamento para esta obra
-        const orcamentosRef = collection(db, 'orcamentos');
-        const q = query(
-          orcamentosRef, 
-          where('workId', '==', job.id),
-          where('technicianId', '==', auth.currentUser.uid)
-        );
-        const querySnapshot = await getDocs(q);
-        
-        return {
-          ...job,
-          hasSubmittedBudget: !querySnapshot.empty
-        };
+        try {
+          const orcamentosRef = collection(db, 'orcamentos');
+          const q = query(
+            orcamentosRef, 
+            where('workId', '==', job.id),
+            where('technicianId', '==', auth.currentUser.uid)
+          );
+          const querySnapshot = await getDocs(q);
+          
+          return {
+            ...job,
+            hasSubmittedBudget: !querySnapshot.empty
+          };
+        } catch (error) {
+          console.error(`Error checking budget status for job ${job.id}:`, error);
+          return {
+            ...job,
+            hasSubmittedBudget: false
+          };
+        }
       }));
       
-      setJobsWithBudgetStatus(jobsWithStatus);
-    };
-    
-    checkBudgetStatus();
-  }, [jobs, auth.currentUser.uid]);
-
-  // Depurar as obras recebidas
-  console.log("Jobs recebidos no componente:", jobs);
+      dispatch({ type: ACTIONS.SET_JOBS_WITH_BUDGET_STATUS, payload: jobsWithStatus });
+    } catch (error) {
+      dispatch({ 
+        type: ACTIONS.SET_ERROR, 
+        payload: 'Erro ao verificar status dos orçamentos. Por favor, tente novamente.'
+      });
+      toast.error('Erro ao verificar status dos orçamentos');
+    } finally {
+      dispatch({ type: ACTIONS.SET_LOADING_BUDGET_STATUS, payload: false });
+    }
+  };
   
-  if (loading) {
-    return <div className="loading">Carregando obras...</div>;
-  }
+  useEffect(() => {
+    checkBudgetStatus();
+  }, [jobs, auth.currentUser?.uid]);
 
-  // Função para voltar ao painel
   const goBackToDashboard = () => {
     navigate('/dashtecnico');
   };
 
-  // Função para mostrar detalhes da obra
   const showJobDetails = (job) => {
-    setSelectedJob(job);
-    setShowDetailsModal(true);
+    dispatch({ type: ACTIONS.SET_SELECTED_JOB, payload: job });
+    dispatch({ type: ACTIONS.TOGGLE_DETAILS_MODAL, payload: true });
   };
 
-  // Função para fechar o modal
   const closeModal = () => {
-    setSelectedJob(null);
-    setShowDetailsModal(false);
+    dispatch({ type: ACTIONS.SET_SELECTED_JOB, payload: null });
+    dispatch({ type: ACTIONS.TOGGLE_DETAILS_MODAL, payload: false });
   };
 
-  // Função para abrir modal de orçamento
   const openBudgetModal = (job) => {
-    setSelectedJob(job);
-    setShowBudgetModal(true);
+    dispatch({ type: ACTIONS.SET_SELECTED_JOB, payload: job });
+    dispatch({ type: ACTIONS.TOGGLE_BUDGET_MODAL, payload: true });
   };
 
-  // Função para fechar modal de orçamento
   const closeBudgetModal = () => {
-    setShowBudgetModal(false);
+    dispatch({ type: ACTIONS.TOGGLE_BUDGET_MODAL, payload: false });
   };
 
-  // Função para iniciar conversa com o gestor
   const startConversation = async (job) => {
     try {
-      console.log('Starting conversation for job:', job);
-      console.log('Full job data:', JSON.stringify(job, null, 2));
-      
-      // Get the gestor ID from the job's userId (the creator of the job)
-      const gestorId = job.userId;
-      console.log('Gestor ID found:', gestorId);
-      
-      if (!gestorId) {
-        console.error('No gestor ID found for this job. Available properties:', Object.keys(job));
-        return;
+      if (!job.userId) {
+        throw new Error('ID do gestor não encontrado');
       }
 
-      // Fetch gestor data from Firestore
-      const gestorDoc = await getDoc(doc(db, 'users', gestorId));
+      const gestorDoc = await getDoc(doc(db, 'users', job.userId));
       
       if (!gestorDoc.exists()) {
-        console.error('Gestor document not found for ID:', gestorId);
-        return;
+        throw new Error('Dados do gestor não encontrados');
       }
 
       const gestorData = gestorDoc.data();
-      console.log('Gestor data:', gestorData);
 
-      // Assign the technician to the work
       const workRef = doc(db, 'works', job.id);
       await updateDoc(workRef, {
         technicianId: auth.currentUser.uid,
         status: 'confirmada'
       });
 
-      // Navigate to messages with gestor information
       navigate('/dashtecnico/mensagens', { 
         state: { 
-          gestorId: gestorId,
+          gestorId: job.userId,
           gestorName: gestorData.email || 'Gestor',
           obraId: job.id,
           obraTitle: job.title
@@ -121,16 +157,20 @@ const Jobs = ({ jobs, loading }) => {
       });
     } catch (error) {
       console.error('Error starting conversation:', error);
+      toast.error('Erro ao iniciar conversa. Por favor, tente novamente.');
     }
   };
 
   const handleBudgetSuccess = () => {
-    // Atualiza a lista de obras
-    setShowBudgetModal(false);
-    setSelectedJob(null);
-    // Recarregar o status dos orçamentos
+    dispatch({ type: ACTIONS.TOGGLE_BUDGET_MODAL, payload: false });
+    dispatch({ type: ACTIONS.SET_SELECTED_JOB, payload: null });
     checkBudgetStatus();
+    toast.success('Orçamento enviado com sucesso!');
   };
+
+  if (loading || state.isLoadingBudgetStatus) {
+    return <div className="loading">Carregando obras...</div>;
+  }
 
   return (
     <div className="main-content obras-page">
@@ -143,72 +183,75 @@ const Jobs = ({ jobs, loading }) => {
       </div>
       
       <div className="jobs-list">
-        {jobsWithBudgetStatus && jobsWithBudgetStatus.length > 0 ? (
-          jobsWithBudgetStatus.map((job) => (
+        {state.jobsWithBudgetStatus && state.jobsWithBudgetStatus.length > 0 ? (
+          state.jobsWithBudgetStatus.map((job) => (
             <div key={job.id} className="job-card">
-              <div className="job-header">
-                <h2>{job.title}</h2>
-              </div>
-              
-              <p className="job-description">
-                {job.description ? 
-                  (job.description.length > 100 ? 
-                    `${job.description.substring(0, 100)}...` : 
-                    job.description
-                  ) : 
-                  'Sem descrição disponível'
-                }
-              </p>
+              <div className="job-top-content">
+                <div className="job-header">
+                  <h2>{job.title}</h2>
+                </div>
 
-              <div className="job-details">
-                <div className="job-category">
-                  <FiTag />
-                  <span>{job.category}</span>
-                </div>
-                <div className="job-location">
-                  <FiMapPin />
-                  <span>{job.location?.cidade || 'Localização não especificada'}</span>
-                </div>
-                <div className="job-time">
-                  <FiClock />
-                  <span>{job.date}{job.time ? ` • ${job.time}` : ''}</span>
-                </div>
-                {job.contact && (
-                  <div className="job-contact">
-                    <FiPhone />
-                    <span>{job.contact}</span>
+                <p className="job-description">
+                  {job.description ? 
+                    (job.description.length > 100 ? 
+                      `${job.description.substring(0, 100)}...` : 
+                      job.description
+                    ) : 
+                    'Sem descrição disponível'
+                  }
+                </p>
+              </div>
+
+              <div className="job-content-container">
+                <div className="job-details">
+                  <div className="job-category">
+                    <FiTag />
+                    <span>{job.category}</span>
                   </div>
-                )}
-              </div>
+                  <div className="job-location">
+                    <FiMapPin />
+                    <span>{job.location?.cidade || 'Localização não especificada'}</span>
+                  </div>
+                  <div className="job-time">
+                    <FiClock />
+                    <span>{job.date}{job.time ? ` • ${job.time}` : ''}</span>
+                  </div>
+                  {job.contact && (
+                    <div className="job-contact">
+                      <FiPhone />
+                      <span>{job.contact}</span>
+                    </div>
+                  )}
+                  <span className={`status-badge ${job.hasSubmittedBudget ? 'orcamento-enviado' : job.status || 'disponivel'}`}>
+                    {job.hasSubmittedBudget ? "Orçamento Enviado" :
+                     !job.status ? "Disponível" :
+                     job.status === "disponivel" ? "Disponível" :
+                     job.status === "confirmada" ? "Confirmada" :
+                     job.status === "concluida" ? "Concluída" :
+                     job.status === "em-andamento" ? "Em Andamento" :
+                     job.status}
+                  </span>
+                </div>
 
-              <div className="job-actions">
-                {!job.hasSubmittedBudget && (
-                  <button className="budget-btn" onClick={() => openBudgetModal(job)}>
-                    <FiDollarSign />
-                    Enviar Orçamento
+                <div className="job-actions">
+                  {!job.hasSubmittedBudget && (
+                    <button className="budget-btn" onClick={() => openBudgetModal(job)}>
+                      <FiDollarSign />
+                      Enviar Orçamento
+                    </button>
+                  )}
+                  <button className="view-details-btn" onClick={() => showJobDetails(job)}>
+                    Ver Detalhes
                   </button>
-                )}
-                <button className="view-details-btn" onClick={() => showJobDetails(job)}>
-                  Ver Detalhes
-                </button>
-                <button 
-                  className="chat-gestor-btn"
-                  onClick={() => startConversation(job)}
-                >
-                  <FiMessageSquare />
-                  Conversar com o gestor
-                </button>
+                  <button 
+                    className="chat-gestor-btn"
+                    onClick={() => startConversation(job)}
+                  >
+                    <FiMessageSquare />
+                    Conversar com o gestor
+                  </button>
+                </div>
               </div>
-              
-              <span className={`status-badge ${job.hasSubmittedBudget ? 'orcamento-enviado' : job.status || 'disponivel'}`}>
-                {job.hasSubmittedBudget ? "Orçamento Enviado" :
-                 !job.status ? "Disponível" :
-                 job.status === "disponivel" ? "Disponível" :
-                 job.status === "confirmada" ? "Confirmada" :
-                 job.status === "concluida" ? "Concluída" :
-                 job.status === "em-andamento" ? "Em Andamento" :
-                 job.status}
-              </span>
             </div>
           ))
         ) : (
@@ -230,16 +273,16 @@ const Jobs = ({ jobs, loading }) => {
         )}
       </div>
 
-      {showDetailsModal && selectedJob && (
+      {state.showDetailsModal && state.selectedJob && (
         <JobDetailsModal
-          job={selectedJob}
+          job={state.selectedJob}
           onClose={closeModal}
         />
       )}
 
-      {showBudgetModal && selectedJob && (
+      {state.showBudgetModal && state.selectedJob && (
         <BudgetModal 
-          job={selectedJob}
+          job={state.selectedJob}
           onClose={closeBudgetModal}
           onSuccess={handleBudgetSuccess}
         />
