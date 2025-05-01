@@ -1,14 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiMapPin, FiClock, FiPhone, FiArrowLeft, FiTag, FiInfo, FiAlertCircle, FiMessageSquare } from 'react-icons/fi';
+import { FiMapPin, FiClock, FiPhone, FiArrowLeft, FiTag, FiInfo, FiAlertCircle, FiMessageSquare, FiDollarSign } from 'react-icons/fi';
 import { getAuth } from 'firebase/auth';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../../../../services/firebase.jsx';
 import './Jobs.css';
+import JobDetailsModal from '../JobDetailsModal/JobDetailsModal';
+import BudgetModal from '../BudgetModal/BudgetModal';
 
 const Jobs = ({ jobs, loading }) => {
   const navigate = useNavigate();
   const auth = getAuth();
+  const [selectedJob, setSelectedJob] = useState(null);
+  const [showBudgetModal, setShowBudgetModal] = useState(false);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
   
   // Depurar as obras recebidas
   console.log("Jobs recebidos no componente:", jobs);
@@ -20,6 +25,29 @@ const Jobs = ({ jobs, loading }) => {
   // Função para voltar ao painel
   const goBackToDashboard = () => {
     navigate('/dashtecnico');
+  };
+
+  // Função para mostrar detalhes da obra
+  const showJobDetails = (job) => {
+    setSelectedJob(job);
+    setShowDetailsModal(true);
+  };
+
+  // Função para fechar o modal
+  const closeModal = () => {
+    setSelectedJob(null);
+    setShowDetailsModal(false);
+  };
+
+  // Função para abrir modal de orçamento
+  const openBudgetModal = (job) => {
+    setSelectedJob(job);
+    setShowBudgetModal(true);
+  };
+
+  // Função para fechar modal de orçamento
+  const closeBudgetModal = () => {
+    setShowBudgetModal(false);
   };
 
   // Função para iniciar conversa com o gestor
@@ -69,6 +97,12 @@ const Jobs = ({ jobs, loading }) => {
     }
   };
 
+  const handleBudgetSuccess = () => {
+    // Atualiza a lista de obras
+    setShowBudgetModal(false);
+    setSelectedJob(null);
+  };
+
   return (
     <div className="main-content obras-page">
       <div className="page-header-container">
@@ -85,16 +119,18 @@ const Jobs = ({ jobs, loading }) => {
             <div key={job.id} className="job-card">
               <div className="job-header">
                 <h2>{job.title}</h2>
-                <span className={`status-badge ${job.status || 'disponivel'}`}>
-                  {!job.status ? "Disponível" :
-                   job.status === "disponivel" ? "Disponível" : 
-                   job.status === "confirmada" ? "Confirmada" : 
-                   job.status === "concluida" ? "Concluída" : 
-                   job.status === "em-andamento" ? "Em Andamento" :
-                   job.status}
-                </span>
               </div>
               
+              <p className="job-description">
+                {job.description ? 
+                  (job.description.length > 100 ? 
+                    `${job.description.substring(0, 100)}...` : 
+                    job.description
+                  ) : 
+                  'Sem descrição disponível'
+                }
+              </p>
+
               <div className="job-details">
                 <div className="job-category">
                   <FiTag />
@@ -106,18 +142,24 @@ const Jobs = ({ jobs, loading }) => {
                 </div>
                 <div className="job-time">
                   <FiClock />
-                  <span>{job.date} • {job.time || 'Horário não especificado'}</span>
+                  <span>{job.date}{job.time ? ` • ${job.time}` : ''}</span>
                 </div>
-                <div className="job-contact">
-                  <FiPhone />
-                  <span>{job.contact || 'Contato não especificado'}</span>
-                </div>
-                <p className="job-description">{job.description}</p>
+                {job.contact && (
+                  <div className="job-contact">
+                    <FiPhone />
+                    <span>{job.contact}</span>
+                  </div>
+                )}
               </div>
 
               <div className="job-actions">
-                <button className="status-update-btn">Atualizar Estado</button>
-                <button className="view-details-btn">Ver Detalhes</button>
+                <button className="budget-btn" onClick={() => openBudgetModal(job)}>
+                  <FiDollarSign />
+                  Enviar Orçamento
+                </button>
+                <button className="view-details-btn" onClick={() => showJobDetails(job)}>
+                  Ver Detalhes
+                </button>
                 <button 
                   className="chat-gestor-btn"
                   onClick={() => startConversation(job)}
@@ -126,6 +168,15 @@ const Jobs = ({ jobs, loading }) => {
                   Conversar com o gestor
                 </button>
               </div>
+              
+              <span className={`status-badge ${job.status || 'disponivel'}`}>
+                {!job.status ? "Disponível" :
+                 job.status === "disponivel" ? "Disponível" :
+                 job.status === "confirmada" ? "Confirmada" :
+                 job.status === "concluida" ? "Concluída" :
+                 job.status === "em-andamento" ? "Em Andamento" :
+                 job.status}
+              </span>
             </div>
           ))
         ) : (
@@ -146,6 +197,21 @@ const Jobs = ({ jobs, loading }) => {
           </div>
         )}
       </div>
+
+      {showDetailsModal && selectedJob && (
+        <JobDetailsModal
+          job={selectedJob}
+          onClose={closeModal}
+        />
+      )}
+
+      {showBudgetModal && selectedJob && (
+        <BudgetModal 
+          job={selectedJob}
+          onClose={closeBudgetModal}
+          onSuccess={handleBudgetSuccess}
+        />
+      )}
     </div>
   );
 };
