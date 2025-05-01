@@ -1,11 +1,23 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { FiX, FiUpload, FiFile, FiDollarSign, FiClock, FiAlignLeft, FiFileText, FiPaperclip, FiTrash2, FiCheck } from 'react-icons/fi';
 import { getAuth } from 'firebase/auth';
 import { doc, addDoc, collection, serverTimestamp, updateDoc, getDoc } from 'firebase/firestore';
-import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { db, storage } from '../../../../services/firebase.jsx';
+import { db } from '../../../../services/firebase.jsx';
+import { CLOUDINARY_CONFIG } from '../../../../config/cloudinary';
 import { v4 as uuidv4 } from 'uuid';
 import './BudgetModal.css';
+
+// Constants for validation
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const ALLOWED_FILE_TYPES = [
+  'image/jpeg',
+  'image/png',
+  'image/gif',
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+];
+const MAX_FILES = 5;
 
 const BudgetModal = ({ job, onClose, onSuccess }) => {
   const auth = getAuth();
@@ -18,10 +30,22 @@ const BudgetModal = ({ job, onClose, onSuccess }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
+  const [validationErrors, setValidationErrors] = useState({});
   const fileInputRef = useRef(null);
   const modalRef = useRef(null);
 
-  // Efeito para permitir o fechamento do modal com a tecla ESC
+  // Cleanup function for file previews
+  useEffect(() => {
+    return () => {
+      budgetData.files.forEach(file => {
+        if (file.preview) {
+          URL.revokeObjectURL(file.preview);
+        }
+      });
+    };
+  }, [budgetData.files]);
+
+  // Handle escape key
   useEffect(() => {
     const handleEscape = (e) => {
       if (e.key === 'Escape' && !isSubmitting) {
@@ -33,124 +57,178 @@ const BudgetModal = ({ job, onClose, onSuccess }) => {
     return () => window.removeEventListener('keydown', handleEscape);
   }, [isSubmitting, onClose]);
 
-  // Função para fechar o modal quando clicar fora dele
-  const handleOutsideClick = (e) => {
-    if (modalRef.current && !modalRef.current.contains(e.target) && !isSubmitting) {
-      onClose();
+  // Validate amount format
+  const validateAmount = (value) => {
+    const amount = value.replace(/[^\d.,]/g, '');
+    const errors = {};
+    
+    if (!amount) {
+      errors.amount = 'O valor é obrigatório';
+    } else if (isNaN(parseFloat(amount.replace(',', '.')))) {
+      errors.amount = 'Valor inválido';
     }
+    
+    return errors;
   };
 
-  // Função para lidar com mudanças nos campos do orçamento
+  // Validate time estimate format
+  const validateTimeEstimate = (value) => {
+    const errors = {};
+    const timePattern = /^(\d+)\s*(dia|dias|semana|semanas|mês|meses)$/i;
+    
+    if (value && !timePattern.test(value)) {
+      errors.timeEstimate = 'Formato inválido. Use: "X dias", "X semanas" ou "X meses"';
+    }
+    
+    return errors;
+  };
+
+  // Handle budget data changes with validation
   const handleBudgetChange = (e) => {
     const { name, value } = e.target;
     setBudgetData(prev => ({
       ...prev,
       [name]: value
     }));
+
+    // Clear specific error when field is modified
+    setValidationErrors(prev => ({
+      ...prev,
+      [name]: undefined
+    }));
+
+    // Validate on change
+    if (name === 'amount') {
+      const errors = validateAmount(value);
+      setValidationErrors(prev => ({
+        ...prev,
+        amount: errors.amount
+      }));
+    } else if (name === 'timeEstimate') {
+      const errors = validateTimeEstimate(value);
+      setValidationErrors(prev => ({
+        ...prev,
+        timeEstimate: errors.timeEstimate
+      }));
+    }
   };
 
-  // Função para lidar com upload de arquivos
+  // Validate file
+  const validateFile = (file) => {
+    if (file.size > MAX_FILE_SIZE) {
+      return `${file.name} excede o tamanho máximo permitido (5MB)`;
+    }
+    if (!ALLOWED_FILE_TYPES.includes(file.type)) {
+      return `${file.name} tem um formato não permitido`;
+    }
+    return null;
+  };
+
+  // Handle file upload with validation
   const handleFileUpload = (e) => {
     const fileList = e.target.files;
     if (fileList.length === 0) return;
     
-    const newFiles = Array.from(fileList).map(file => ({
-      file,
-      name: file.name,
-      size: file.size,
-      type: file.type,
-      preview: URL.createObjectURL(file)
-    }));
-    
+    const newFiles = Array.from(fileList).map(file => {
+      const error = validateFile(file);
+      return {
+        file,
+        name: file.name,
+        size: file.size,
+        type: file.type,
+        preview: error ? null : URL.createObjectURL(file),
+        error
+      };
+    });
+
+    // Filter out files with errors and check total count
+    const validFiles = newFiles.filter(file => !file.error);
+    const totalFiles = budgetData.files.length + validFiles.length;
+
+    if (totalFiles > MAX_FILES) {
+      setErrorMessage(`Máximo de ${MAX_FILES} arquivos permitido`);
+      return;
+    }
+
+    // Show errors for invalid files
+    const errors = newFiles.filter(file => file.error).map(file => file.error);
+    if (errors.length > 0) {
+      setErrorMessage(errors.join('\n'));
+    }
+
     setBudgetData(prev => ({
       ...prev,
-      files: [...prev.files, ...newFiles]
+      files: [...prev.files, ...validFiles]
     }));
   };
 
-  // Função para remover um arquivo da lista
-  const removeFile = (index) => {
+  // Remove file
+  const removeFile = useCallback((index) => {
     setBudgetData(prev => {
       const newFiles = [...prev.files];
-      URL.revokeObjectURL(newFiles[index].preview);
+      if (newFiles[index].preview) {
+        URL.revokeObjectURL(newFiles[index].preview);
+      }
       newFiles.splice(index, 1);
       return {
         ...prev,
         files: newFiles
       };
     });
-  };
+  }, []);
 
-  // Função para formatar o tamanho do arquivo
-  const formatFileSize = (bytes) => {
+  // Format file size
+  const formatFileSize = useCallback((bytes) => {
     if (bytes < 1024) return bytes + ' B';
     else if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
     else return (bytes / 1048576).toFixed(1) + ' MB';
-  };
+  }, []);
 
-  // Função para fazer upload de um arquivo para o storage
-  const uploadFileToStorage = async (file) => {
-    try {
-      const storage = getStorage();
-      const fileExtension = file.name.split('.').pop();
-      const fileName = `orcamentos/${job.id}/${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExtension}`;
-      const storageRef = ref(storage, fileName);
-      
-      await uploadBytes(storageRef, file);
-      const downloadURL = await getDownloadURL(storageRef);
-      
-      return {
-        name: file.name,
-        url: downloadURL,
-        path: fileName,
-        type: file.type,
-        size: file.size
-      };
-    } catch (error) {
-      console.error("Erro ao fazer upload do arquivo:", error);
-      return null;
-    }
-  };
-
-  // Função para enviar orçamento
+  // Submit budget with validation
   const submitBudget = async (e) => {
     e.preventDefault();
     
-    // Limpar mensagens anteriores
+    // Clear previous messages
     setErrorMessage('');
     setSuccessMessage('');
     
-    if (!budgetData.amount.trim()) {
-      setErrorMessage("Por favor, informe o valor do orçamento.");
+    // Validate all fields
+    const amountErrors = validateAmount(budgetData.amount);
+    const timeErrors = validateTimeEstimate(budgetData.timeEstimate);
+    
+    const errors = {
+      ...amountErrors,
+      ...timeErrors,
+      description: !budgetData.description.trim() ? 'A descrição é obrigatória' : undefined
+    };
+
+    // Check for validation errors
+    const hasErrors = Object.values(errors).some(error => error !== undefined);
+    if (hasErrors) {
+      setValidationErrors(errors);
       return;
     }
     
     try {
       setIsSubmitting(true);
       
-      // Upload de arquivos
-      const filePromises = budgetData.files.map(fileData => uploadFileToStorage(fileData.file));
-      const uploadedFiles = await Promise.all(filePromises);
-      const validFiles = uploadedFiles.filter(file => file !== null);
-      
-      // Criação do orçamento
+      // Create budget data
       const orcamentoData = {
         workId: job.id,
         gestorId: job.userId,
         technicianId: auth.currentUser.uid,
-        amount: parseFloat(budgetData.amount),
-        description: budgetData.description,
+        amount: parseFloat(budgetData.amount.replace(',', '.')),
+        description: budgetData.description.trim(),
         timeEstimate: budgetData.timeEstimate,
-        files: validFiles,
-        status: 'pending', // pending, accepted, rejected
+        status: 'pending',
         createdAt: serverTimestamp(),
         viewed: false
       };
       
-      // Salvar no Firestore
-      await addDoc(collection(db, 'orcamentos'), orcamentoData);
+      // Save to Firestore
+      const docRef = await addDoc(collection(db, 'orcamentos'), orcamentoData);
       
-      // Atualizar status da obra se necessário
+      // Update work status if needed
       if (job.status === 'disponivel') {
         const workRef = doc(db, 'works', job.id);
         await updateDoc(workRef, {
@@ -160,7 +238,7 @@ const BudgetModal = ({ job, onClose, onSuccess }) => {
       
       setSuccessMessage('Orçamento enviado com sucesso!');
       
-      // Fechar o modal após 1.5 segundos
+      // Close modal after success
       setTimeout(() => {
         setIsSubmitting(false);
         onSuccess();
@@ -168,8 +246,15 @@ const BudgetModal = ({ job, onClose, onSuccess }) => {
       
     } catch (error) {
       console.error("Erro ao enviar orçamento:", error);
-      setErrorMessage(`Erro ao enviar orçamento: ${error.message}`);
+      setErrorMessage('Erro ao enviar orçamento. Por favor, tente novamente.');
       setIsSubmitting(false);
+    }
+  };
+
+  // Função para fechar o modal quando clicar fora dele
+  const handleOutsideClick = (e) => {
+    if (modalRef.current && !modalRef.current.contains(e.target) && !isSubmitting) {
+      onClose();
     }
   };
 
@@ -210,12 +295,10 @@ const BudgetModal = ({ job, onClose, onSuccess }) => {
                 <FiDollarSign /> Valor do Orçamento (R$)
               </label>
               <input
-                type="number"
+                type="text"
                 id="amount"
                 name="amount"
-                placeholder="0,00"
-                step="0.01"
-                min="0"
+                placeholder="Digite o valor"
                 value={budgetData.amount}
                 onChange={handleBudgetChange}
                 required
