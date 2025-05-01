@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiArrowLeft, FiSearch, FiPlus } from 'react-icons/fi';
-import { collection, query, where, getDocs, doc, updateDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, updateDoc, getDoc } from 'firebase/firestore';
 import { db } from '../../../../services/firebase';
 import { useAuth } from '../../../../contexts/auth';
+import { toast } from 'react-hot-toast';
 import './Jobs.css';
 import WorkDetailsModal from '../WorkDetailsModal/WorkDetailsModal';
 
@@ -20,6 +21,18 @@ function Jobs() {
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [priorityFilter, setPriorityFilter] = useState('all');
   const [locationFilter, setLocationFilter] = useState('');
+
+  // Instead of using useEffect for debugging, we'll create a separate utility function
+  const logWorkData = (work) => {
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[DEBUG] Work data:`, {
+        id: work.id,
+        title: work.title,
+        hasOrcamentos: Array.isArray(work.orcamentos),
+        orcamentosCount: Array.isArray(work.orcamentos) ? work.orcamentos.length : 'N/A'
+      });
+    }
+  };
 
   useEffect(() => {
     fetchObras();
@@ -51,6 +64,84 @@ function Jobs() {
     }
   };
 
+  // Function to fetch orcamentos for a specific work
+  const fetchOrcamentosForWork = async (workId) => {
+    try {
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`[DEBUG] Starting fetchOrcamentosForWork for workId: ${workId}`);
+      }
+      
+      // First check if the work document already has orcamentos array
+      const workRef = doc(db, 'works', workId);
+      const workDoc = await getDoc(workRef);
+      const workData = workDoc.data();
+      
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`[DEBUG] Work data:`, workData);
+      }
+
+      if (workData && Array.isArray(workData.orcamentos) && workData.orcamentos.length > 0) {
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`[DEBUG] Found ${workData.orcamentos.length} orcamentos in work document:`, workData.orcamentos);
+        }
+        return workData.orcamentos;
+      }
+      
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`[DEBUG] No orcamentos array found in work document, checking orcamentos collection`);
+      }
+
+      // If not found in the work document, try to fetch from orcamentos collection
+      const orcamentosRef = collection(db, 'orcamentos');
+      const q = query(orcamentosRef, where('workId', '==', workId));
+      const querySnapshot = await getDocs(q);
+      
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`[DEBUG] Orcamentos collection query result: ${querySnapshot.size} documents found`);
+      }
+      
+      if (querySnapshot.empty) {
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`[DEBUG] No orcamentos found in collection for workId: ${workId}`);
+        }
+        return [];
+      }
+      
+      const orcamentosData = querySnapshot.docs.map(doc => {
+        const data = doc.data();
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`[DEBUG] Orcamento document data:`, data);
+        }
+        return {
+          id: doc.id,
+          ...data
+        };
+      });
+
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`[DEBUG] Processed ${orcamentosData.length} orcamentos from collection:`, orcamentosData);
+      }
+
+      // Update the work document with these orcamentos for future reference
+      if (orcamentosData.length > 0) {
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`[DEBUG] Updating work document with orcamentos array`);
+        }
+        await updateDoc(workRef, {
+          orcamentos: orcamentosData
+        });
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`[DEBUG] Work document updated successfully`);
+        }
+      }
+
+      return orcamentosData;
+    } catch (error) {
+      console.error(`[ERROR] Error fetching orcamentos:`, error);
+      return [];
+    }
+  };
+
   const filteredObras = obras.filter(obra => {
     const matchesSearch = obra.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          obra.description?.toLowerCase().includes(searchTerm.toLowerCase());
@@ -70,8 +161,55 @@ function Jobs() {
     navigate('/dashgestor');
   };
 
-  const handleObraClick = (obra) => {
-    setSelectedWork(obra);
+  const handleObraClick = async (obra) => {
+    try {
+      // Show loading state
+      setLoading(true);
+      
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`[DEBUG] handleObraClick called for obra:`, {
+          id: obra.id,
+          title: obra.title,
+          hasOrcamentos: Array.isArray(obra.orcamentos),
+          orcamentosCount: Array.isArray(obra.orcamentos) ? obra.orcamentos.length : 'N/A'
+        });
+      }
+      
+      // Check if obra has an orcamentos array
+      if (!Array.isArray(obra.orcamentos)) {
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`[DEBUG] Obra doesn't have orcamentos array, fetching from database`);
+        }
+        // Fetch orcamentos if needed
+        const orcamentos = await fetchOrcamentosForWork(obra.id);
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`[DEBUG] Fetched orcamentos:`, orcamentos);
+        }
+        obra = { ...obra, orcamentos };
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`[DEBUG] Updated obra object with orcamentos`);
+        }
+      } else {
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`[DEBUG] Obra already has ${obra.orcamentos.length} orcamentos:`, obra.orcamentos);
+        }
+      }
+      
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`[DEBUG] Setting selectedWork with obra:`, obra);
+      }
+      
+      setSelectedWork(obra);
+      
+      // Log after setting selectedWork
+      if (process.env.NODE_ENV === 'development' && obra) {
+        logWorkData(obra);
+      }
+    } catch (error) {
+      console.error(`[ERROR] Error in handleObraClick:`, error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleCloseModal = () => {
@@ -103,6 +241,64 @@ function Jobs() {
       fetchObras();
     } catch (error) {
       console.error("Erro ao atualizar status da obra:", error);
+    }
+  };
+
+  // Function to handle file download
+  const handleFileDownload = (file) => {
+    if (file && file.url) {
+      window.open(file.url, '_blank');
+    }
+  };
+
+  // Function to handle accepting an orcamento
+  const handleAcceptOrcamento = async (workId, orcamentoIndex) => {
+    try {
+      setLoading(true);
+      const workRef = doc(db, 'works', workId);
+      const workDoc = await getDoc(workRef);
+      const workData = workDoc.data();
+      
+      if (!workData.orcamentos || !Array.isArray(workData.orcamentos)) {
+        alert('Não foi possível encontrar os orçamentos desta obra.');
+        return;
+      }
+
+      // Update the specific orcamento to mark it as accepted and viewed
+      const updatedOrcamentos = workData.orcamentos.map((orcamento, index) => {
+        if (index === orcamentoIndex) {
+          return { ...orcamento, aceito: true, visualizado: true };
+        }
+        return orcamento;
+      });
+
+      // Update in Firestore
+      await updateDoc(workRef, {
+        orcamentos: updatedOrcamentos
+      });
+
+      // Update local state
+      setObras(prevObras => 
+        prevObras.map(obra => 
+          obra.id === workId ? { ...obra, orcamentos: updatedOrcamentos } : obra
+        )
+      );
+      
+      // Update the selected work
+      if (selectedWork && selectedWork.id === workId) {
+        setSelectedWork({
+          ...selectedWork,
+          orcamentos: updatedOrcamentos
+        });
+      }
+
+      // Show success message
+      alert('Orçamento aceito com sucesso!');
+    } catch (error) {
+      console.error('Erro ao aceitar orçamento:', error);
+      alert('Erro ao aceitar orçamento: ' + error.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -248,7 +444,8 @@ function Jobs() {
           onEdit={() => {}}
           onDelete={() => {}}
           onComplete={handleComplete}
-          onFileDownload={() => {}}
+          onFileDownload={handleFileDownload}
+          onAcceptOrcamento={handleAcceptOrcamento}
         />
       )}
     </div>

@@ -15,7 +15,7 @@
   background: white;
   border-radius: 12px;
   width: 90%;
-  max-width: 800px;
+  max-width: 900px;
   max-height: 90vh;
   overflow-y: auto;
   position: relative;
@@ -62,6 +62,15 @@
 
 .work-details-modal-body {
   padding: 24px;
+}
+
+.work-details-content-container {
+  display: flex;
+  gap: 24px;
+}
+
+.work-details-main-content {
+  flex: 1;
 }
 
 .work-details-status-row {
@@ -257,18 +266,19 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 16px;
-  gap: 8px;
+  padding: 20px;
+  text-align: center;
 }
 
 .file-name {
-  font-size: 12px;
-  color: #6B7280;
-  text-align: center;
+  font-size: 14px;
+  font-weight: 500;
+  color: #4B5563;
+  margin-top: 8px;
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  max-width: 100%;
 }
 
 .file-overlay {
@@ -293,9 +303,9 @@
   color: white;
   width: 24px;
   height: 24px;
+  filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.3));
 }
 
-/* Estilo para scrollbar personalizado */
 .work-details-modal-content::-webkit-scrollbar {
   width: 8px;
 }
@@ -306,10 +316,184 @@
 }
 
 .work-details-modal-content::-webkit-scrollbar-thumb {
-  background: #D1D5DB;
-  border-radius: 20px;
+  background-color: #D1D5DB;
+  border-radius: 4px;
 }
 
 .work-details-modal-content::-webkit-scrollbar-thumb:hover {
-  background: #9CA3AF;
+  background-color: #9CA3AF;
+}
+
+.orcamentos-sidebar {
+  width: 280px;
+  min-width: 280px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 16px;
+  border: 1px solid #E5E7EB;
+  align-self: flex-start;
+}
+
+.orcamentos-header {
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #E5E7EB;
+}
+
+.orcamentos-header h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #111827;
+  margin: 0;
+}
+
+.orcamentos-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+.orcamento-card {
+  position: relative;
+  padding: 12px;
+  background: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+  border-left: 3px solid #E5E7EB;
+}
+
+.orcamento-card.orcamento-aceito {
+  background-color: #ECFDF5;
+  border-left: 3px solid #059669;
+}
+
+.orcamento-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.orcamento-info h4 {
+  margin: 0;
+  color: #111827;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.orcamento-date {
+  color: #6B7280;
+  font-size: 12px;
+}
+
+.orcamento-value {
+  font-size: 16px;
+  font-weight: 700;
+  color: #111827;
+  margin-bottom: 8px;
+}
+
+.orcamento-document,
+.orcamento-description,
+.orcamento-files {
+  margin-top: 8px;
+  font-size: 13px;
+}
+
+.orcamento-description {
+  color: #6B7280;
+  line-height: 1.4;
+  background-color: #F9FAFB;
+  padding: 8px;
+  border-radius: 4px;
+  max-height: 80px;
+  overflow-y: auto;
+}
+
+.orcamento-files {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.document-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #2563EB;
+  text-decoration: none;
+  padding: 4px 0;
+}
+
+.document-link:hover {
+  text-decoration: underline;
+}
+
+.orcamento-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.orcamento-aceitar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background-color: #28a745;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.orcamento-aceitar:hover {
+  background-color: #218838;
+  transform: translateY(-2px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.orcamento-aceito-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  background-color: #28a745;
+  color: white;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.orcamento-card.orcamento-aceito {
+  border-left-color: #28a745;
+  background-color: rgba(40, 167, 69, 0.05);
+}
+
+@media (max-width: 768px) {
+  .work-details-content-container {
+    flex-direction: column;
+  }
+  
+  .orcamentos-sidebar {
+    width: 100%;
+    min-width: 100%;
+  }
+  
+  .work-details-modal-content {
+    width: 95%;
+  }
 } 
