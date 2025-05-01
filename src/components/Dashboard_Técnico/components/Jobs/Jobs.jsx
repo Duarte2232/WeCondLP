@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiMapPin, FiClock, FiPhone, FiArrowLeft, FiTag, FiInfo, FiAlertCircle, FiMessageSquare, FiDollarSign } from 'react-icons/fi';
 import { getAuth } from 'firebase/auth';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../../../../services/firebase.jsx';
 import './Jobs.css';
 import JobDetailsModal from '../JobDetailsModal/JobDetailsModal';
@@ -14,7 +14,34 @@ const Jobs = ({ jobs, loading }) => {
   const [selectedJob, setSelectedJob] = useState(null);
   const [showBudgetModal, setShowBudgetModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [jobsWithBudgetStatus, setJobsWithBudgetStatus] = useState([]);
   
+  useEffect(() => {
+    const checkBudgetStatus = async () => {
+      if (!jobs) return;
+      
+      const jobsWithStatus = await Promise.all(jobs.map(async (job) => {
+        // Verificar se existe orçamento para esta obra
+        const orcamentosRef = collection(db, 'orcamentos');
+        const q = query(
+          orcamentosRef, 
+          where('workId', '==', job.id),
+          where('technicianId', '==', auth.currentUser.uid)
+        );
+        const querySnapshot = await getDocs(q);
+        
+        return {
+          ...job,
+          hasSubmittedBudget: !querySnapshot.empty
+        };
+      }));
+      
+      setJobsWithBudgetStatus(jobsWithStatus);
+    };
+    
+    checkBudgetStatus();
+  }, [jobs, auth.currentUser.uid]);
+
   // Depurar as obras recebidas
   console.log("Jobs recebidos no componente:", jobs);
   
@@ -101,6 +128,8 @@ const Jobs = ({ jobs, loading }) => {
     // Atualiza a lista de obras
     setShowBudgetModal(false);
     setSelectedJob(null);
+    // Recarregar o status dos orçamentos
+    checkBudgetStatus();
   };
 
   return (
@@ -114,8 +143,8 @@ const Jobs = ({ jobs, loading }) => {
       </div>
       
       <div className="jobs-list">
-        {jobs && jobs.length > 0 ? (
-          jobs.map((job) => (
+        {jobsWithBudgetStatus && jobsWithBudgetStatus.length > 0 ? (
+          jobsWithBudgetStatus.map((job) => (
             <div key={job.id} className="job-card">
               <div className="job-header">
                 <h2>{job.title}</h2>
@@ -153,10 +182,12 @@ const Jobs = ({ jobs, loading }) => {
               </div>
 
               <div className="job-actions">
-                <button className="budget-btn" onClick={() => openBudgetModal(job)}>
-                  <FiDollarSign />
-                  Enviar Orçamento
-                </button>
+                {!job.hasSubmittedBudget && (
+                  <button className="budget-btn" onClick={() => openBudgetModal(job)}>
+                    <FiDollarSign />
+                    Enviar Orçamento
+                  </button>
+                )}
                 <button className="view-details-btn" onClick={() => showJobDetails(job)}>
                   Ver Detalhes
                 </button>
@@ -169,8 +200,9 @@ const Jobs = ({ jobs, loading }) => {
                 </button>
               </div>
               
-              <span className={`status-badge ${job.status || 'disponivel'}`}>
-                {!job.status ? "Disponível" :
+              <span className={`status-badge ${job.hasSubmittedBudget ? 'orcamento-enviado' : job.status || 'disponivel'}`}>
+                {job.hasSubmittedBudget ? "Orçamento Enviado" :
+                 !job.status ? "Disponível" :
                  job.status === "disponivel" ? "Disponível" :
                  job.status === "confirmada" ? "Confirmada" :
                  job.status === "concluida" ? "Concluída" :

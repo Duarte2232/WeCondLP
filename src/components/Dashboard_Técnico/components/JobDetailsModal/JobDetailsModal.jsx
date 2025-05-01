@@ -80,7 +80,7 @@ const JobDetailsModal = ({ job, onClose }) => {
               <div className="detail-row">
                 <div className="detail-item full-width">
                   <FiPhone />
-                  <span className="detail-label">Contato:</span>
+                  <span className="detail-label">Contacto:</span>
                   <span className="detail-value">{job.contact}</span>
                 </div>
               </div>
@@ -96,6 +96,15 @@ const JobDetailsModal = ({ job, onClose }) => {
                      job.priority === 'MEDIA' ? 'Média' : 
                      job.priority === 'BAIXA' ? 'Baixa' : job.priority}
                   </span>
+                </div>
+              </div>
+            )}
+
+            {job.budget && (
+              <div className="detail-row">
+                <div className="detail-item full-width">
+                  <span className="detail-label">Orçamento:</span>
+                  <span className="detail-value">{job.budget}</span>
                 </div>
               </div>
             )}

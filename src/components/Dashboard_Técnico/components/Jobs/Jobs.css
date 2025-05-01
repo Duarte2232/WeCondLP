@@ -315,6 +315,11 @@ h1 {
   color: #0284C7;
 }
 
+.status-badge.orcamento-enviado {
+  background-color: #E0F2FE !important;
+  color: #0369A1 !important;
+}
+
 .job-actions {
   position: absolute;
   display: flex;

@@ -2,8 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { FiX, FiUpload, FiFile, FiDollarSign, FiClock, FiAlignLeft, FiFileText, FiPaperclip, FiTrash2, FiCheck } from 'react-icons/fi';
 import { getAuth } from 'firebase/auth';
 import { doc, addDoc, collection, serverTimestamp, updateDoc, getDoc } from 'firebase/firestore';
-import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { db, storage } from '../../../../services/firebase.jsx';
+import { db } from '../../../../services/firebase.jsx';
+import { CLOUDINARY_CONFIG } from '../../../../config/cloudinary';
 import { v4 as uuidv4 } from 'uuid';
 import './BudgetModal.css';
 
@@ -88,27 +88,40 @@ const BudgetModal = ({ job, onClose, onSuccess }) => {
     else return (bytes / 1048576).toFixed(1) + ' MB';
   };
 
-  // Função para fazer upload de um arquivo para o storage
+  // Função para fazer upload de um arquivo para o Cloudinary
   const uploadFileToStorage = async (file) => {
     try {
-      const storage = getStorage();
-      const fileExtension = file.name.split('.').pop();
-      const fileName = `orcamentos/${job.id}/${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExtension}`;
-      const storageRef = ref(storage, fileName);
-      
-      await uploadBytes(storageRef, file);
-      const downloadURL = await getDownloadURL(storageRef);
-      
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('upload_preset', CLOUDINARY_CONFIG.uploadPreset);
+      formData.append('api_key', CLOUDINARY_CONFIG.apiKey);
+      formData.append('timestamp', Math.floor(Date.now() / 1000));
+
+      const response = await fetch(
+        `https://api.cloudinary.com/v1_1/${CLOUDINARY_CONFIG.cloudName}/auto/upload`,
+        {
+          method: 'POST',
+          body: formData
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('Erro detalhado:', errorData);
+        throw new Error(`Falha no upload do arquivo: ${errorData.error?.message || 'Erro desconhecido'}`);
+      }
+
+      const data = await response.json();
       return {
+        url: data.secure_url,
+        publicId: data.public_id,
         name: file.name,
-        url: downloadURL,
-        path: fileName,
-        type: file.type,
+        type: file.type.split('/')[0],
         size: file.size
       };
     } catch (error) {
       console.error("Erro ao fazer upload do arquivo:", error);
-      return null;
+      throw error;
     }
   };
 
@@ -138,7 +151,7 @@ const BudgetModal = ({ job, onClose, onSuccess }) => {
         workId: job.id,
         gestorId: job.userId,
         technicianId: auth.currentUser.uid,
-        amount: parseFloat(budgetData.amount),
+        amount: budgetData.amount,
         description: budgetData.description,
         timeEstimate: budgetData.timeEstimate,
         files: validFiles,
@@ -210,12 +223,10 @@ const BudgetModal = ({ job, onClose, onSuccess }) => {
                 <FiDollarSign /> Valor do Orçamento (R$)
               </label>
               <input
-                type="number"
+                type="text"
                 id="amount"
                 name="amount"
-                placeholder="0,00"
-                step="0.01"
-                min="0"
+                placeholder="Digite o valor"
                 value={budgetData.amount}
                 onChange={handleBudgetChange}
                 required
