@@ -5,10 +5,12 @@ import NewMaintenanceButton from './NewMaintenanceButton';
 import WorkDetailsModal from '../WorkDetailsModal/WorkDetailsModal';
 import { db } from '../../../../services/firebase';
 import { collection, query, where, getDocs, doc, updateDoc } from 'firebase/firestore';
+import { useAuth } from '../../../../contexts/auth';
 import './Maintenance.css';
 
 function Maintenance() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [manutencoes, setManutencoes] = useState([]);
   const [filteredManutencoes, setFilteredManutencoes] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -17,28 +19,27 @@ function Maintenance() {
   const [priorityFilter, setPriorityFilter] = useState('all');
   const [locationFilter, setLocationFilter] = useState('');
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState(null);
   const [selectedWork, setSelectedWork] = useState(null);
 
   useEffect(() => {
-    // Obter o usuário atual do sessionStorage
-    const currentUser = JSON.parse(sessionStorage.getItem('user'));
-    setUser(currentUser);
-
-    if (currentUser) {
-      fetchManutencoes(currentUser);
+    if (user) {
+      fetchManutencoes();
     }
-  }, []);
+  }, [user]);
 
-  const fetchManutencoes = async (currentUser) => {
+  const fetchManutencoes = async () => {
+    if (!user?.email) return;
+    
     try {
       setLoading(true);
-      console.log('Fetching maintenances for user:', currentUser?.email);
+      console.log('Fetching maintenances for user:', user.email);
+      
       const q = query(
         collection(db, 'works'),
-        where('userEmail', '==', currentUser.email),
+        where('userEmail', '==', user.email),
         where('isMaintenance', '==', true)
       );
+      
       const querySnapshot = await getDocs(q);
       console.log('Firestore query executed. Docs found:', querySnapshot.docs.length);
       
@@ -46,23 +47,20 @@ function Maintenance() {
         id: doc.id,
         ...doc.data(),
       }));
-      console.log('Mapped maintenances data:', manutencoesData);
       
       const sortedManutencoes = manutencoesData.sort((a, b) => {
-          const dateA = a.createdAt?.toDate?.() || new Date(0);
-          const dateB = b.createdAt?.toDate?.() || new Date(0);
-          return dateB - dateA;
+        const dateA = a.createdAt?.toDate?.() || new Date(0);
+        const dateB = b.createdAt?.toDate?.() || new Date(0);
+        return dateB - dateA;
       });
-      console.log('Sorted maintenances data:', sortedManutencoes);
       
       setManutencoes(sortedManutencoes);
       setFilteredManutencoes(sortedManutencoes);
-      console.log('Maintenance state updated.');
+      console.log('Maintenance state updated with:', sortedManutencoes.length, 'items');
     } catch (error) {
       console.error('Erro ao carregar manutenções:', error);
     } finally {
       setLoading(false);
-      console.log('Finished fetching maintenances. Loading state set to false.');
     }
   };
 
@@ -97,13 +95,11 @@ function Maintenance() {
     if (!workId) return;
 
     try {
-      // Atualizar no Firestore
-      const workRef = doc(db, 'maintenances', workId);
+      const workRef = doc(db, 'works', workId);
       await updateDoc(workRef, {
         status: newStatus
       });
 
-      // Atualizar localmente
       setManutencoes(prevManutencoes => 
         prevManutencoes.map(manutencao => 
           manutencao.id === workId 
@@ -112,7 +108,6 @@ function Maintenance() {
         )
       );
 
-      // Fechar o modal
       setSelectedWork(null);
     } catch (error) {
       console.error('Erro ao atualizar status da manutenção:', error);
@@ -124,6 +119,22 @@ function Maintenance() {
     setSelectedWork(null);
   };
 
+  if (loading) {
+    return (
+      <div className="jobs-container">
+        <div className="jobs-header">
+          <button className="back-button" onClick={handleBack}>
+            <FiArrowLeft /> Voltar
+          </button>
+          <h1>Manutenções</h1>
+        </div>
+        <div className="loading-container">
+          <p>Carregando manutenções...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="jobs-container">
       <div className="jobs-header">
@@ -133,126 +144,120 @@ function Maintenance() {
         <h1>Manutenções</h1>
       </div>
 
-      <div className="filters-container">
-        <div className="filters-inline">
-          <div className="search-box">
-            <FiSearch className="search-icon" />
+      <div className="content-wrapper">
+        <div className="filters-container">
+          <div className="filters-inline">
+            <div className="search-box">
+              <FiSearch className="search-icon" />
+              <input
+                type="text"
+                placeholder="Pesquisar manutenções..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+
+            <select 
+              className="filter-select"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+            >
+              <option value="all">Status</option>
+              <option value="disponivel">Disponível</option>
+              <option value="em-andamento">Em andamento</option>
+              <option value="concluido">Concluído</option>
+            </select>
+
+            <select 
+              className="filter-select"
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value)}
+            >
+              <option value="all">Categorias</option>
+              <option value="Infiltração">Infiltração</option>
+              <option value="Fissuras e rachaduras">Fissuras</option>
+              <option value="Canalização">Canalização</option>
+              <option value="Jardinagem">Jardinagem</option>
+              <option value="Fiscalização">Fiscalização</option>
+              <option value="Reabilitação de Fachada">Fachada</option>
+              <option value="Eletricidade">Eletricidade</option>
+              <option value="Construção">Construção</option>
+              <option value="Pintura">Pintura</option>
+            </select>
+
+            <select 
+              className="filter-select"
+              value={priorityFilter}
+              onChange={(e) => setPriorityFilter(e.target.value)}
+            >
+              <option value="all">Prioridade</option>
+              <option value="Baixa">Baixa</option>
+              <option value="Média">Média</option>
+              <option value="Alta">Alta</option>
+              <option value="Urgente">Urgente</option>
+            </select>
+
             <input
               type="text"
-              placeholder="Pesquisar manutenções..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Localização"
+              className="filter-select location-filter"
+              value={locationFilter}
+              onChange={(e) => setLocationFilter(e.target.value)}
             />
+
+            <NewMaintenanceButton onCreated={fetchManutencoes} />
           </div>
-
-          <select 
-            className="filter-select"
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-          >
-            <option value="all">Status</option>
-            <option value="disponivel">Disponível</option>
-            <option value="em-andamento">Em andamento</option>
-            <option value="concluido">Concluído</option>
-          </select>
-
-          <select 
-            className="filter-select"
-            value={categoryFilter}
-            onChange={(e) => setCategoryFilter(e.target.value)}
-          >
-            <option value="all">Categorias</option>
-            <option value="Infiltração">Infiltração</option>
-            <option value="Fissuras e rachaduras">Fissuras</option>
-            <option value="Canalização">Canalização</option>
-            <option value="Jardinagem">Jardinagem</option>
-            <option value="Fiscalização">Fiscalização</option>
-            <option value="Reabilitação de Fachada">Fachada</option>
-            <option value="Eletricidade">Eletricidade</option>
-            <option value="Construção">Construção</option>
-            <option value="Pintura">Pintura</option>
-          </select>
-
-          <select 
-            className="filter-select"
-            value={priorityFilter}
-            onChange={(e) => setPriorityFilter(e.target.value)}
-          >
-            <option value="all">Prioridade</option>
-            <option value="Baixa">Baixa</option>
-            <option value="Média">Média</option>
-            <option value="Alta">Alta</option>
-            <option value="Urgente">Urgente</option>
-          </select>
-
-          <input
-            type="text"
-            placeholder="Localização"
-            className="filter-select location-filter"
-            value={locationFilter}
-            onChange={(e) => setLocationFilter(e.target.value)}
-          />
-
-          <NewMaintenanceButton onCreated={() => fetchManutencoes(user)} />
         </div>
-      </div>
 
-      <div className="obras-table-container">
-        <table className="obras-table">
-          <thead>
-            <tr>
-              <th>Título</th>
-              <th>Data</th>
-              <th>Categoria</th>
-              <th>Prioridade</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr>
-                <td colSpan="5" className="loading-message">
-                  <p>Carregando manutenções...</p>
-                </td>
-              </tr>
-            ) : filteredManutencoes.length === 0 ? (
-              <tr>
-                <td colSpan="5" className="no-data-message">
-                  <p>Nenhuma manutenção encontrada</p>
-                </td>
-              </tr>
-            ) : (
-              filteredManutencoes.map((manutencao) => (
-                <tr 
-                  key={manutencao.id} 
-                  className="work-row"
-                  onClick={() => handleManutencaoClick(manutencao)}
-                >
-                  <td className="title-cell">
-                    <div className="work-title">{manutencao.title}</div>
-                    {manutencao.description && (
-                      <div className="work-subtitle">{manutencao.description}</div>
-                    )}
-                  </td>
-                  <td>{manutencao.date}</td>
-                  <td>{manutencao.category}</td>
-                  <td>
-                    <span className={`priority-badge ${manutencao.priority?.toLowerCase() || ''}`}>
-                      {manutencao.priority || 'Normal'}
-                    </span>
-                  </td>
-                  <td>
-                    <span className={`status-badge ${manutencao.status?.toLowerCase() || ''}`}>
-                      {manutencao.status === 'concluido' ? 'Concluída' :
-                       manutencao.status === 'em-andamento' ? 'Em andamento' :
-                       'Disponível'}
-                    </span>
-                  </td>
+        <div className="obras-table-container">
+          {filteredManutencoes.length > 0 ? (
+            <table className="obras-table">
+              <thead>
+                <tr>
+                  <th>Título</th>
+                  <th>Data</th>
+                  <th>Categoria</th>
+                  <th>Prioridade</th>
+                  <th>Status</th>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              </thead>
+              <tbody>
+                {filteredManutencoes.map((manutencao) => (
+                  <tr 
+                    key={manutencao.id} 
+                    className="work-row"
+                    onClick={() => handleManutencaoClick(manutencao)}
+                  >
+                    <td className="title-cell">
+                      <div className="work-title">{manutencao.title}</div>
+                      {manutencao.description && (
+                        <div className="work-subtitle">{manutencao.description}</div>
+                      )}
+                    </td>
+                    <td>{manutencao.date && new Date(manutencao.date).toLocaleDateString()}</td>
+                    <td>{manutencao.category}</td>
+                    <td>
+                      <span className={`priority-badge ${manutencao.priority?.toLowerCase() || ''}`}>
+                        {manutencao.priority || 'Normal'}
+                      </span>
+                    </td>
+                    <td>
+                      <span className={`status-badge ${manutencao.status?.toLowerCase() || ''}`}>
+                        {manutencao.status === 'concluido' ? 'Concluída' :
+                         manutencao.status === 'em-andamento' ? 'Em andamento' :
+                         'Disponível'}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <div className="no-maintenances-message">
+              <p>Nenhuma manutenção encontrada</p>
+            </div>
+          )}
+        </div>
       </div>
 
       {selectedWork && (
