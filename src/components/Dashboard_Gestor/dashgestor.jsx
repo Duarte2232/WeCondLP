@@ -54,6 +54,7 @@ function DashGestor() {
   const [showItemDetails, setShowItemDetails] = useState(false);
   const [selectedRecentWork, setSelectedRecentWork] = useState(null);
   const [selectedWork, setSelectedWork] = useState(null);
+  const [workOrcamentos, setWorkOrcamentos] = useState({});
 
   const [newWork, setNewWork] = useState({
     title: '',
@@ -98,20 +99,87 @@ function DashGestor() {
     };
   };
 
-  const handleViewDetails = (workId) => {
-    setExpandedWorks(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(workId)) {
-        newSet.delete(workId);
-      } else {
-        newSet.add(workId);
-        // Marcar orçamentos como visualizados quando expandir os detalhes
-        if (unviewedOrcamentos[workId]) {
-          markOrcamentosAsViewed(workId);
+  const handleViewDetails = async (workId) => {
+    try {
+      console.log('----------------------------------------');
+      console.log('Starting to fetch orçamentos for work:', workId);
+      
+      // Query the orcamentos collection for all orcamentos with this workId
+      const orcamentosRef = collection(db, 'orcamentos');
+      
+      // Log the entire orcamentos collection first
+      const allOrcamentos = await getDocs(orcamentosRef);
+      console.log('Total orçamentos in collection:', allOrcamentos.size);
+      console.log('All orçamentos in collection:', allOrcamentos.docs.map(doc => ({
+        id: doc.id,
+        workId: doc.data().workId,
+        ...doc.data()
+      })));
+      
+      // Now query for specific workId
+      const q = query(orcamentosRef, where("workId", "==", workId));
+      console.log('Query parameters:', {
+        field: 'workId',
+        operator: '==',
+        value: workId
+      });
+      
+      const orcamentosSnapshot = await getDocs(q);
+      console.log('Found orçamentos for this work:', orcamentosSnapshot.size);
+      
+      // Get all orcamentos for this work
+      const workOrcamentos = orcamentosSnapshot.docs.map(doc => {
+        const data = doc.data();
+        console.log('Processing orçamento:', {
+          id: doc.id,
+          workId: data.workId,
+          valor: data.valor,
+          status: data.status,
+          createdAt: data.createdAt,
+          ...data
+        });
+        return {
+          id: doc.id,
+          ...data
+        };
+      });
+
+      console.log('----------------------------------------');
+      console.log('Final orçamentos array:', workOrcamentos);
+      console.log('Number of orçamentos found:', workOrcamentos.length);
+
+      // Store in state
+      setWorkOrcamentos(prev => {
+        console.log('Previous orçamentos state:', prev);
+        const newState = {
+          ...prev,
+          [workId]: workOrcamentos
+        };
+        console.log('New orçamentos state:', newState);
+        return newState;
+      });
+
+      // Toggle expanded state
+      setExpandedWorks(prev => {
+        const newSet = new Set(prev);
+        if (newSet.has(workId)) {
+          console.log('Collapsing work details');
+          newSet.delete(workId);
+        } else {
+          console.log('Expanding work details');
+          newSet.add(workId);
         }
-      }
-      return newSet;
-    });
+        return newSet;
+      });
+    } catch (error) {
+      console.error('----------------------------------------');
+      console.error('Error fetching orcamentos:', {
+        workId,
+        error: error.message,
+        stack: error.stack
+      });
+      alert('Erro ao carregar orçamentos: ' + error.message);
+    }
   };
 
   const handleStatusChange = async (workId, newStatus) => {
@@ -454,55 +522,62 @@ function DashGestor() {
     }
   };
 
-  // Função para aceitar um orçamento
-  const handleAceitarOrcamento = async (workId, orcamentoIndex) => {
+  const handleAceitarOrcamento = async (workId, orcamentoId) => {
     try {
-      const workRef = doc(db, 'works', workId);
-      const workDoc = await getDoc(workRef);
-      const workData = workDoc.data();
+      console.log('Accepting orçamento:', { workId, orcamentoId });
       
-      if (!workData.orcamentos || !Array.isArray(workData.orcamentos)) {
-        alert('Não foi possível encontrar os orçamentos desta obra.');
-        return;
-      }
-
-      // Atualiza o orçamento específico para marcá-lo como aceito e visualizado
-      const updatedOrcamentos = workData.orcamentos.map((orcamento, index) => {
-        if (index === orcamentoIndex) {
-          return { ...orcamento, aceito: true, visualizado: true };
-        }
-        return orcamento;
-      });
-
-      // Atualiza no Firestore
+      // Get references to both documents
+      const workRef = doc(db, 'works', workId);
+      const orcamentoRef = doc(db, 'orcamentos', orcamentoId);
+      
+      console.log('Updating work status to em-andamento');
+      // Update work status in works collection
       await updateDoc(workRef, {
-        orcamentos: updatedOrcamentos
+        status: "em-andamento"
       });
+      console.log('Work status updated successfully');
 
-      // Atualiza o estado local
-      setWorks(prevWorks => 
-        prevWorks.map(work => 
+      console.log('Updating orçamento status to accepted');
+      // Update orcamento status in orcamentos collection
+      await updateDoc(orcamentoRef, {
+        aceito: true
+      });
+      console.log('Orçamento status updated successfully');
+
+      // Update local work state
+      setWorks(prevWorks => {
+        console.log('Updating local works state');
+        return prevWorks.map(work => 
           work.id === workId
-            ? { ...work, orcamentos: updatedOrcamentos }
+            ? { ...work, status: "em-andamento" }
             : work
-        )
-      );
-
-      // Atualiza o estado de orçamentos não visualizados
-      const unviewedCount = updatedOrcamentos.filter(orc => !orc.visualizado).length;
-      setUnviewedOrcamentos(prev => {
-        const newState = { ...prev };
-        if (unviewedCount > 0) {
-          newState[workId] = unviewedCount;
-        } else {
-          delete newState[workId];
-        }
-        return newState;
+        );
       });
 
+      // Update local orcamentos state
+      setWorkOrcamentos(prev => {
+        console.log('Updating local orçamentos state');
+        return {
+          ...prev,
+          [workId]: prev[workId].map(orc => {
+            if (orc.id === orcamentoId) {
+              console.log('Marking orçamento as accepted:', orcamentoId);
+              return { ...orc, aceito: true };
+            }
+            return orc;
+          })
+        };
+      });
+
+      console.log('All updates completed successfully');
       alert('Orçamento aceito com sucesso!');
     } catch (error) {
-      console.error('Erro ao aceitar orçamento:', error);
+      console.error('Error accepting orçamento:', {
+        workId,
+        orcamentoId,
+        errorMessage: error.message,
+        errorStack: error.stack
+      });
       alert('Erro ao aceitar orçamento: ' + error.message);
     }
   };
@@ -1308,3 +1383,4 @@ function DashGestor() {
 }
 
 export default DashGestor;
+

@@ -12,6 +12,7 @@
   border-radius: 8px;
   overflow: hidden;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  margin-top: 20px;
 }
 
 .works-table th,
@@ -113,54 +114,76 @@
 }
 
 .work-details {
-  padding: 16px;
-  background-color: #f9fafb;
-  border-radius: 0 0 8px 8px;
+  padding: 15px;
 }
 
-.details-section {
-  margin-bottom: 20px;
+.work-details h4 {
+  margin: 0 0 15px 0;
+  color: #2c3e50;
 }
 
-.details-section h4 {
-  margin-top: 0;
-  margin-bottom: 8px;
-  font-size: 16px;
-  font-weight: 600;
-  color: #374151;
+.orcamentos-section {
+  margin-top: 20px;
+  border-top: 1px solid #dee2e6;
+  padding-top: 15px;
 }
 
-.details-section p {
-  margin: 0;
-  color: #4b5563;
-  line-height: 1.5;
+.orcamentos-list {
+  display: grid;
+  gap: 15px;
+  margin-top: 10px;
 }
 
-.status-selector {
+.orcamento-item {
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 15px;
   display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
 }
 
-.status-btn {
-  background-color: white;
-  border: 1px solid #e5e7eb;
-  color: #4b5563;
+.orcamento-info {
+  flex: 1;
+}
+
+.orcamento-info p {
+  margin: 5px 0;
+}
+
+.accept-btn {
+  background-color: #28a745;
+  color: white;
+  border: none;
   padding: 8px 16px;
   border-radius: 4px;
   cursor: pointer;
-  transition: all 0.2s;
-  font-size: 14px;
+  transition: background-color 0.2s;
 }
 
-.status-btn:hover {
-  background-color: #f3f4f6;
+.accept-btn:hover {
+  background-color: #218838;
 }
 
-.status-btn.active {
-  background-color: #3b82f6;
+.accepted-badge {
+  background-color: #198754;
   color: white;
-  border-color: #3b82f6;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 0.9em;
+}
+
+/* Responsive styles */
+@media (max-width: 768px) {
+  .orcamento-item {
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .accept-btn {
+    width: 100%;
+  }
 }
 
 /* File preview */
@@ -488,4 +511,12 @@
   color: white;
   border-radius: 4px;
   font-size: 14px;
+}
+
+.expanded-details {
+  background-color: #f8f9fa;
+}
+
+.expanded-details td {
+  padding: 20px;
 } 
