@@ -212,17 +212,23 @@ function WorksTable({
                                 {workOrcamentos[work.id].map((orcamento) => (
                                   <div key={orcamento.id} className="orcamento-item">
                                     <div className="orcamento-info">
-                                      <p><strong>Técnico:</strong> {orcamento.technicianName}</p>
-                                      <p><strong>Valor:</strong> €{orcamento.valor}</p>
-                                      <p><strong>Data:</strong> {new Date(orcamento.createdAt?.seconds * 1000).toLocaleDateString()}</p>
-                                      {orcamento.observacoes && (
-                                        <p><strong>Observações:</strong> {orcamento.observacoes}</p>
+                                      <p><strong>Técnico ID:</strong> {orcamento.technicianId}</p>
+                                      <p><strong>Valor:</strong> €{orcamento.amount}</p>
+                                      <p><strong>Tempo Estimado:</strong> {orcamento.timeEstimate}</p>
+                                      <p><strong>Data:</strong> {orcamento.createdAt?.seconds ? 
+                                        new Date(orcamento.createdAt.seconds * 1000).toLocaleDateString() : 
+                                        'Data não disponível'}</p>
+                                      {orcamento.description && (
+                                        <p><strong>Descrição:</strong> {orcamento.description}</p>
                                       )}
                                     </div>
                                     {work.status === "disponivel" && !orcamento.aceito && (
                                       <button 
                                         className="accept-btn"
-                                        onClick={() => onAcceptOrcamento(work.id, orcamento.id)}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          onAcceptOrcamento(work.id, orcamento.id);
+                                        }}
                                       >
                                         Aceitar Orçamento
                                       </button>
@@ -256,6 +262,7 @@ function WorksTable({
               onStatusChange={onStatusChange}
               onFileDownload={onFileDownload}
               workOrcamentos={workOrcamentos[selectedWork.id] || []}
+              onAcceptOrcamento={onAcceptOrcamento}
             />
           )}
         </>

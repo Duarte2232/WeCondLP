@@ -5,7 +5,7 @@ import './dashgestor.css';
 import { FiPlusCircle, FiFilter, FiSearch, FiBell, FiEdit2, FiEye, FiCheck, FiX, FiCalendar, FiUpload, FiArrowLeft, FiFile, FiDownload, FiAlertCircle, FiTag, FiMapPin } from 'react-icons/fi';
 import { useAuth } from '../../contexts/auth';
 import { db } from '../../services/firebase';
-import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, getDoc, serverTimestamp, writeBatch } from 'firebase/firestore';
+import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, getDoc, serverTimestamp, writeBatch, onSnapshot } from 'firebase/firestore';
 import { useNavigate, Routes, Route, useLocation } from 'react-router-dom';
 import { CLOUDINARY_CONFIG } from '../../config/cloudinary';
 import LoadingAnimation from '../LoadingAnimation/LoadingAnimation';
@@ -127,13 +127,13 @@ function DashGestor() {
       const orcamentosSnapshot = await getDocs(q);
       console.log('Found orçamentos for this work:', orcamentosSnapshot.size);
       
-      // Get all orcamentos for this work
+      // Get all orcamentos for this work with additional details
       const workOrcamentos = orcamentosSnapshot.docs.map(doc => {
         const data = doc.data();
         console.log('Processing orçamento:', {
           id: doc.id,
           workId: data.workId,
-          valor: data.valor,
+          amount: data.amount,
           status: data.status,
           createdAt: data.createdAt,
           ...data
@@ -147,6 +147,19 @@ function DashGestor() {
       console.log('----------------------------------------');
       console.log('Final orçamentos array:', workOrcamentos);
       console.log('Number of orçamentos found:', workOrcamentos.length);
+
+      // Always update the work document with the latest orçamentos from collection
+      if (workOrcamentos.length > 0) {
+        try {
+          const workRef = doc(db, 'works', workId);
+          await updateDoc(workRef, {
+            hasOrcamentos: true
+          });
+          console.log('Work document updated with hasOrcamentos flag');
+        } catch (updateError) {
+          console.error('Error updating work document:', updateError);
+        }
+      }
 
       // Store in state
       setWorkOrcamentos(prev => {
@@ -1378,6 +1391,101 @@ function DashGestor() {
   const handleWorkClick = (work) => {
     setSelectedWork(work);
   };
+
+  // Adicionar listener para monitorar orçamentos em tempo real
+  useEffect(() => {
+    if (!works.length) return;
+    
+    console.log('Setting up real-time listener for orcamentos');
+    
+    // Criar um listener para a coleção de orçamentos
+    const orcamentosRef = collection(db, 'orcamentos');
+    const q = query(orcamentosRef);
+    
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      console.log('Real-time orcamentos update detected');
+      
+      // Processa alterações nos documentos
+      snapshot.docChanges().forEach((change) => {
+        const orcamentoData = change.doc.data();
+        const orcamentoId = change.doc.id;
+        const workId = orcamentoData.workId;
+        
+        console.log(`Orcamento ${change.type}:`, {
+          id: orcamentoId,
+          workId: workId,
+          amount: orcamentoData.amount,
+          change: change.type
+        });
+        
+        // Se o orçamento for para uma obra que estamos monitorando
+        if (works.some(w => w.id === workId)) {
+          if (change.type === 'added' || change.type === 'modified') {
+            // Atualizar o estado workOrcamentos
+            setWorkOrcamentos(prev => {
+              const workOrcs = prev[workId] || [];
+              
+              // Verifica se já existe este orçamento
+              const existingIndex = workOrcs.findIndex(o => o.id === orcamentoId);
+              
+              if (existingIndex >= 0) {
+                // Atualiza orçamento existente
+                const updatedOrcs = [...workOrcs];
+                updatedOrcs[existingIndex] = {
+                  id: orcamentoId,
+                  ...orcamentoData
+                };
+                return {
+                  ...prev,
+                  [workId]: updatedOrcs
+                };
+              } else {
+                // Adiciona novo orçamento
+                return {
+                  ...prev,
+                  [workId]: [
+                    ...workOrcs,
+                    {
+                      id: orcamentoId,
+                      ...orcamentoData
+                    }
+                  ]
+                };
+              }
+            });
+            
+            // Atualiza a flag hasOrcamentos na obra
+            const workRef = doc(db, 'works', workId);
+            updateDoc(workRef, {
+              hasOrcamentos: true
+            }).catch(err => {
+              console.error('Error updating work hasOrcamentos flag:', err);
+            });
+          }
+          
+          if (change.type === 'removed') {
+            // Remove orçamento do estado
+            setWorkOrcamentos(prev => {
+              if (!prev[workId]) return prev;
+              
+              return {
+                ...prev,
+                [workId]: prev[workId].filter(o => o.id !== orcamentoId)
+              };
+            });
+          }
+        }
+      });
+    }, (error) => {
+      console.error('Error in orcamentos listener:', error);
+    });
+    
+    // Cleanup
+    return () => {
+      console.log('Cleaning up orcamentos listener');
+      unsubscribe();
+    };
+  }, [works]);
 
   return content;
 }

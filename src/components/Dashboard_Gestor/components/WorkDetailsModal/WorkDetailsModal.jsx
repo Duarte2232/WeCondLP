@@ -1,21 +1,58 @@
 import React, { useState, useEffect } from 'react';
 import { FiX, FiEdit2, FiTrash2, FiCheck, FiDownload, FiRotateCcw, FiCheckCircle } from 'react-icons/fi';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../../../../services/firebase';
 import './WorkDetailsModal.css';
 
-const WorkDetailsModal = ({ work, onClose, onEdit, onDelete, onComplete, onFileDownload, onAcceptOrcamento }) => {
+const WorkDetailsModal = ({ work, onClose, onEdit, onDelete, onComplete, onFileDownload, onAcceptOrcamento, workOrcamentos }) => {
   if (!work) return null;
   
   const [technicianNames, setTechnicianNames] = useState({});
+  const [orcamentos, setOrcamentos] = useState([]);
+  const [loading, setLoading] = useState(true);
   
-  // Fetch technician names when component mounts
+  // Fetch orcamentos and technician names when component mounts
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        // Priorizar orçamentos passados como prop antes de buscar do Firestore
+        if (Array.isArray(workOrcamentos) && workOrcamentos.length > 0) {
+          console.log("Usando orçamentos da prop workOrcamentos:", workOrcamentos);
+          setOrcamentos(workOrcamentos);
+        }
+        // Buscar da coleção 'orcamentos' se não tiver orçamentos nas props
+        else {
+          console.log("Buscando orçamentos do Firestore para workId:", work.id);
+          const orcamentosRef = collection(db, 'orcamentos');
+          const q = query(orcamentosRef, where('workId', '==', work.id));
+          const querySnapshot = await getDocs(q);
+          
+          const orcamentosData = querySnapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          }));
+          
+          console.log(`Encontrados ${orcamentosData.length} orçamentos no Firestore:`, orcamentosData);
+          setOrcamentos(orcamentosData);
+        }
+      } catch (error) {
+        console.error('Erro ao buscar orçamentos:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchData();
+  }, [work.id, workOrcamentos]);
+  
+  // Fetch technician names when orcamentos are loaded
   useEffect(() => {
     const fetchTechnicianNames = async () => {
-      if (Array.isArray(work.orcamentos)) {
-        const namesMap = {};
+      if (orcamentos.length > 0) {
+        const namesMap = { ...technicianNames };
         
-        for (const orcamento of work.orcamentos) {
+        for (const orcamento of orcamentos) {
           if (orcamento.technicianId && !namesMap[orcamento.technicianId]) {
             try {
               const techDoc = await getDoc(doc(db, 'users', orcamento.technicianId));
@@ -36,7 +73,7 @@ const WorkDetailsModal = ({ work, onClose, onEdit, onDelete, onComplete, onFileD
     };
     
     fetchTechnicianNames();
-  }, [work.orcamentos]);
+  }, [orcamentos]);
 
   // Log work data as a side effect, but handle it in a way that won't cause React errors
   if (process.env.NODE_ENV === 'development') {
@@ -51,11 +88,7 @@ const WorkDetailsModal = ({ work, onClose, onEdit, onDelete, onComplete, onFileD
       orcamentosIsArray: Array.isArray(work.orcamentos),
     });
     
-    if (Array.isArray(work.orcamentos)) {
-      console.log('[DEBUG] WorkDetailsModal orcamentos array:', work.orcamentos);
-    } else if (work.orcamentos && typeof work.orcamentos === 'object') {
-      console.log('[DEBUG] WorkDetailsModal orcamentos object:', work.orcamentos);
-    }
+    console.log('[DEBUG] WorkDetailsModal using orcamentos:', orcamentos);
   }
 
   const handleComplete = () => {
@@ -63,9 +96,9 @@ const WorkDetailsModal = ({ work, onClose, onEdit, onDelete, onComplete, onFileD
     onComplete(work.id, newStatus);
   };
   
-  const handleAcceptOrcamento = (index) => {
+  const handleAcceptOrcamento = (orcamentoId) => {
     if (onAcceptOrcamento) {
-      onAcceptOrcamento(work.id, index);
+      onAcceptOrcamento(work.id, orcamentoId);
     } else {
       console.error('onAcceptOrcamento function not provided');
     }
@@ -185,13 +218,15 @@ const WorkDetailsModal = ({ work, onClose, onEdit, onDelete, onComplete, onFileD
             </div>
 
             {/* Display orcamentos array if it exists */}
-            {Array.isArray(work.orcamentos) && work.orcamentos.length > 0 && (
-              <div className="orcamentos-sidebar">
-                <div className="orcamentos-header">
-                  <h3>Orçamentos Recebidos ({work.orcamentos.length})</h3>
-                </div>
+            <div className="orcamentos-sidebar">
+              <div className="orcamentos-header">
+                <h3>Orçamentos Recebidos ({orcamentos.length})</h3>
+              </div>
+              {loading ? (
+                <div className="loading-indicator">Carregando orçamentos...</div>
+              ) : orcamentos.length > 0 ? (
                 <div className="orcamentos-list">
-                  {work.orcamentos.map((orcamento, index) => {
+                  {orcamentos.map((orcamento, index) => {
                     if (process.env.NODE_ENV === 'development') {
                       console.log(`[DEBUG] Rendering orcamento at index ${index}:`, orcamento);
                     }
@@ -203,7 +238,7 @@ const WorkDetailsModal = ({ work, onClose, onEdit, onDelete, onComplete, onFileD
                     }
                     
                     return (
-                      <div key={index} className={`orcamento-card ${orcamento.aceito ? 'orcamento-aceito' : ''}`}>
+                      <div key={orcamento.id || index} className={`orcamento-card ${orcamento.aceito ? 'orcamento-aceito' : ''}`}>
                         <div className="orcamento-info">
                           <h4>{displayName}</h4>
                           <span className="orcamento-date">
@@ -250,29 +285,30 @@ const WorkDetailsModal = ({ work, onClose, onEdit, onDelete, onComplete, onFileD
                               ))}
                             </div>
                           )}
-                          
-                          {orcamento.aceito ? (
+                          {!orcamento.aceito && work.status === 'disponivel' && (
+                            <button
+                              className="orcamento-aceitar"
+                              onClick={() => handleAcceptOrcamento(orcamento.id)}
+                            >
+                              <FiCheckCircle /> ACEITAR
+                            </button>
+                          )}
+                          {orcamento.aceito && (
                             <div className="orcamento-aceito-badge">
                               <FiCheckCircle /> Aceito
                             </div>
-                          ) : (
-                            <button 
-                              className="orcamento-aceitar"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleAcceptOrcamento(index);
-                              }}
-                            >
-                              <FiCheck /> Aceitar
-                            </button>
                           )}
                         </div>
                       </div>
                     );
                   })}
                 </div>
-              </div>
-            )}
+              ) : (
+                <div className="no-orcamentos">
+                  <p>Nenhum orçamento recebido ainda.</p>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
