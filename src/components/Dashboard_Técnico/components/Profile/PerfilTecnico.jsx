@@ -6,6 +6,7 @@ import { db } from '../../../../services/firebase.jsx';
 import { FiUpload, FiCheck, FiArrowLeft, FiUser } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import { CLOUDINARY_CONFIG } from '../../../../config/cloudinary';
+import { uploadToCloudinary, uploadToCloudinaryWithSignature } from '../../../../services/cloudinary.service.js';
 import './PerfilTecnico.css';
 
 const PerfilTecnico = ({ onProfileUpdate }) => {
@@ -146,7 +147,22 @@ const PerfilTecnico = ({ onProfileUpdate }) => {
       setUploadStatus(prev => ({ ...prev, logo: 'uploading' }));
 
       // Upload to Cloudinary
-      const { url, publicId } = await uploadToCloudinary(file);
+      let uploadResult;
+      try {
+        // Primeiro tenta o método normal
+        console.log('Tentando upload do logo com método padrão...');
+        uploadResult = await uploadToCloudinary(file);
+        console.log('Upload do logo bem sucedido (método padrão)');
+      } catch (uploadError) {
+        console.error('Erro no upload padrão do logo:', uploadError);
+        console.log('Tentando método alternativo com assinatura para o logo...');
+        
+        // Se falhar, tenta o método com assinatura
+        uploadResult = await uploadToCloudinaryWithSignature(file);
+        console.log('Upload do logo bem sucedido (método assinado)');
+      }
+      
+      const { url, publicId } = uploadResult;
       
       setLogoUrl(url);
       setUploadStatus(prev => ({ ...prev, logo: 'success' }));
@@ -158,7 +174,7 @@ const PerfilTecnico = ({ onProfileUpdate }) => {
         logoPublicId: publicId
       });
     } catch (error) {
-      console.error('Erro no upload do logo:', error);
+      console.error('Todos os métodos de upload do logo falharam:', error);
       setUploadStatus(prev => ({ ...prev, logo: 'error' }));
     }
   };
@@ -171,7 +187,22 @@ const PerfilTecnico = ({ onProfileUpdate }) => {
       setUploadStatus(prev => ({ ...prev, [documentoId]: 'uploading' }));
 
       // Upload to Cloudinary
-      const { url, publicId } = await uploadToCloudinary(file);
+      let uploadResult;
+      try {
+        // Primeiro tenta o método normal
+        console.log(`Tentando upload do documento ${documentoId} com método padrão...`);
+        uploadResult = await uploadToCloudinary(file);
+        console.log(`Upload do documento ${documentoId} bem sucedido (método padrão)`);
+      } catch (uploadError) {
+        console.error(`Erro no upload padrão do documento ${documentoId}:`, uploadError);
+        console.log(`Tentando método alternativo com assinatura para o documento ${documentoId}...`);
+        
+        // Se falhar, tenta o método com assinatura
+        uploadResult = await uploadToCloudinaryWithSignature(file);
+        console.log(`Upload do documento ${documentoId} bem sucedido (método assinado)`);
+      }
+      
+      const { url, publicId } = uploadResult;
       
       setDocumentos(prev => ({
         ...prev,
@@ -196,37 +227,8 @@ const PerfilTecnico = ({ onProfileUpdate }) => {
         }
       });
     } catch (error) {
-      console.error('Erro no upload:', error);
+      console.error(`Todos os métodos de upload do documento ${documentoId} falharam:`, error);
       setUploadStatus(prev => ({ ...prev, [documentoId]: 'error' }));
-    }
-  };
-
-  const uploadToCloudinary = async (file) => {
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('upload_preset', CLOUDINARY_CONFIG.uploadPreset);
-
-    try {
-      const response = await fetch(
-        `https://api.cloudinary.com/v1_1/${CLOUDINARY_CONFIG.cloudName}/auto/upload`,
-        {
-          method: 'POST',
-          body: formData
-        }
-      );
-      
-      if (!response.ok) {
-        throw new Error('Upload falhou');
-      }
-
-      const data = await response.json();
-      return {
-        url: data.secure_url,
-        publicId: data.public_id
-      };
-    } catch (error) {
-      console.error('Erro no upload para Cloudinary:', error);
-      throw error;
     }
   };
 
@@ -238,7 +240,22 @@ const PerfilTecnico = ({ onProfileUpdate }) => {
       setUploadStatus(prev => ({ ...prev, profilePhoto: 'uploading' }));
 
       // Upload to Cloudinary
-      const { url, publicId } = await uploadToCloudinary(file);
+      let uploadResult;
+      try {
+        // Primeiro tenta o método normal
+        console.log('Tentando upload da foto de perfil com método padrão...');
+        uploadResult = await uploadToCloudinary(file);
+        console.log('Upload da foto de perfil bem sucedido (método padrão)');
+      } catch (uploadError) {
+        console.error('Erro no upload padrão da foto de perfil:', uploadError);
+        console.log('Tentando método alternativo com assinatura para a foto de perfil...');
+        
+        // Se falhar, tenta o método com assinatura
+        uploadResult = await uploadToCloudinaryWithSignature(file);
+        console.log('Upload da foto de perfil bem sucedido (método assinado)');
+      }
+      
+      const { url, publicId } = uploadResult;
       
       setProfilePhotoUrl(url);
       setUploadStatus(prev => ({ ...prev, profilePhoto: 'success' }));
@@ -253,7 +270,7 @@ const PerfilTecnico = ({ onProfileUpdate }) => {
         }
       });
     } catch (error) {
-      console.error('Erro no upload da foto de perfil:', error);
+      console.error('Todos os métodos de upload da foto de perfil falharam:', error);
       setUploadStatus(prev => ({ ...prev, profilePhoto: 'error' }));
     }
   };

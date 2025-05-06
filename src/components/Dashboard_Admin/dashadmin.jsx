@@ -6,41 +6,10 @@ import { collection, query, where, getDocs, doc, updateDoc, getDoc, addDoc, serv
 import { FiEdit2, FiEye, FiSearch, FiFilter, FiX, FiCheck, FiArrowLeft, FiFile, FiUpload, FiDownload, FiFileText, FiTrash2 } from 'react-icons/fi';
 import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { CLOUDINARY_CONFIG } from '../../config/cloudinary';
+import { uploadToCloudinary, uploadToCloudinaryWithSignature } from '../../services/cloudinary.service.js';
 import './dashadmin.css';
 import LoadingAnimation from '../LoadingAnimation/LoadingAnimation';
 import emailjs from 'emailjs-com';
-
-const uploadToCloudinary = async (file) => {
-  const formData = new FormData();
-  formData.append('file', file);
-  formData.append('upload_preset', CLOUDINARY_CONFIG.uploadPreset);
-
-  try {
-    const response = await fetch(
-      `https://api.cloudinary.com/v1_1/${CLOUDINARY_CONFIG.cloudName}/auto/upload`,
-      {
-        method: 'POST',
-        body: formData
-      }
-    );
-    
-    if (!response.ok) {
-      throw new Error('Upload falhou');
-    }
-
-    const data = await response.json();
-    return {
-      name: file.name,
-      type: file.type.split('/')[0],
-      url: data.secure_url,
-      publicId: data.public_id,
-      size: file.size
-    };
-  } catch (error) {
-    console.error('Erro no upload para Cloudinary:', error);
-    throw error;
-  }
-};
 
 function DashAdmin() {
   const navigate = useNavigate();
@@ -387,44 +356,78 @@ function DashAdmin() {
     try {
       console.log('Iniciando upload do arquivo:', file.name);
       
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('upload_preset', CLOUDINARY_CONFIG.uploadPreset);
-      formData.append('resource_type', 'raw');
-
-      console.log('Dados do upload:', {
-        fileName: file.name,
-        fileSize: file.size,
-        fileType: file.type,
-        uploadPreset: CLOUDINARY_CONFIG.uploadPreset
-      });
-
-      const response = await fetch(
-        `https://api.cloudinary.com/v1_1/${CLOUDINARY_CONFIG.cloudName}/raw/upload`,
-        {
-          method: 'POST',
-          body: formData
+      // Primeiro tenta o método normal com resource_type=raw
+      try {
+        console.log('Tentando método padrão para raw upload...');
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('upload_preset', CLOUDINARY_CONFIG.uploadPreset);
+        formData.append('resource_type', 'raw');
+  
+        console.log('Dados do upload:', {
+          fileName: file.name,
+          fileSize: file.size,
+          fileType: file.type,
+          uploadPreset: CLOUDINARY_CONFIG.uploadPreset
+        });
+  
+        const response = await fetch(
+          `https://api.cloudinary.com/v1_1/${CLOUDINARY_CONFIG.cloudName}/raw/upload`,
+          {
+            method: 'POST',
+            body: formData
+          }
+        );
+  
+        const responseText = await response.text();
+        console.log('Resposta bruta do servidor:', responseText);
+  
+        if (!response.ok) {
+          throw new Error(`Falha no upload: ${response.status} - ${responseText}`);
         }
-      );
-
-      const responseText = await response.text();
-      console.log('Resposta bruta do servidor:', responseText);
-
-      if (!response.ok) {
-        throw new Error(`Falha no upload: ${response.status} - ${responseText}`);
+  
+        const data = JSON.parse(responseText);
+        console.log('Upload bem-sucedido (método padrão):', data);
+  
+        return {
+          url: data.secure_url,
+          publicId: data.public_id,
+          nome: file.name,
+          formato: file.name.split('.').pop().toLowerCase()
+        };
+      } catch (uploadError) {
+        console.error('Erro no método padrão para raw upload:', uploadError);
+        
+        // Se falhar, tenta o uploadToCloudinary normal
+        console.log('Tentando uploadToCloudinary padrão...');
+        try {
+          const result = await uploadToCloudinary(file, 'auto');
+          console.log('Upload bem-sucedido (uploadToCloudinary):', result);
+          
+          return {
+            url: result.url,
+            publicId: result.publicId,
+            nome: file.name,
+            formato: file.name.split('.').pop().toLowerCase()
+          };
+        } catch (cloudinaryError) {
+          console.error('Erro no uploadToCloudinary:', cloudinaryError);
+          
+          // Se ainda falhar, tenta com assinatura
+          console.log('Tentando método com assinatura...');
+          const result = await uploadToCloudinaryWithSignature(file, 'auto');
+          console.log('Upload bem-sucedido (método assinado):', result);
+          
+          return {
+            url: result.url,
+            publicId: result.publicId,
+            nome: file.name,
+            formato: file.name.split('.').pop().toLowerCase()
+          };
+        }
       }
-
-      const data = JSON.parse(responseText);
-      console.log('Upload bem-sucedido:', data);
-
-      return {
-        url: data.secure_url,
-        publicId: data.public_id,
-        nome: file.name,
-        formato: file.name.split('.').pop().toLowerCase()
-      };
     } catch (error) {
-      console.error('Erro detalhado no upload:', error);
+      console.error('Todos os métodos de upload falharam:', error);
       throw error;
     }
   };

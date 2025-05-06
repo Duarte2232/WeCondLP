@@ -34,19 +34,40 @@ function Maintenance() {
       setLoading(true);
       console.log('Fetching maintenances for user:', user.email);
       
-      const q = query(
+      // First, check the 'works' collection (newer approach)
+      const worksQuery = query(
         collection(db, 'works'),
         where('userEmail', '==', user.email),
         where('isMaintenance', '==', true)
       );
       
-      const querySnapshot = await getDocs(q);
-      console.log('Firestore query executed. Docs found:', querySnapshot.docs.length);
+      const worksSnapshot = await getDocs(worksQuery);
+      console.log('Firestore query executed on works collection. Docs found:', worksSnapshot.docs.length);
+
+      // For legacy data, also check the 'maintenances' collection
+      const maintenancesQuery = query(
+        collection(db, 'maintenances'),
+        where('userEmail', '==', user.email)
+      );
       
-      const manutencoesData = querySnapshot.docs.map(doc => ({
+      const maintenancesSnapshot = await getDocs(maintenancesQuery);
+      console.log('Firestore query executed on maintenances collection. Docs found:', maintenancesSnapshot.docs.length);
+      
+      // Combine the results from both collections
+      const worksData = worksSnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
+        source: 'works'
       }));
+      
+      const maintenancesData = maintenancesSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        source: 'maintenances'
+      }));
+      
+      const manutencoesData = [...worksData, ...maintenancesData];
+      console.log('Combined maintenance records:', manutencoesData.length);
       
       const sortedManutencoes = manutencoesData.sort((a, b) => {
         const dateA = a.createdAt?.toDate?.() || new Date(0);

@@ -104,6 +104,19 @@ const Jobs = ({ jobs, loading }) => {
     checkBudgetStatus();
   }, [jobs, auth.currentUser?.uid]);
 
+  // Log the jobs array to check for maintenance records
+  useEffect(() => {
+    if (jobs && jobs.length > 0) {
+      console.log('Jobs received in Jobs component:', jobs.length);
+      const maintenanceJobs = jobs.filter(job => job.isMaintenance);
+      console.log('Maintenance jobs found:', maintenanceJobs.length);
+      
+      if (maintenanceJobs.length > 0) {
+        console.log('Sample maintenance job:', maintenanceJobs[0].title, maintenanceJobs[0].category);
+      }
+    }
+  }, [jobs]);
+
   const goBackToDashboard = () => {
     navigate('/dashtecnico');
   };
@@ -206,7 +219,7 @@ const Jobs = ({ jobs, loading }) => {
                 <div className="job-details">
                   <div className="job-category">
                     <FiTag />
-                    <span>{job.category}</span>
+                    <span>{job.category} {job.isMaintenance && <span className="maintenance-badge">Manutenção</span>}</span>
                   </div>
                   <div className="job-location">
                     <FiMapPin />
@@ -216,6 +229,12 @@ const Jobs = ({ jobs, loading }) => {
                     <FiClock />
                     <span>{job.date}{job.time ? ` • ${job.time}` : ''}</span>
                   </div>
+                  {job.isMaintenance && job.frequency && (
+                    <div className="job-frequency">
+                      <FiInfo />
+                      <span>Frequência: {job.frequency}</span>
+                    </div>
+                  )}
                   {job.contact && (
                     <div className="job-contact">
                       <FiPhone />

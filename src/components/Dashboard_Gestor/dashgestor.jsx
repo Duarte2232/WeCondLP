@@ -12,6 +12,7 @@ import LoadingAnimation from '../LoadingAnimation/LoadingAnimation';
 import sha1 from 'crypto-js/sha1';
 import { FaEye, FaEdit, FaTrash } from 'react-icons/fa';
 import { toast } from 'react-hot-toast';
+import { uploadToCloudinary, uploadToCloudinaryWithSignature } from '../../services/cloudinary.service.js';
 
 // Importação dos componentes
 import Metrics from './components/Metrics/Metrics';
@@ -240,38 +241,6 @@ function DashGestor() {
     }
   };
 
-  const uploadToCloudinary = async (file) => {
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('upload_preset', CLOUDINARY_CONFIG.uploadPreset);
-
-    try {
-      const response = await fetch(
-        `https://api.cloudinary.com/v1_1/${CLOUDINARY_CONFIG.cloudName}/auto/upload`,
-        {
-          method: 'POST',
-          body: formData
-        }
-      );
-      
-      if (!response.ok) {
-        throw new Error('Upload falhou');
-      }
-
-      const data = await response.json();
-      return {
-        name: file.name,
-        type: file.type.split('/')[0],
-        url: data.secure_url,
-        publicId: data.public_id,
-        size: file.size
-      };
-    } catch (error) {
-      console.error('Erro no upload para Cloudinary:', error);
-      throw error;
-    }
-  };
-
   const handleFileUpload = async (e) => {
     try {
       console.log('Iniciando upload de arquivos...');
@@ -359,19 +328,37 @@ function DashGestor() {
         // Processar os arquivos primeiro
         const processedFiles = [];
         if (newWork.files && newWork.files.length > 0) {
+          console.log(`Iniciando upload de ${newWork.files.length} arquivos...`);
+          
           for (const file of newWork.files) {
             // Se o arquivo já foi processado (tem url do Cloudinary), apenas adicione-o
             if (file.url && file.url.includes('cloudinary')) {
               processedFiles.push(file);
+              console.log(`Arquivo já processado: ${file.name}`);
               continue;
             }
             
             // Se é um novo arquivo, faça o upload
             try {
-              const fileData = await uploadToCloudinary(file.file);
+              console.log(`Tentando upload do arquivo ${file.name} com método padrão...`);
+              let fileData;
+              
+              try {
+                // Primeiro tenta o método normal
+                fileData = await uploadToCloudinary(file.file);
+                console.log(`Upload bem sucedido para ${file.name} (método padrão)`);
+              } catch (uploadError) {
+                console.error(`Erro no upload padrão para ${file.name}:`, uploadError);
+                console.log(`Tentando método alternativo com assinatura para ${file.name}...`);
+                
+                // Se falhar, tenta o método com assinatura
+                fileData = await uploadToCloudinaryWithSignature(file.file);
+                console.log(`Upload bem sucedido para ${file.name} (método assinado)`);
+              }
+              
               processedFiles.push(fileData);
             } catch (error) {
-              console.error(`Erro ao fazer upload do arquivo ${file.name}:`, error);
+              console.error(`Todos os métodos de upload falharam para ${file.name}:`, error);
               // Continue com os outros arquivos mesmo se um falhar
             }
           }

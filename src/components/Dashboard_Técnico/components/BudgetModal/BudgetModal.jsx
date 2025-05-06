@@ -3,7 +3,11 @@ import { FiX, FiUpload, FiFile, FiDollarSign, FiClock, FiAlignLeft, FiFileText, 
 import { getAuth } from 'firebase/auth';
 import { doc, addDoc, collection, serverTimestamp, updateDoc, getDoc } from 'firebase/firestore';
 import { db } from '../../../../services/firebase.jsx';
-import { CLOUDINARY_CONFIG } from '../../../../config/cloudinary';
+import { 
+  uploadToCloudinary, 
+  uploadToCloudinaryWithSignature,
+  uploadToCloudinaryDirectSigned 
+} from '../../../../services/cloudinary.service.js';
 import { v4 as uuidv4 } from 'uuid';
 import './BudgetModal.css';
 
@@ -184,6 +188,37 @@ const BudgetModal = ({ job, onClose, onSuccess }) => {
     else return (bytes / 1048576).toFixed(1) + ' MB';
   }, []);
 
+  // Upload de um único arquivo com retry nos três métodos
+  const uploadSingleFileWithRetry = async (file) => {
+    console.log(`Iniciando upload de ${file.name} com múltiplos métodos...`);
+    
+    // Método 1: Upload padrão não assinado
+    try {
+      console.log(`Tentando método 1 (upload_preset não assinado) para ${file.name}...`);
+      const result = await uploadToCloudinary(file);
+      console.log(`Método 1 bem-sucedido para ${file.name}`);
+      return result;
+    } catch (error1) {
+      console.error(`Método 1 falhou para ${file.name}:`, error1);
+      
+      // Método 2: Upload com preset assinado
+      try {
+        console.log(`Tentando método 2 (upload_preset assinado) para ${file.name}...`);
+        const result = await uploadToCloudinaryWithSignature(file);
+        console.log(`Método 2 bem-sucedido para ${file.name}`);
+        return result;
+      } catch (error2) {
+        console.error(`Método 2 falhou para ${file.name}:`, error2);
+        
+        // Método 3: Upload direto assinado sem preset
+        console.log(`Tentando método 3 (assinatura direta sem preset) para ${file.name}...`);
+        const result = await uploadToCloudinaryDirectSigned(file);
+        console.log(`Método 3 bem-sucedido para ${file.name}`);
+        return result;
+      }
+    }
+  };
+
   // Submit budget with validation
   const submitBudget = async (e) => {
     e.preventDefault();
@@ -212,6 +247,27 @@ const BudgetModal = ({ job, onClose, onSuccess }) => {
     try {
       setIsSubmitting(true);
       
+      // Upload files to Cloudinary first
+      let processedFiles = [];
+      if (budgetData.files.length > 0) {
+        try {
+          console.log(`Iniciando upload de ${budgetData.files.length} arquivos com múltiplos métodos...`);
+          
+          // Processa cada arquivo individualmente para melhor tratamento de erros
+          const uploadPromises = budgetData.files.map(fileObj => 
+            uploadSingleFileWithRetry(fileObj.file)
+          );
+          
+          processedFiles = await Promise.all(uploadPromises);
+          console.log('Todos os arquivos foram enviados com sucesso:', processedFiles);
+        } catch (error) {
+          console.error('Todos os métodos de upload falharam para pelo menos um arquivo:', error);
+          setErrorMessage('Erro ao enviar arquivos. Por favor, tente novamente.');
+          setIsSubmitting(false);
+          return;
+        }
+      }
+      
       // Create budget data
       const orcamentoData = {
         workId: job.id,
@@ -222,7 +278,8 @@ const BudgetModal = ({ job, onClose, onSuccess }) => {
         timeEstimate: budgetData.timeEstimate,
         status: 'pending',
         createdAt: serverTimestamp(),
-        viewed: false
+        viewed: false,
+        files: processedFiles // Add the uploaded files
       };
       
       // Save to Firestore

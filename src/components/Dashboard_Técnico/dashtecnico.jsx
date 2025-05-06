@@ -139,7 +139,7 @@ const DashTecnico = () => {
         const obrasData = [];
         querySnapshot.forEach((doc) => {
           const obraData = { id: doc.id, ...doc.data() };
-          console.log("Obra encontrada:", obraData.title, "Categoria:", obraData.category, "Status:", obraData.status);
+          console.log("Obra encontrada:", obraData.title, "Categoria:", obraData.category, "Status:", obraData.status, "Manutenção:", obraData.isMaintenance);
           
           // Se a obra já tiver um técnico atribuído que não seja o usuário atual, pular
           if (obraData.technicianId && obraData.technicianId !== auth.currentUser.uid) {
@@ -200,6 +200,9 @@ const DashTecnico = () => {
 
           if (correspondeEspecialidade) {
             console.log("Obra corresponde à especialidade:", obraData.title);
+            if (obraData.isMaintenance) {
+              console.log("Manutenção encontrada para o técnico:", obraData.title);
+            }
             obrasData.push(obraData);
           }
         });
