@@ -710,12 +710,16 @@ function DashGestor() {
       
       console.log("Criando nova manutenção:", newMaintenanceData);
       
-      // Add to Firestore
-      const maintenanceRef = await addDoc(collection(db, 'works'), newMaintenanceData);
-      console.log("Manutenção criada com sucesso, ID:", maintenanceRef.id);
+      // Add to maintenances collection
+      const maintenanceMainRef = await addDoc(collection(db, 'maintenances'), newMaintenanceData);
+      console.log("Manutenção criada com sucesso na coleção maintenances, ID:", maintenanceMainRef.id);
       
-      // Add to local state with ID
-      const maintenanceWithId = { ...newMaintenanceData, id: maintenanceRef.id };
+      // Also add to works collection for technician dashboard
+      const maintenanceWorkRef = await addDoc(collection(db, 'works'), newMaintenanceData);
+      console.log("Manutenção criada com sucesso na coleção works, ID:", maintenanceWorkRef.id);
+      
+      // Use the works reference ID for consistency with the rest of the app
+      const maintenanceWithId = { ...newMaintenanceData, id: maintenanceWorkRef.id };
       setMaintenances(prevMaintenances => [maintenanceWithId, ...prevMaintenances]);
       
       // Also add to the works array as they share the same collection
@@ -1341,23 +1345,74 @@ function DashGestor() {
       if (user) {
         setIsLoading(true);
         try {
-          // Buscar obras do Firestore
-          const q = query(collection(db, 'works'), where("userId", "==", user.uid));
-          const querySnapshot = await getDocs(q);
-          const worksData = querySnapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-          }));
+          // Buscar obras do Firestore usando tanto userEmail quanto userId
+          const worksEmailQuery = query(collection(db, 'works'), where("userEmail", "==", user.email));
+          const worksUserIdQuery = query(collection(db, 'works'), where("userId", "==", user.uid));
+          
+          const [emailSnapshot, userIdSnapshot] = await Promise.all([
+            getDocs(worksEmailQuery),
+            getDocs(worksUserIdQuery)
+          ]);
+          
+          // Criar um mapa para evitar duplicações
+          const worksMap = new Map();
+          
+          // Adicionar todas as obras encontradas ao mapa
+          [...emailSnapshot.docs, ...userIdSnapshot.docs].forEach(doc => {
+            if (!worksMap.has(doc.id)) {
+              worksMap.set(doc.id, {
+                id: doc.id,
+                ...doc.data()
+              });
+            }
+          });
+          
+          // Converter para array
+          const worksData = Array.from(worksMap.values());
           
           // Separar obras e manutenções
           const obras = worksData.filter(work => !work.isMaintenance);
           const manutencoes = worksData.filter(work => work.isMaintenance);
           
+          // Buscar também da coleção maintenances
+          const maintenancesEmailQuery = query(collection(db, 'maintenances'), where("userEmail", "==", user.email));
+          const maintenancesUserIdQuery = query(collection(db, 'maintenances'), where("userId", "==", user.uid));
+          
+          const [maintenancesEmailSnapshot, maintenancesUserIdSnapshot] = await Promise.all([
+            getDocs(maintenancesEmailQuery),
+            getDocs(maintenancesUserIdQuery)
+          ]);
+          
+          // Criar mapa para manutenções
+          const maintenancesMap = new Map();
+          
+          [...maintenancesEmailSnapshot.docs, ...maintenancesUserIdSnapshot.docs].forEach(doc => {
+            if (!maintenancesMap.has(doc.id)) {
+              maintenancesMap.set(doc.id, {
+                id: doc.id,
+                ...doc.data(),
+                isMaintenance: true // Garantir que todas as manutenções da coleção maintenances tenham essa flag
+              });
+            }
+          });
+          
+          // Combinar manutenções da coleção works e maintenances
+          const allMaintenances = [...manutencoes, ...Array.from(maintenancesMap.values())];
+          
+          // Remover duplicatas baseadas em propriedades como título, data, etc.
+          const uniqueMaintenances = allMaintenances.filter((maintenance, index, self) => 
+            index === self.findIndex(m => 
+              m.title === maintenance.title && 
+              m.date === maintenance.date && 
+              m.description === maintenance.description
+            )
+          );
+          
           setWorks(obras);
-          setMaintenances(manutencoes);
+          setMaintenances(uniqueMaintenances);
           
           console.log('Obras carregadas:', obras.length);
-          console.log('Manutenções carregadas:', manutencoes.length);
+          console.log('Manutenções carregadas:', uniqueMaintenances.length);
         } catch (error) {
           console.error('Erro ao carregar obras:', error);
         } finally {

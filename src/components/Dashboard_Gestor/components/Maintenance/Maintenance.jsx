@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiArrowLeft, FiSearch } from 'react-icons/fi';
+import { FiArrowLeft, FiSearch, FiRefreshCcw } from 'react-icons/fi';
 import NewMaintenanceButton from './NewMaintenanceButton';
 import WorkDetailsModal from '../WorkDetailsModal/WorkDetailsModal';
 import { db } from '../../../../services/firebase';
@@ -32,42 +32,76 @@ function Maintenance() {
     
     try {
       setLoading(true);
-      console.log('Fetching maintenances for user:', user.email);
+      console.log('Fetching maintenances for user:', user.email, 'userId:', user.uid);
       
-      // First, check the 'works' collection (newer approach)
-      const worksQuery = query(
+      // First, check the 'maintenances' collection using both email and userId
+      const maintenancesEmailQuery = query(
+        collection(db, 'maintenances'),
+        where('userEmail', '==', user.email)
+      );
+      
+      const maintenancesUserIdQuery = query(
+        collection(db, 'maintenances'),
+        where('userId', '==', user.uid)
+      );
+      
+      const [maintenancesEmailSnapshot, maintenancesUserIdSnapshot] = await Promise.all([
+        getDocs(maintenancesEmailQuery),
+        getDocs(maintenancesUserIdQuery)
+      ]);
+      
+      console.log('Maintenances found by email:', maintenancesEmailSnapshot.docs.length);
+      console.log('Maintenances found by userId:', maintenancesUserIdSnapshot.docs.length);
+      
+      // For backward compatibility, also check the 'works' collection with isMaintenance flag
+      const worksEmailQuery = query(
         collection(db, 'works'),
         where('userEmail', '==', user.email),
         where('isMaintenance', '==', true)
       );
       
-      const worksSnapshot = await getDocs(worksQuery);
-      console.log('Firestore query executed on works collection. Docs found:', worksSnapshot.docs.length);
-
-      // For legacy data, also check the 'maintenances' collection
-      const maintenancesQuery = query(
-        collection(db, 'maintenances'),
-        where('userEmail', '==', user.email)
+      const worksUserIdQuery = query(
+        collection(db, 'works'),
+        where('userId', '==', user.uid),
+        where('isMaintenance', '==', true)
       );
       
-      const maintenancesSnapshot = await getDocs(maintenancesQuery);
-      console.log('Firestore query executed on maintenances collection. Docs found:', maintenancesSnapshot.docs.length);
+      const [worksEmailSnapshot, worksUserIdSnapshot] = await Promise.all([
+        getDocs(worksEmailQuery),
+        getDocs(worksUserIdQuery)
+      ]);
       
-      // Combine the results from both collections
-      const worksData = worksSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        source: 'works'
-      }));
+      console.log('Works (maintenance) found by email:', worksEmailSnapshot.docs.length);
+      console.log('Works (maintenance) found by userId:', worksUserIdSnapshot.docs.length);
       
-      const maintenancesData = maintenancesSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        source: 'maintenances'
-      }));
+      // Create a unique set of maintenance documents by ID to avoid duplicates
+      const maintenanceDocsMap = new Map();
       
-      const manutencoesData = [...worksData, ...maintenancesData];
-      console.log('Combined maintenance records:', manutencoesData.length);
+      // Add all maintenances from all queries to the map
+      [...maintenancesEmailSnapshot.docs, ...maintenancesUserIdSnapshot.docs].forEach(doc => {
+        if (!maintenanceDocsMap.has(doc.id)) {
+          maintenanceDocsMap.set(doc.id, {
+            id: doc.id,
+            ...doc.data(),
+            source: 'maintenances'
+          });
+        }
+      });
+      
+      // Add all works with isMaintenance=true to the map
+      [...worksEmailSnapshot.docs, ...worksUserIdSnapshot.docs].forEach(doc => {
+        if (!maintenanceDocsMap.has(doc.id)) {
+          maintenanceDocsMap.set(doc.id, {
+            id: doc.id,
+            ...doc.data(),
+            source: 'works'
+          });
+        }
+      });
+      
+      // Convert the map to an array
+      const manutencoesData = Array.from(maintenanceDocsMap.values());
+      console.log('Total unique maintenance records:', manutencoesData.length);
       
       const sortedManutencoes = manutencoesData.sort((a, b) => {
         const dateA = a.createdAt?.toDate?.() || new Date(0);
@@ -163,6 +197,13 @@ function Maintenance() {
           <FiArrowLeft /> Voltar
         </button>
         <h1>Manutenções</h1>
+        <button 
+          className="refresh-button" 
+          onClick={fetchManutencoes}
+          title="Atualizar lista de manutenções"
+        >
+          <FiRefreshCcw /> Atualizar
+        </button>
       </div>
 
       <div className="content-wrapper">

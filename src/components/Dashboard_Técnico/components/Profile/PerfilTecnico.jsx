@@ -70,7 +70,6 @@ const PerfilTecnico = ({ onProfileUpdate }) => {
     'Infiltração',
     'Fissuras e rachaduras',
     'Canalização',
-    'Manutenção',
     'Jardinagem',
     'Fiscalização',
     'Reabilitação de Fachada',

@@ -36,7 +36,12 @@ const NewMaintenanceButton = ({ onCreated }) => {
         maintenanceData.prazoOrcamentos = formData.prazoOrcamentos || '';
       }
       
+      // Add to maintenances collection
+      await addDoc(collection(db, 'maintenances'), maintenanceData);
+      
+      // Also add to works collection with the same data so it appears on the technician dashboard
       await addDoc(collection(db, 'works'), maintenanceData);
+      
       setShowForm(false);
       
       if (onCreated) {

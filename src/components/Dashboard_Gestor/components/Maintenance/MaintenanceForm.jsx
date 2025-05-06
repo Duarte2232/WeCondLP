@@ -103,72 +103,6 @@ const categorias = [
       'Utilização de tintas específicas para exterior e interior'
     ]
   },
-  { 
-    id: 'elevadores', 
-    nome: 'Elevadores', 
-    tipos_de_manutencao: [
-      'Manutenção preventiva regular',
-      'Substituição de peças desgastadas',
-      'Modernização de sistemas de segurança',
-      'Reparação de avarias',
-      'Inspeção técnica periódica'
-    ]
-  },
-  { 
-    id: 'avac', 
-    nome: 'Sistemas AVAC', 
-    tipos_de_manutencao: [
-      'Limpeza de filtros e condutas',
-      'Verificação de sistemas de refrigeração',
-      'Manutenção de caldeiras e bombas de calor',
-      'Substituição de componentes',
-      'Otimização de eficiência energética'
-    ]
-  },
-  { 
-    id: 'seguranca', 
-    nome: 'Sistemas de Segurança', 
-    tipos_de_manutencao: [
-      'Manutenção de sistemas de alarme',
-      'Verificação de equipamentos contra incêndios',
-      'Testes de funcionamento de sensores',
-      'Atualização de software de segurança',
-      'Substituição de baterias e componentes'
-    ]
-  },
-  { 
-    id: 'limpeza', 
-    nome: 'Limpeza', 
-    tipos_de_manutencao: [
-      'Limpeza profunda de áreas comuns',
-      'Lavagem de pavimentos e escadas',
-      'Limpeza de vidros e fachadas',
-      'Remoção de grafitis',
-      'Tratamento e polimento de pavimentos'
-    ]
-  },
-  { 
-    id: 'hidraulica', 
-    nome: 'Hidráulica', 
-    tipos_de_manutencao: [
-      'Verificação de fugas em canalizações',
-      'Manutenção de bombas de água',
-      'Limpeza de ralos e caleiras',
-      'Desentupimento de esgotos',
-      'Purga de ar em radiadores'
-    ]
-  },
-  { 
-    id: 'equipamentos', 
-    nome: 'Equipamentos', 
-    tipos_de_manutencao: [
-      'Manutenção de sistemas de ginásio',
-      'Verificação de equipamentos de lazer',
-      'Reparação de mobiliário de áreas comuns',
-      'Manutenção de piscinas e spas',
-      'Calibração de equipamentos técnicos'
-    ]
-  }
 ];
 
 function MaintenanceForm({ 
@@ -237,6 +171,28 @@ function MaintenanceForm({
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    
+    // Garantir que todos os campos estão preenchidos
+    if (!newMaintenance.title) {
+      alert('Por favor, preencha o título da manutenção.');
+      return;
+    }
+    
+    if (!newMaintenance.category) {
+      alert('Por favor, selecione uma categoria.');
+      return;
+    }
+    
+    if (!newMaintenance.date) {
+      newMaintenance.date = new Date().toISOString().split('T')[0];
+    }
+    
+    // Garantir que temos frequência definida
+    if (!newMaintenance.frequency) {
+      newMaintenance.frequency = 'Única'; // Valor padrão
+    }
+    
+    // Enviar o formulário
     onSubmit(newMaintenance);
   };
 
