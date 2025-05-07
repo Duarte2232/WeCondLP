@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import './WorkForm.css';
 import { FiX, FiUpload, FiFile } from 'react-icons/fi';
+import { useParams, useNavigate } from 'react-router-dom';
+import { db } from '../../../../services/firebase';
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
 
 // Lista de categorias e subcategorias para o formulário
 const categoriasForm = [
@@ -107,7 +110,10 @@ function WorkForm({
   onCancel,
   editMode
 }) {
+  const { id } = useParams();
+  const navigate = useNavigate();
   const [availableSubcategories, setAvailableSubcategories] = useState([]);
+  const [loading, setLoading] = useState(false);
 
   // Atualizar subcategorias disponíveis quando a categoria muda
   useEffect(() => {
@@ -122,6 +128,21 @@ function WorkForm({
       setAvailableSubcategories([]);
     }
   }, [newWork.category]);
+
+  useEffect(() => {
+    if (editMode && id) {
+      setLoading(true);
+      const fetchWork = async () => {
+        const workRef = doc(db, 'ObrasPedidos', id);
+        const workDoc = await getDoc(workRef);
+        if (workDoc.exists()) {
+          setNewWork({ ...workDoc.data(), id });
+        }
+        setLoading(false);
+      };
+      fetchWork();
+    }
+  }, [editMode, id, setNewWork]);
 
   const handlePriorityChange = (e) => {
     const newPriority = e.target.value;
@@ -145,16 +166,30 @@ function WorkForm({
     }
   };
 
+  const handleUpdate = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const workRef = doc(db, 'ObrasPedidos', id);
+      await updateDoc(workRef, { ...newWork });
+      navigate('/dashgestor/obras');
+    } catch (error) {
+      alert('Erro ao atualizar obra: ' + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="modal-overlay">
       <div className="modal-content">
         <div className="modal-header">
           <h2>{editMode ? 'Editar' : 'Nova'} Obra</h2>
-          <button className="close-btn" onClick={onCancel}>
+          <button className="close-btn" onClick={onCancel || (() => navigate('/dashgestor/obras'))}>
             <FiX />
           </button>
         </div>
-        <form className="new-work-form" onSubmit={onSubmit}>
+        <form className="new-work-form" onSubmit={editMode ? handleUpdate : onSubmit}>
           <div className="form-row">
             <div className="form-group">
               <label>Título da Obra</label>
@@ -302,53 +337,49 @@ function WorkForm({
             </div>
           </div>
           
-          {/* Campos de orçamento e prazo só aparecem se não for urgente */}
-          {newWork.priority !== 'Urgente' && (
-            <>
-              <div className="form-row">
+          {/* Campos de orçamento e prazo */}
+          <div className="form-row">
+            <div className="form-group">
+              <label>Orçamento Estimado</label>
+              <div className="orcamento-range">
                 <div className="form-group">
-                  <label>Orçamento Estimado </label>
-                  <div className="orcamento-range">
-                    <div className="form-group">
-                      <label>Mínimo</label>
-                      <input
-                        type="number"
-                        value={newWork.orcamentos?.minimo || ''}
-                        onChange={(e) => setNewWork({
-                          ...newWork, 
-                          orcamentos: {...(newWork.orcamentos || {}), minimo: e.target.value}
-                        })}
-                        placeholder="0"
-                      />
-                    </div>
-                    <div className="form-group">
-                      <label>Máximo</label>
-                      <input
-                        type="number"
-                        value={newWork.orcamentos?.maximo || ''}
-                        onChange={(e) => setNewWork({
-                          ...newWork, 
-                          orcamentos: {...(newWork.orcamentos || {}), maximo: e.target.value}
-                        })}
-                        placeholder="0"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Prazo para Orçamentos</label>
+                  <label>Mínimo</label>
                   <input
-                    type="date"
-                    value={newWork.prazoOrcamentos}
-                    onChange={(e) => setNewWork({...newWork, prazoOrcamentos: e.target.value})}
+                    type="number"
+                    value={newWork.orcamentos?.minimo || ''}
+                    onChange={(e) => setNewWork({
+                      ...newWork, 
+                      orcamentos: {...(newWork.orcamentos || {}), minimo: e.target.value}
+                    })}
+                    placeholder="0"
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Máximo</label>
+                  <input
+                    type="number"
+                    value={newWork.orcamentos?.maximo || ''}
+                    onChange={(e) => setNewWork({
+                      ...newWork, 
+                      orcamentos: {...(newWork.orcamentos || {}), maximo: e.target.value}
+                    })}
+                    placeholder="0"
                   />
                 </div>
               </div>
-            </>
-          )}
+            </div>
+          </div>
+          
+          <div className="form-row">
+            <div className="form-group">
+              <label>Prazo para Orçamentos</label>
+              <input
+                type="date"
+                value={newWork.prazoOrcamentos || ''}
+                onChange={(e) => setNewWork({...newWork, prazoOrcamentos: e.target.value})}
+              />
+            </div>
+          </div>
           
           <div className="form-row">
             <div className="form-group">
@@ -434,7 +465,7 @@ function WorkForm({
               className="save-btn"
               disabled={isSubmitting}
             >
-              {isSubmitting ? 'A guardar...' : editMode ? 'Atualizar' : 'Guardar'}
+              {isSubmitting ? 'A guardar...' : editMode ? 'Guardar Alterações' : 'Guardar'}
             </button>
           </div>
         </form>

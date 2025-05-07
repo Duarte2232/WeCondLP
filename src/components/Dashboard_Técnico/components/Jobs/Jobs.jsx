@@ -2,7 +2,7 @@ import React, { useState, useEffect, useReducer } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiMapPin, FiClock, FiPhone, FiArrowLeft, FiTag, FiInfo, FiAlertCircle, FiMessageSquare, FiDollarSign } from 'react-icons/fi';
 import { getAuth } from 'firebase/auth';
-import { doc, getDoc, updateDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, collection, query, where, getDocs, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../../../services/firebase.jsx';
 import './Jobs.css';
 import JobDetailsModal from '../JobDetailsModal/JobDetailsModal';
@@ -67,7 +67,9 @@ const Jobs = ({ jobs, loading }) => {
       
       const jobsWithStatus = await Promise.all(jobs.map(async (job) => {
         try {
-          const orcamentosRef = collection(db, 'orcamentos');
+          // Escolher a coleção correta baseada no tipo de trabalho
+          const collectionName = job.isMaintenance ? 'ManutençãoOrçamentos' : 'ObrasOrçamentos';
+          const orcamentosRef = collection(db, collectionName);
           const q = query(
             orcamentosRef, 
             where('workId', '==', job.id),
@@ -154,14 +156,47 @@ const Jobs = ({ jobs, loading }) => {
 
       const gestorData = gestorDoc.data();
 
+      // Check if a conversation already exists for this work
+      const conversationsRef = collection(db, 'conversations');
+      const q = query(conversationsRef, where('workId', '==', job.id));
+      const conversationSnapshot = await getDocs(q);
+
+      let conversationId;
+
+      if (conversationSnapshot.empty) {
+        // Create a new conversation
+        const conversationData = {
+          workId: job.id,
+          workTitle: job.title,
+          gestorId: job.userId,
+          technicianId: auth.currentUser.uid,
+          createdAt: serverTimestamp(),
+          lastMessage: null,
+          lastMessageTimestamp: null,
+          messages: [] // Array to store messages
+        };
+
+        const newConversationRef = await addDoc(conversationsRef, conversationData);
+        conversationId = newConversationRef.id;
+      } else {
+        // Use existing conversation
+        conversationId = conversationSnapshot.docs[0].id;
+      }
+
+      // Update the work document to associate it with the technician
       const workRef = doc(db, 'works', job.id);
-      await updateDoc(workRef, {
-        technicianId: auth.currentUser.uid,
-        status: 'confirmada'
-      });
+      const workDoc = await getDoc(workRef);
+      
+      if (workDoc.exists()) {
+        await updateDoc(workRef, {
+          technicianId: auth.currentUser.uid,
+          status: 'confirmada'
+        });
+      }
 
       navigate('/dashtecnico/mensagens', { 
         state: { 
+          conversationId: conversationId,
           gestorId: job.userId,
           gestorName: gestorData.email || 'Gestor',
           obraId: job.id,
@@ -255,7 +290,6 @@ const Jobs = ({ jobs, loading }) => {
                 <div className="job-actions">
                   {!job.hasSubmittedBudget && (
                     <button className="budget-btn" onClick={() => openBudgetModal(job)}>
-                      <FiDollarSign />
                       Enviar Orçamento
                     </button>
                   )}

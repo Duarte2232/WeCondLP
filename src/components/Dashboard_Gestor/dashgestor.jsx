@@ -5,7 +5,7 @@ import './dashgestor.css';
 import { FiPlusCircle, FiFilter, FiSearch, FiBell, FiEdit2, FiEye, FiCheck, FiX, FiCalendar, FiUpload, FiArrowLeft, FiFile, FiDownload, FiAlertCircle, FiTag, FiMapPin } from 'react-icons/fi';
 import { useAuth } from '../../contexts/auth';
 import { db } from '../../services/firebase';
-import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, getDoc, serverTimestamp, writeBatch, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, getDoc, serverTimestamp, writeBatch, onSnapshot, deleteField } from 'firebase/firestore';
 import { useNavigate, Routes, Route, useLocation } from 'react-router-dom';
 import { CLOUDINARY_CONFIG } from '../../config/cloudinary';
 import LoadingAnimation from '../LoadingAnimation/LoadingAnimation';
@@ -27,6 +27,7 @@ import CalendarComponent from './components/Calendar/Calendar';
 import JobsComponent from './components/Jobs/Jobs';
 import MaintenanceComponent from './components/Maintenance/Maintenance';
 import WorkDetailsModal from './components/WorkDetailsModal/WorkDetailsModal';
+import MaintenanceForm from './components/Maintenance/MaintenanceForm';
 
 
 function DashGestor() {
@@ -82,10 +83,10 @@ function DashGestor() {
   const [editingWork, setEditingWork] = useState(null);
 
   const metrics = {
-    total: works.length,
-    pending: works.filter(w => w.status === 'Pendente').length,
-    inProgress: works.filter(w => w.status === 'Em Andamento').length,
-    completed: works.filter(w => w.status === 'Concluído').length
+    total: works.length + maintenances.length,
+    pending: works.filter(w => w.status === 'Pendente').length + maintenances.filter(m => m.status === 'Pendente').length,
+    inProgress: works.filter(w => w.status === 'Em Andamento').length + maintenances.filter(m => m.status === 'Em Andamento').length,
+    completed: works.filter(w => w.status === 'Concluído').length + maintenances.filter(m => m.status === 'Concluído').length
   };
 
   const navigate = useNavigate();
@@ -106,7 +107,7 @@ function DashGestor() {
       console.log('Starting to fetch orçamentos for work:', workId);
       
       // Query the orcamentos collection for all orcamentos with this workId
-      const orcamentosRef = collection(db, 'orcamentos');
+      const orcamentosRef = collection(db, 'ObrasOrçamentos');
       
       // Log the entire orcamentos collection first
       const allOrcamentos = await getDocs(orcamentosRef);
@@ -212,32 +213,57 @@ function DashGestor() {
     }
   };
 
-  const handleEdit = async (workId) => {
-    try {
-      const work = works.find((w) => w.id === workId);
-      if (!work) {
-        toast.error('Obra não encontrada');
-        return;
-      }
-      navigate(`/edit-work/${workId}`);
-    } catch (error) {
-      console.error('Error editing work:', error);
-      toast.error('Erro ao editar a obra');
-    }
+  const handleEdit = (work) => {
+    setEditingWork(work);
+    setNewWork({
+      title: work.title,
+      description: work.description,
+      category: work.category,
+      priority: work.priority,
+      location: work.location || {
+        morada: '',
+        codigoPostal: '',
+        cidade: '',
+        andar: ''
+      },
+      date: work.date,
+      status: work.status,
+      files: work.files || [],
+      isMaintenance: work.isMaintenance,
+      orcamentos: work.orcamentos || {
+        minimo: '',
+        maximo: ''
+      },
+      prazoOrcamentos: work.prazoOrcamentos
+    });
+    setShowNewWorkForm(true);
   };
 
-  const handleComplete = async (workId, newStatus) => {
+  const handleComplete = async (workId, newStatus, isMaintenance, currentStatus, previousStatus) => {
     try {
-      // Aqui você deve implementar a chamada à API para atualizar o status
-      // Por enquanto, vamos apenas atualizar o estado local
-      setWorks(works.map(work => 
-        work.id === workId 
-          ? { ...work, status: newStatus }
-          : work
-      ));
+      let collectionName = isMaintenance ? 'ManutençãoPedidos' : 'ObrasPedidos';
+      const workRef = doc(db, collectionName, workId);
+      if (newStatus === 'concluido') {
+        // Salva o status anterior antes de concluir
+        await updateDoc(workRef, { status: newStatus, previousStatus: currentStatus });
+        if (isMaintenance) {
+          setMaintenances(prev => prev.map(m => m.id === workId ? { ...m, status: newStatus, previousStatus: currentStatus } : m));
+        } else {
+          setWorks(prevWorks => prevWorks.map(w => w.id === workId ? { ...w, status: newStatus, previousStatus: currentStatus } : w));
+        }
+      } else {
+        // Volta ao status anterior e remove o campo previousStatus
+        await updateDoc(workRef, { status: newStatus, previousStatus: deleteField() });
+        if (isMaintenance) {
+          setMaintenances(prev => prev.map(m => m.id === workId ? { ...m, status: newStatus, previousStatus: undefined } : m));
+        } else {
+          setWorks(prevWorks => prevWorks.map(w => w.id === workId ? { ...w, status: newStatus, previousStatus: undefined } : w));
+        }
+      }
       setSelectedWork(null);
     } catch (error) {
-      console.error('Erro ao atualizar o status da obra:', error);
+      console.error('Erro ao concluir/undo obra/manutenção:', error);
+      alert('Erro ao concluir/undo: ' + error.message);
     }
   };
 
@@ -316,7 +342,6 @@ function DashGestor() {
   };
 
   const handleSubmit = async (e) => {
-    // Verifica se o evento existe antes de chamar preventDefault
     if (e && e.preventDefault) {
       e.preventDefault();
     }
@@ -383,25 +408,34 @@ function DashGestor() {
         }
 
         console.log("Criando nova obra:", workData);
-        const workRef = await addDoc(collection(db, 'works'), workData);
+        const workRef = await addDoc(collection(db, 'ObrasPedidos'), workData);
         console.log("Obra criada com sucesso, ID:", workRef.id);
         setWorks(prevWorks => [...prevWorks, { ...workData, id: workRef.id }]);
         alert('Obra criada com sucesso!');
       } else {
         // Lógica para atualizar obra existente
-        const workRef = doc(db, 'works', editingWork.id);
+        const collectionName = editingWork.isMaintenance ? 'ManutençãoPedidos' : 'ObrasPedidos';
+        const workRef = doc(db, collectionName, editingWork.id);
         const updateData = {
           ...newWork,
-          updatedAt: serverTimestamp(),
-          isMaintenance: false // Sempre definido como false para obras
+          updatedAt: serverTimestamp()
         };
 
         await updateDoc(workRef, updateData);
         
-        setWorks(prevWorks => 
-          prevWorks.map(w => w.id === editingWork.id ? { ...updateData, id: editingWork.id } : w)
-        );
-        alert('Obra atualizada com sucesso!');
+        if (editingWork.isMaintenance) {
+          setMaintenances(prev => 
+            prev.map(m => m.id === editingWork.id ? { ...updateData, id: editingWork.id } : m)
+          );
+        } else {
+          setWorks(prevWorks => 
+            prevWorks.map(w => w.id === editingWork.id ? { ...updateData, id: editingWork.id } : w)
+          );
+        }
+        
+        alert('Item atualizado com sucesso!');
+        setShowNewWorkForm(false);
+        setEditingWork(null);
       }
 
       // Resetar o formulário
@@ -427,64 +461,33 @@ function DashGestor() {
         prazoOrcamentos: ''
       });
       
-      setShowNewWorkForm(false);
-      setEditingWork(null);
-      
-      // Recarregar as obras após criar/editar
-      loadWorks();
-      
     } catch (error) {
-      console.error('Erro ao salvar obra:', error);
-      alert(error.message || 'Erro ao salvar obra');
+      console.error('Erro ao salvar:', error);
+      alert(error.message || 'Erro ao salvar');
     } finally {
       setIsSubmitting(false);
     }
   };
 
   // Função atualizada para deletar obra e suas notificações
-  const handleDelete = async (workId) => {
-    if (!workId) {
-      console.error('ID da obra não fornecido');
-      return;
-    }
-
+  const handleDelete = async (workId, isMaintenance) => {
     try {
-      console.log('Estado atual das obras:', works.map(w => ({
-        id: w.id,
-        title: w.title
-      })));
-      console.log('Tentando deletar obra com ID:', workId);
-      
-      const workRef = doc(db, 'works', workId);
+      let collectionName = isMaintenance ? 'ManutençãoPedidos' : 'ObrasPedidos';
+      const workRef = doc(db, collectionName, workId);
       const workDoc = await getDoc(workRef);
-
       if (!workDoc.exists()) {
-        console.error('Obra não encontrada no Firestore. ID:', workId);
-        // Log adicional para debug
-        console.log('IDs disponíveis no estado:', works.map(w => w.id));
+        console.error('Obra/Manutenção não encontrada no Firestore. ID:', workId);
         return;
       }
-
-      if (window.confirm('Tem certeza que deseja excluir esta obra?')) {
-        setIsLoading(true);
-        
+      if (window.confirm('Tem certeza que deseja excluir este item?')) {
         await deleteDoc(workRef);
-        console.log('Obra deletada com sucesso. ID:', workId);
-        
-        setWorks(prevWorks => {
-          const filtered = prevWorks.filter(w => w.id !== workId);
-          console.log('Works após deleção:', filtered.map(w => ({
-            id: w.id,
-            title: w.title
-          })));
-          return filtered;
-        });
+        setWorks(prevWorks => prevWorks.filter(w => w.id !== workId));
+        setMaintenances(prev => prev.filter(m => m.id !== workId));
+        setSelectedWork(null);
       }
     } catch (error) {
-      console.error('Erro ao deletar obra:', error);
-      alert('Erro ao deletar obra: ' + error.message);
-    } finally {
-      setIsLoading(false);
+      console.error('Erro ao deletar obra/manutenção:', error);
+      alert('Erro ao deletar: ' + error.message);
     }
   };
 
@@ -628,23 +631,29 @@ function DashGestor() {
   // Verificar se estamos em uma rota específica ou na raiz do dashgestor
   const isRootPath = location.pathname === '/dashgestor';
 
-  const filteredWorks = works.filter(work => {
-    const matchesSearch = work.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         work.description.toLowerCase().includes(searchTerm.toLowerCase());
-    
+  // Unir obras e manutenções para exibir na tabela
+  const allServicos = [...works, ...maintenances];
+
+  // Ordenar por data de criação (mais recente primeiro)
+  const sortedServicos = allServicos.sort((a, b) => {
+    const dateA = a.createdAt ? new Date(a.createdAt.seconds ? a.createdAt.seconds * 1000 : a.createdAt) : new Date(0);
+    const dateB = b.createdAt ? new Date(b.createdAt.seconds ? b.createdAt.seconds * 1000 : b.createdAt) : new Date(0);
+    return dateB - dateA;
+  });
+
+  // Aplicar filtros de busca e seleção
+  const filteredServicos = sortedServicos.filter(servico => {
+    const matchesSearch = servico.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         servico.description?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = selectedFilters.status === '' || 
-                         work.status.toLowerCase() === selectedFilters.status.toLowerCase();
-    
+                         (servico.status && servico.status.toLowerCase() === selectedFilters.status.toLowerCase());
     const matchesCategory = selectedFilters.category === '' || 
-                           work.category.toLowerCase() === selectedFilters.category.toLowerCase();
-    
+                           (servico.category && servico.category.toLowerCase() === selectedFilters.category.toLowerCase());
     const matchesPriority = selectedFilters.priority === '' || 
-                           work.priority.toLowerCase() === selectedFilters.priority.toLowerCase();
-
+                           (servico.priority && servico.priority.toLowerCase() === selectedFilters.priority.toLowerCase());
     const matchesLocation = selectedFilters.location === '' || 
-                          (work.location && work.location.morada && 
-                           work.location.morada.toLowerCase().includes(selectedFilters.location.toLowerCase()));
-
+                          (servico.location && servico.location.morada && 
+                           servico.location.morada.toLowerCase().includes(selectedFilters.location.toLowerCase()));
     return matchesSearch && matchesStatus && matchesCategory && matchesPriority && matchesLocation;
   });
 
@@ -837,7 +846,7 @@ function DashGestor() {
                 className="edit-button"
                 onClick={() => {
                   closeItemDetails();
-                  handleEdit(expandedItem.id);
+                  handleEdit(expandedItem);
                 }}
               >
                 <FiEdit2 /> Editar
@@ -847,7 +856,7 @@ function DashGestor() {
                 onClick={() => {
                   if (window.confirm(`Tem certeza que deseja excluir ${expandedItem.isMaintenance ? 'esta manutenção' : 'esta obra'}?`)) {
                     closeItemDetails();
-                    handleDelete(expandedItem.id);
+                    handleDelete(expandedItem.id, expandedItem.isMaintenance);
                   }
                 }}
               >
@@ -893,19 +902,19 @@ function DashGestor() {
         <div className="metrics">
           <div className="metric-card">
             <h3>Total de Serviços</h3>
-            <div className="metric-value">{works.length}</div>
+            <div className="metric-value">{works.length + maintenances.length}</div>
           </div>
           <div className="metric-card">
             <h3>Serviços Pendentes</h3>
-            <div className="metric-value">{works.filter(w => w.status === 'disponivel').length}</div>
+            <div className="metric-value">{works.filter(w => w.status === 'disponivel').length + maintenances.filter(m => m.status === 'disponivel').length}</div>
           </div>
           <div className="metric-card">
             <h3>Em Andamento</h3>
-            <div className="metric-value">{works.filter(w => w.status === 'em-andamento').length}</div>
+            <div className="metric-value">{works.filter(w => w.status === 'em-andamento').length + maintenances.filter(m => m.status === 'em-andamento').length}</div>
           </div>
           <div className="metric-card">
             <h3>Concluídas</h3>
-            <div className="metric-value">{works.filter(w => w.status === 'concluido').length}</div>
+            <div className="metric-value">{works.filter(w => w.status === 'concluido').length + maintenances.filter(m => m.status === 'concluido').length}</div>
           </div>
         </div>
 
@@ -990,41 +999,41 @@ function DashGestor() {
                 <tr>
                   <td colSpan="5" className="loading">Carregando...</td>
                 </tr>
-              ) : filteredWorks.length > 0 ? (
-                filteredWorks
-                  .sort((a, b) => {
-                    const dateA = a.createdAt ? new Date(a.createdAt.seconds * 1000) : new Date(0);
-                    const dateB = b.createdAt ? new Date(b.createdAt.seconds * 1000) : new Date(0);
-                    return dateB - dateA;
-                  })
-                  .map(work => (
-                    <tr key={work.id} className="work-row" onClick={() => handleWorkClick(work)}>
-                      <td className="title-cell">
-                        <div className="work-title">{work.title}</div>
-                        {work.location?.morada && (
-                          <div className="work-subtitle">{work.location.morada}</div>
-                        )}
-                      </td>
-                      <td>{work.date ? new Date(work.date).toLocaleDateString() : ''}</td>
-                      <td>{work.category || 'Não especificada'}</td>
-                      <td>
-                        <span className={`priority-badge ${work.priority?.toLowerCase() || 'baixa'}`}>
-                          {work.priority || 'Baixa'}
-                        </span>
-                      </td>
-                      <td>
-                        <span className={`status-badge ${work.status?.toLowerCase() || 'disponivel'}`}>
-                          {work.status === 'concluido' ? 'Concluída' :
-                           work.status === 'em-andamento' ? 'Em andamento' :
-                           'Disponível'}
-                        </span>
-                      </td>
-                    </tr>
-                  ))
+              ) : filteredServicos.length > 0 ? (
+                filteredServicos.map(servico => (
+                  <tr key={servico.id} className="work-row" onClick={() => handleWorkClick(servico)}>
+                    <td className="title-cell">
+                      {servico.isMaintenance ? (
+                        <span className="servico-badge-custom">Manutenção</span>
+                      ) : (
+                        <span className="servico-badge-custom">Obra</span>
+                      )}
+                      <div className="work-title">{servico.title}</div>
+                      {servico.location?.morada && (
+                        <div className="work-subtitle">{servico.location.morada}</div>
+                      )}
+                    </td>
+                    <td>{servico.date ? new Date(servico.date).toLocaleDateString() : ''}</td>
+                    <td>{servico.category || 'Não especificada'}</td>
+                    <td>
+                      <span className={`priority-badge ${servico.priority?.toLowerCase() || 'baixa'}`}>
+                        {servico.priority || 'Baixa'}
+                      </span>
+                    </td>
+                    <td>
+                      <span className={`status-badge ${servico.status?.toLowerCase() || 'disponivel'}`}>
+                        {servico.status === 'concluido' ? 'Concluída' :
+                         servico.status === 'em-andamento' ? 'Em andamento' :
+                         servico.status === 'disponivel' ? 'Disponível' :
+                         servico.status || 'Disponível'}
+                      </span>
+                    </td>
+                  </tr>
+                ))
               ) : (
                 <tr>
                   <td colSpan="5" className="no-obras">
-                    <p>Nenhuma obra encontrada</p>
+                    <p>Nenhuma obra ou manutenção encontrada</p>
                   </td>
                 </tr>
               )}
@@ -1036,8 +1045,14 @@ function DashGestor() {
           work={selectedWork}
           onClose={handleCloseModal}
           onEdit={handleEdit}
-          onDelete={handleDelete}
-          onComplete={handleComplete}
+          onDelete={() => handleDelete(selectedWork.id, selectedWork.isMaintenance)}
+          onComplete={(id, newStatus) => {
+            if (selectedWork.status === 'concluido' && selectedWork.previousStatus) {
+              handleComplete(id, selectedWork.previousStatus, selectedWork.isMaintenance, selectedWork.status, selectedWork.previousStatus);
+            } else {
+              handleComplete(id, 'concluido', selectedWork.isMaintenance, selectedWork.status, selectedWork.previousStatus);
+            }
+          }}
           onFileDownload={handleFileDownload}
         />
       </>
@@ -1082,8 +1097,11 @@ function DashGestor() {
               handleRemoveFile={handleRemoveFile}
               isSubmitting={isSubmitting}
               onSubmit={handleSubmit}
-              onCancel={() => navigate('/dashgestor/obras')}
-              editMode={false}
+              onCancel={() => {
+                setShowNewWorkForm(false);
+                setEditingWork(null);
+              }}
+              editMode={!!editingWork}
             />
           } />
           <Route path="/calendario" element={<CalendarComponent />} />
@@ -1097,6 +1115,10 @@ function DashGestor() {
               user={user}
             />
           } />
+          <Route path="/new-work" element={<WorkForm />} />
+          <Route path="/new-maintenance" element={<MaintenanceForm />} />
+          <Route path="/edit-work/:id" element={<WorkForm editMode={true} />} />
+          <Route path="/edit-maintenance/:id" element={<MaintenanceForm editMode={true} />} />
         </Routes>
       </>
     );
@@ -1125,48 +1147,56 @@ function DashGestor() {
         userId: user.uid
       });
       
-      const worksRef = collection(db, 'works');
-      
-      // Primeiro, vamos buscar todas as obras para debug
-      const allWorksSnapshot = await getDocs(worksRef);
-      console.log('Todas as obras no Firestore:', allWorksSnapshot.docs.map(doc => ({
-        id: doc.id,
-        userEmail: doc.data().userEmail,
-        title: doc.data().title
-      })));
+      const obrasEmailQuery = query(collection(db, 'ObrasPedidos'), where("userEmail", "==", user.email));
+      const obrasUserIdQuery = query(collection(db, 'ObrasPedidos'), where("userId", "==", user.uid));
 
-      // Agora fazemos a query filtrada por email
-      const worksQuery = query(
-        worksRef,
-        where('userEmail', '==', user.email)
-      );
-      
-      const snapshot = await getDocs(worksQuery);
-      console.log('Obras após filtro de userEmail:', snapshot.docs.map(doc => ({
-        id: doc.id,
-        userEmail: doc.data().userEmail,
-        title: doc.data().title
-      })));
+      const [obrasEmailSnapshot, obrasUserIdSnapshot] = await Promise.all([
+        getDocs(obrasEmailQuery),
+        getDocs(obrasUserIdQuery)
+      ]);
 
-      const worksData = snapshot.docs.map(doc => {
-        const data = doc.data();
-        return {
-          ...data,
-          id: doc.id
-        };
+      // Criar um mapa para evitar duplicações
+      const obrasMap = new Map();
+      [...obrasEmailSnapshot.docs, ...obrasUserIdSnapshot.docs].forEach(doc => {
+        if (!obrasMap.has(doc.id)) {
+          obrasMap.set(doc.id, {
+            id: doc.id,
+            ...doc.data(),
+            isMaintenance: false
+          });
+        }
       });
-      
-      console.log('Obras processadas para o estado:', worksData.map(w => ({
-        id: w.id,
-        userEmail: w.userEmail,
-        title: w.title
-      })));
-      
-      setWorks(worksData);
-      
+      const obras = Array.from(obrasMap.values());
+
+      // Buscar manutenções do Firestore usando tanto userEmail quanto userId
+      const manutencoesEmailQuery = query(collection(db, 'ManutençãoPedidos'), where("userEmail", "==", user.email));
+      const manutencoesUserIdQuery = query(collection(db, 'ManutençãoPedidos'), where("userId", "==", user.uid));
+
+      const [manutencoesEmailSnapshot, manutencoesUserIdSnapshot] = await Promise.all([
+        getDocs(manutencoesEmailQuery),
+        getDocs(manutencoesUserIdQuery)
+      ]);
+
+      // Criar um mapa para evitar duplicações
+      const manutencoesMap = new Map();
+      [...manutencoesEmailSnapshot.docs, ...manutencoesUserIdSnapshot.docs].forEach(doc => {
+        if (!manutencoesMap.has(doc.id)) {
+          manutencoesMap.set(doc.id, {
+            id: doc.id,
+            ...doc.data(),
+            isMaintenance: true
+          });
+        }
+      });
+      const manutencoes = Array.from(manutencoesMap.values());
+
+      setWorks(obras);
+      setMaintenances(manutencoes);
+
+      console.log('Obras carregadas:', obras.length);
+      console.log('Manutenções carregadas:', manutencoes.length);
     } catch (error) {
-      console.error('Erro ao carregar obras:', error);
-      setWorks([]);
+      console.error('Erro ao carregar serviços:', error);
     } finally {
       setIsLoading(false);
     }
@@ -1341,87 +1371,68 @@ function DashGestor() {
   };
 
   useEffect(() => {
-    const fetchWorks = async () => {
+    const fetchServicos = async () => {
       if (user) {
         setIsLoading(true);
         try {
           // Buscar obras do Firestore usando tanto userEmail quanto userId
-          const worksEmailQuery = query(collection(db, 'works'), where("userEmail", "==", user.email));
-          const worksUserIdQuery = query(collection(db, 'works'), where("userId", "==", user.uid));
-          
-          const [emailSnapshot, userIdSnapshot] = await Promise.all([
-            getDocs(worksEmailQuery),
-            getDocs(worksUserIdQuery)
+          const obrasEmailQuery = query(collection(db, 'ObrasPedidos'), where("userEmail", "==", user.email));
+          const obrasUserIdQuery = query(collection(db, 'ObrasPedidos'), where("userId", "==", user.uid));
+
+          const [obrasEmailSnapshot, obrasUserIdSnapshot] = await Promise.all([
+            getDocs(obrasEmailQuery),
+            getDocs(obrasUserIdQuery)
           ]);
-          
+
           // Criar um mapa para evitar duplicações
-          const worksMap = new Map();
-          
-          // Adicionar todas as obras encontradas ao mapa
-          [...emailSnapshot.docs, ...userIdSnapshot.docs].forEach(doc => {
-            if (!worksMap.has(doc.id)) {
-              worksMap.set(doc.id, {
-                id: doc.id,
-                ...doc.data()
-              });
-            }
-          });
-          
-          // Converter para array
-          const worksData = Array.from(worksMap.values());
-          
-          // Separar obras e manutenções
-          const obras = worksData.filter(work => !work.isMaintenance);
-          const manutencoes = worksData.filter(work => work.isMaintenance);
-          
-          // Buscar também da coleção maintenances
-          const maintenancesEmailQuery = query(collection(db, 'maintenances'), where("userEmail", "==", user.email));
-          const maintenancesUserIdQuery = query(collection(db, 'maintenances'), where("userId", "==", user.uid));
-          
-          const [maintenancesEmailSnapshot, maintenancesUserIdSnapshot] = await Promise.all([
-            getDocs(maintenancesEmailQuery),
-            getDocs(maintenancesUserIdQuery)
-          ]);
-          
-          // Criar mapa para manutenções
-          const maintenancesMap = new Map();
-          
-          [...maintenancesEmailSnapshot.docs, ...maintenancesUserIdSnapshot.docs].forEach(doc => {
-            if (!maintenancesMap.has(doc.id)) {
-              maintenancesMap.set(doc.id, {
+          const obrasMap = new Map();
+          [...obrasEmailSnapshot.docs, ...obrasUserIdSnapshot.docs].forEach(doc => {
+            if (!obrasMap.has(doc.id)) {
+              obrasMap.set(doc.id, {
                 id: doc.id,
                 ...doc.data(),
-                isMaintenance: true // Garantir que todas as manutenções da coleção maintenances tenham essa flag
+                isMaintenance: false
               });
             }
           });
-          
-          // Combinar manutenções da coleção works e maintenances
-          const allMaintenances = [...manutencoes, ...Array.from(maintenancesMap.values())];
-          
-          // Remover duplicatas baseadas em propriedades como título, data, etc.
-          const uniqueMaintenances = allMaintenances.filter((maintenance, index, self) => 
-            index === self.findIndex(m => 
-              m.title === maintenance.title && 
-              m.date === maintenance.date && 
-              m.description === maintenance.description
-            )
-          );
-          
+          const obras = Array.from(obrasMap.values());
+
+          // Buscar manutenções do Firestore usando tanto userEmail quanto userId
+          const manutencoesEmailQuery = query(collection(db, 'ManutençãoPedidos'), where("userEmail", "==", user.email));
+          const manutencoesUserIdQuery = query(collection(db, 'ManutençãoPedidos'), where("userId", "==", user.uid));
+
+          const [manutencoesEmailSnapshot, manutencoesUserIdSnapshot] = await Promise.all([
+            getDocs(manutencoesEmailQuery),
+            getDocs(manutencoesUserIdQuery)
+          ]);
+
+          // Criar um mapa para evitar duplicações
+          const manutencoesMap = new Map();
+          [...manutencoesEmailSnapshot.docs, ...manutencoesUserIdSnapshot.docs].forEach(doc => {
+            if (!manutencoesMap.has(doc.id)) {
+              manutencoesMap.set(doc.id, {
+                id: doc.id,
+                ...doc.data(),
+                isMaintenance: true
+              });
+            }
+          });
+          const manutencoes = Array.from(manutencoesMap.values());
+
           setWorks(obras);
-          setMaintenances(uniqueMaintenances);
-          
+          setMaintenances(manutencoes);
+
           console.log('Obras carregadas:', obras.length);
-          console.log('Manutenções carregadas:', uniqueMaintenances.length);
+          console.log('Manutenções carregadas:', manutencoes.length);
         } catch (error) {
-          console.error('Erro ao carregar obras:', error);
+          console.error('Erro ao carregar serviços:', error);
         } finally {
           setIsLoading(false);
         }
       }
     };
 
-    fetchWorks();
+    fetchServicos();
   }, [user, db]);
 
   // Função para lidar com o clique em uma obra recente
@@ -1441,7 +1452,7 @@ function DashGestor() {
     console.log('Setting up real-time listener for orcamentos');
     
     // Criar um listener para a coleção de orçamentos
-    const orcamentosRef = collection(db, 'orcamentos');
+    const orcamentosRef = collection(db, 'ObrasOrçamentos');
     const q = query(orcamentosRef);
     
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -1497,7 +1508,7 @@ function DashGestor() {
             });
             
             // Atualiza a flag hasOrcamentos na obra
-            const workRef = doc(db, 'works', workId);
+            const workRef = doc(db, 'ObrasPedidos', workId);
             updateDoc(workRef, {
               hasOrcamentos: true
             }).catch(err => {

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { FiSend, FiPaperclip, FiPlus, FiUser } from 'react-icons/fi';
 import { getAuth } from 'firebase/auth';
 import { ref, onValue, push, set, serverTimestamp, get, update } from 'firebase/database';
-import { collection, query, where, getDocs, getDoc, doc } from 'firebase/firestore';
+import { collection, query, where, getDocs, getDoc, doc, onSnapshot, updateDoc } from 'firebase/firestore';
 import { db, database } from '../../../../services/firebase.jsx';
 import './Messages.css';
 
@@ -44,271 +44,109 @@ const Messages = () => {
   // Carregar todas as conversas do gestor
   useEffect(() => {
     if (!auth.currentUser) return;
-
-    const loadConversations = async () => {
-      try {
-        // Buscar obras onde o gestor é o dono
-        const worksRef = collection(db, 'works');
-        const q = query(worksRef, where('userId', '==', auth.currentUser.uid));
-        const worksSnapshot = await getDocs(q);
-        
-        const conversationsData = [];
-        
-        for (const workDoc of worksSnapshot.docs) {
-          const workData = workDoc.data();
-          
-          // Verificar se a obra tem um técnico atribuído
-          if (workData.technicianId) {
-            // Buscar dados do técnico
-            const technicianDoc = await getDoc(doc(db, 'users', workData.technicianId));
-            const technicianData = technicianDoc.data();
-
-            // Criar ID único para o chat
-            const chatId = [auth.currentUser.uid, workData.technicianId].sort().join('_');
-            
-            // Buscar mensagens
-            const messagesRef = ref(database, `chats/${chatId}/messages`);
-            const messagesSnapshot = await get(messagesRef);
-            const messages = messagesSnapshot.val();
-            
-            let lastMessage = null;
-            let unreadCount = 0;
-            
-            if (messages) {
-              const messagesArray = Object.values(messages);
-              lastMessage = messagesArray[messagesArray.length - 1];
-              
-              // Contar mensagens não lidas
-              unreadCount = messagesArray.filter(msg => 
-                msg.senderId !== auth.currentUser.uid && !msg.read
-              ).length;
-            }
-
-            conversationsData.push({
-              chatId,
-              technicianId: workData.technicianId,
-              technicianName: technicianData?.empresaNome || technicianData?.name || 'Técnico',
-              obraId: workDoc.id,
-              obraTitle: workData.title,
-              lastMessage: lastMessage?.text || '',
-              timestamp: lastMessage?.timestamp || null,
-              unreadCount
-            });
-          }
-        }
-
-        // Ordenar conversas pela última mensagem
-        conversationsData.sort((a, b) => {
-          if (!a.timestamp) return 1;
-          if (!b.timestamp) return -1;
-          return b.timestamp - a.timestamp;
+    setLoading(true);
+    const conversationsRef = collection(db, 'conversations');
+    const q = query(conversationsRef, where('gestorId', '==', auth.currentUser.uid));
+    const unsubscribe = onSnapshot(q, async (snapshot) => {
+      const conversationsData = [];
+      for (const conversationDoc of snapshot.docs) {
+        const conversationData = conversationDoc.data();
+        // Buscar dados do técnico
+        const technicianDoc = await getDoc(doc(db, 'users', conversationData.technicianId));
+        const technicianData = technicianDoc.data();
+        conversationsData.push({
+          id: conversationDoc.id,
+          technicianId: conversationData.technicianId,
+          technicianName: technicianData?.empresaNome || technicianData?.name || 'Técnico',
+          obraId: conversationData.workId,
+          obraTitle: conversationData.workTitle,
+          lastMessage: conversationData.lastMessage || '',
+          timestamp: conversationData.lastMessageTimestamp,
+          unreadCount: conversationData.messages?.filter(msg =>
+            msg.senderId !== auth.currentUser.uid && !msg.read
+          ).length || 0
         });
-
-        setConversations(conversationsData);
-        
-        // Se não houver conversa selecionada e houver conversas disponíveis, selecionar a primeira
-        if (!selectedConversation && conversationsData.length > 0) {
-          setSelectedConversation(conversationsData[0]);
-        }
-        
-        setLoading(false);
-      } catch (error) {
-        console.error('Erro ao carregar conversas:', error);
-        setLoading(false);
-        setError('Erro ao carregar conversas');
       }
-    };
-
-    loadConversations();
-  }, [auth.currentUser, selectedConversation]);
-
-  // Listen for new messages in all conversations
-  useEffect(() => {
-    if (!auth.currentUser || !conversations.length) return;
-
-    const unsubscribeListeners = conversations.map(conversation => {
-      const messagesRef = ref(database, `chats/${conversation.chatId}/messages`);
-      return onValue(messagesRef, (snapshot) => {
-        const data = snapshot.val();
-        if (data) {
-          const messagesArray = Object.values(data);
-          const lastMessage = messagesArray[messagesArray.length - 1];
-          
-          // Set unread count to 0 if this conversation is currently selected
-          const isSelected = selectedConversation?.chatId === conversation.chatId;
-          
-          // Only update unread messages if this is not the selected conversation
-          if (!isSelected) {
-            // Only count messages as unread if they're from the other user and not marked as read
-            const unreadCount = messagesArray.filter(msg => 
-              msg.senderId !== auth.currentUser.uid && !msg.read
-            ).length;
-
-            // Update conversations state with unread count
-            setConversations(prevConversations => 
-              prevConversations.map(conv => 
-                conv.chatId === conversation.chatId
-                  ? { 
-                      ...conv, 
-                      lastMessage: lastMessage?.text || '',
-                      timestamp: lastMessage?.timestamp || null,
-                      unreadCount: unreadCount
-                    }
-                  : conv
-              )
-            );
-          } else {
-            // For selected conversation, update last message without changing unread count
-            setConversations(prevConversations => 
-              prevConversations.map(conv => 
-                conv.chatId === conversation.chatId
-                  ? { 
-                      ...conv, 
-                      lastMessage: lastMessage?.text || '',
-                      timestamp: lastMessage?.timestamp || null,
-                      // Keep unread count at 0 for selected conversation
-                      unreadCount: 0
-                    }
-                  : conv
-              )
-            );
-
-            // Check if this is a new message (not initial load)
-            const oldMessages = messages;
-            
-            // If this is the selected conversation, update messages and mark them as read
-            // Map messages with their IDs
-            const sortedMessages = Object.entries(data)
-              .map(([id, message]) => ({
-                id,
-                ...message
-              }))
-              .sort((a, b) => {
-                const aTime = a.timestamp?.seconds || a.timestamp;
-                const bTime = b.timestamp?.seconds || b.timestamp;
-                return aTime - bTime; // Sort in ascending order (oldest to newest)
-              });
-            
-            // Update the messages state
-            setMessages(sortedMessages);
-            
-            // Find messages that need to be marked as read
-            const updates = {};
-            Object.entries(data).forEach(([messageId, message]) => {
-              if (message.senderId !== auth.currentUser.uid && !message.read) {
-                updates[`${messageId}/read`] = true;
-              }
-            });
-            
-            // Update read status in Firebase if there are unread messages
-            if (Object.keys(updates).length > 0) {
-              update(ref(database, `chats/${conversation.chatId}/messages`), updates);
-            }
-            
-            // Only scroll to bottom if:
-            // 1. This is a new message (more messages than before)
-            // 2. The new message is from the current user
-            const hasNewMessages = sortedMessages.length > oldMessages.length;
-            if (hasNewMessages) {
-              const lastMsg = sortedMessages[sortedMessages.length - 1];
-              const isFromCurrentUser = lastMsg.senderId === auth.currentUser.uid;
-              
-              if (isFromCurrentUser) {
-                // Always scroll to bottom for user's own messages
-                setTimeout(() => {
-                  messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-                }, 100);
-              } else {
-                // For other users' messages, only scroll if near bottom
-                const messagesContent = document.querySelector('.messages-content');
-                if (messagesContent) {
-                  const isNearBottom = messagesContent.scrollHeight - messagesContent.clientHeight - messagesContent.scrollTop < 100;
-                  if (isNearBottom) {
-                    setTimeout(() => {
-                      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-                    }, 100);
-                  }
-                }
-              }
-            }
-          }
-        } else {
-          // If there's no data, set empty messages array for the selected conversation
-          if (selectedConversation?.chatId === conversation.chatId) {
-            setMessages([]);
-          }
-        }
+      // Ordenar conversas pelo timestamp da última mensagem
+      conversationsData.sort((a, b) => {
+        const getMillis = (ts) => {
+          if (!ts) return 0;
+          if (typeof ts.toDate === 'function') return ts.toDate().getTime();
+          if (ts instanceof Date) return ts.getTime();
+          return 0;
+        };
+        return getMillis(b.timestamp) - getMillis(a.timestamp);
       });
+      setConversations(conversationsData);
+      if (!selectedConversation && conversationsData.length > 0) {
+        setSelectedConversation(conversationsData[0]);
+      }
+      setLoading(false);
     });
+    return () => unsubscribe();
+  }, [auth.currentUser]);
 
-    return () => {
-      unsubscribeListeners.forEach(unsubscribe => unsubscribe());
-    };
-  }, [auth.currentUser, conversations, selectedConversation, messages]);
-
-  // Remove scroll to bottom when selecting a conversation - will be handled in handleConversationSelect
+  // Carregar e ouvir mensagens da conversa selecionada
   useEffect(() => {
-    if (selectedConversation) {
-      // Wait for messages to load before scrolling
-      setTimeout(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-      }, 200);
-    }
-  }, [selectedConversation]);
+    if (!selectedConversation) return;
+    const conversationRef = doc(db, 'conversations', selectedConversation.id);
+    const unsubscribe = onSnapshot(conversationRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setMessages(data.messages || []);
+        // Marcar mensagens como lidas
+        const unreadMessages = data.messages?.filter(msg =>
+          msg.senderId !== auth.currentUser.uid && !msg.read
+        ) || [];
+        if (unreadMessages.length > 0) {
+          const updatedMessages = data.messages.map(msg => ({
+            ...msg,
+            read: msg.senderId !== auth.currentUser.uid ? true : msg.read
+          }));
+          updateDoc(conversationRef, {
+            messages: updatedMessages
+          });
+        }
+        setTimeout(() => {
+          messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+        }, 100);
+      }
+    });
+    return () => unsubscribe();
+  }, [selectedConversation, auth.currentUser]);
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!newMessage.trim() || !selectedConversation) return;
-
     try {
-      const messagesRef = ref(database, `chats/${selectedConversation.chatId}/messages`);
-      const newMessageRef = push(messagesRef);
-
-      const currentTime = new Date().getTime();
-
-      await set(newMessageRef, {
+      const conversationRef = doc(db, 'conversations', selectedConversation.id);
+      const conversationDoc = await getDoc(conversationRef);
+      if (!conversationDoc.exists()) {
+        throw new Error('Conversa não encontrada');
+      }
+      const currentData = conversationDoc.data();
+      const currentMessages = currentData.messages || [];
+      const messageData = {
         text: newMessage.trim(),
         senderId: auth.currentUser.uid,
         senderName: userData?.empresaNome || userData?.name || 'Gestor',
-        timestamp: currentTime,
+        timestamp: new Date(),
         read: false
+      };
+      await updateDoc(conversationRef, {
+        messages: [...currentMessages, messageData],
+        lastMessage: messageData.text,
+        lastMessageTimestamp: serverTimestamp()
       });
-
       setNewMessage('');
       setError(null);
-      
-      // Scroll to bottom after sending message
-      setTimeout(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-      }, 100);
     } catch (error) {
-      console.error('Erro ao enviar mensagem:', error);
-      if (error.message.includes('PERMISSION_DENIED')) {
-        setError('Erro de permissão: Você não tem permissão para enviar mensagens neste chat. Por favor, tente fazer login novamente.');
-      } else {
-        setError('Erro ao enviar mensagem. Por favor, tente novamente.');
-      }
+      setError('Erro ao enviar mensagem. Por favor, tente novamente.');
     }
   };
 
-  const handleConversationSelect = async (conversation) => {
+  const handleConversationSelect = (conversation) => {
     setSelectedConversation(conversation);
-    
-    // We don't need to mark messages as read here as the listener will handle it
-    
-    // Update local state immediately
-    setConversations(prevConversations => 
-      prevConversations.map(conv => 
-        conv.chatId === conversation.chatId
-          ? { ...conv, unreadCount: 0 }
-          : conv
-      )
-    );
-    
-    // Scroll to bottom when selecting a conversation, but only after a small delay to ensure messages are loaded
-    setTimeout(() => {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }, 200);
   };
 
   const filteredConversations = conversations.filter(conv =>
@@ -385,8 +223,8 @@ const Messages = () => {
           <div className="conversations-list">
             {filteredConversations.map((conversation) => (
               <div
-                key={conversation.chatId}
-                className={`conversation-item ${selectedConversation?.chatId === conversation.chatId ? 'active' : ''}`}
+                key={conversation.id}
+                className={`conversation-item ${selectedConversation?.id === conversation.id ? 'active' : ''}`}
                 onClick={() => handleConversationSelect(conversation)}
               >
                 <div className="conversation-info">
@@ -417,35 +255,42 @@ const Messages = () => {
               </div>
 
               <div className="messages-content">
-                <div className="messages-list">
-                  {messages.map((message) => (
-                    <div
-                      key={message.id}
-                      className={`message ${message.senderId === auth.currentUser.uid ? 'sent' : 'received'}`}
-                    >
-                      <div className="message-content">
-                        <span className="message-sender">
-                          {message.senderName}
-                        </span>
-                        <p>{message.text}</p>
-                        <span className="message-time">
-                          {formatTimestamp(message.timestamp)}
-                        </span>
+                {error && <p className="error-message">{error}</p>}
+                {messages.length > 0 ? (
+                  <div className="messages-list">
+                    {messages.map((message, index) => (
+                      <div
+                        key={index}
+                        className={`message ${message.senderId === auth.currentUser.uid ? 'sent' : 'received'}`}
+                      >
+                        <div className="message-content">
+                          <span className="message-sender">
+                            {message.senderName}
+                          </span>
+                          <p>{message.text}</p>
+                          <span className="message-time">
+                            {message.timestamp && (new Date(message.timestamp.seconds ? message.timestamp.seconds * 1000 : message.timestamp)).toLocaleTimeString()}
+                          </span>
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                  <div ref={messagesEndRef} />
-                </div>
+                    ))}
+                    <div ref={messagesEndRef} />
+                  </div>
+                ) : (
+                  <div className="no-messages">
+                    <p>Inicie uma conversa com o técnico</p>
+                  </div>
+                )}
               </div>
 
               <form className="message-input-form" onSubmit={handleSendMessage}>
                 <div className="message-input-container">
-                  <textarea
-                    className="message-input"
+                  <input
+                    type="text"
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
                     placeholder="Digite sua mensagem..."
-                    rows="1"
+                    className="message-input"
                   />
                   <button type="submit" className="send-button">
                     <FiSend />

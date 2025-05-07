@@ -4,7 +4,7 @@ import { FiArrowLeft, FiSearch, FiRefreshCcw } from 'react-icons/fi';
 import NewMaintenanceButton from './NewMaintenanceButton';
 import WorkDetailsModal from '../WorkDetailsModal/WorkDetailsModal';
 import { db } from '../../../../services/firebase';
-import { collection, query, where, getDocs, doc, updateDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { useAuth } from '../../../../contexts/auth';
 import './Maintenance.css';
 
@@ -20,6 +20,10 @@ function Maintenance() {
   const [locationFilter, setLocationFilter] = useState('');
   const [loading, setLoading] = useState(true);
   const [selectedWork, setSelectedWork] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 15;
+  const [orcamentos, setOrcamentos] = useState([]);
+  const [orcamentosLoading, setOrcamentosLoading] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -34,14 +38,14 @@ function Maintenance() {
       setLoading(true);
       console.log('Fetching maintenances for user:', user.email, 'userId:', user.uid);
       
-      // First, check the 'maintenances' collection using both email and userId
+      // Query the ManutençãoPedidos collection using both email and userId
       const maintenancesEmailQuery = query(
-        collection(db, 'maintenances'),
+        collection(db, 'ManutençãoPedidos'),
         where('userEmail', '==', user.email)
       );
       
       const maintenancesUserIdQuery = query(
-        collection(db, 'maintenances'),
+        collection(db, 'ManutençãoPedidos'),
         where('userId', '==', user.uid)
       );
       
@@ -53,53 +57,19 @@ function Maintenance() {
       console.log('Maintenances found by email:', maintenancesEmailSnapshot.docs.length);
       console.log('Maintenances found by userId:', maintenancesUserIdSnapshot.docs.length);
       
-      // For backward compatibility, also check the 'works' collection with isMaintenance flag
-      const worksEmailQuery = query(
-        collection(db, 'works'),
-        where('userEmail', '==', user.email),
-        where('isMaintenance', '==', true)
-      );
-      
-      const worksUserIdQuery = query(
-        collection(db, 'works'),
-        where('userId', '==', user.uid),
-        where('isMaintenance', '==', true)
-      );
-      
-      const [worksEmailSnapshot, worksUserIdSnapshot] = await Promise.all([
-        getDocs(worksEmailQuery),
-        getDocs(worksUserIdQuery)
-      ]);
-      
-      console.log('Works (maintenance) found by email:', worksEmailSnapshot.docs.length);
-      console.log('Works (maintenance) found by userId:', worksUserIdSnapshot.docs.length);
-      
-      // Create a unique set of maintenance documents by ID to avoid duplicates
+      // Create a unique set of maintenances by ID
       const maintenanceDocsMap = new Map();
       
-      // Add all maintenances from all queries to the map
       [...maintenancesEmailSnapshot.docs, ...maintenancesUserIdSnapshot.docs].forEach(doc => {
         if (!maintenanceDocsMap.has(doc.id)) {
           maintenanceDocsMap.set(doc.id, {
             id: doc.id,
             ...doc.data(),
-            source: 'maintenances'
+            source: 'ManutençãoPedidos'
           });
         }
       });
       
-      // Add all works with isMaintenance=true to the map
-      [...worksEmailSnapshot.docs, ...worksUserIdSnapshot.docs].forEach(doc => {
-        if (!maintenanceDocsMap.has(doc.id)) {
-          maintenanceDocsMap.set(doc.id, {
-            id: doc.id,
-            ...doc.data(),
-            source: 'works'
-          });
-        }
-      });
-      
-      // Convert the map to an array
       const manutencoesData = Array.from(maintenanceDocsMap.values());
       console.log('Total unique maintenance records:', manutencoesData.length);
       
@@ -138,19 +108,24 @@ function Maintenance() {
     setFilteredManutencoes(filtered);
   }, [manutencoes, searchTerm, statusFilter, categoryFilter, priorityFilter, locationFilter]);
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter, categoryFilter, priorityFilter, locationFilter]);
+
   const handleBack = () => {
     navigate('/dashgestor');
   };
 
   const handleManutencaoClick = (manutencao) => {
     setSelectedWork(manutencao);
+    fetchOrcamentos(manutencao.id);
   };
 
   const handleComplete = async (workId, newStatus) => {
     if (!workId) return;
 
     try {
-      const workRef = doc(db, 'works', workId);
+      const workRef = doc(db, 'ManutençãoPedidos', workId);
       await updateDoc(workRef, {
         status: newStatus
       });
@@ -170,8 +145,59 @@ function Maintenance() {
     }
   };
 
+  const handleEdit = (manutencao) => {
+    navigate(`/dashgestor/edit-maintenance/${manutencao.id}`);
+  };
+
+  const handleDelete = async (workId) => {
+    if (!workId) return;
+
+    if (window.confirm('Tem certeza que deseja excluir esta manutenção?')) {
+      try {
+        const workRef = doc(db, 'ManutençãoPedidos', workId);
+        await deleteDoc(workRef);
+
+        setManutencoes(prevManutencoes => 
+          prevManutencoes.filter(manutencao => manutencao.id !== workId)
+        );
+
+        setSelectedWork(null);
+      } catch (error) {
+        console.error('Erro ao deletar manutenção:', error);
+        alert('Ocorreu um erro ao deletar a manutenção.');
+      }
+    }
+  };
+
   const handleCloseModal = () => {
     setSelectedWork(null);
+  };
+
+  const totalPages = Math.ceil(filteredManutencoes.length / itemsPerPage);
+  const paginatedManutencoes = filteredManutencoes.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  const fetchOrcamentos = async (manutencaoId) => {
+    setOrcamentosLoading(true);
+    try {
+      const orcamentosQuery = query(
+        collection(db, 'ManutençãoOrçamentos'),
+        where('manutencaoId', '==', manutencaoId)
+      );
+      const snapshot = await getDocs(orcamentosQuery);
+      const orcamentosData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      setOrcamentos(orcamentosData);
+    } catch (error) {
+      console.error('Erro ao buscar orçamentos:', error);
+      setOrcamentos([]);
+    } finally {
+      setOrcamentosLoading(false);
+    }
   };
 
   if (loading) {
@@ -267,7 +293,7 @@ function Maintenance() {
               onChange={(e) => setLocationFilter(e.target.value)}
             />
 
-            <NewMaintenanceButton onCreated={fetchManutencoes} />
+            <NewMaintenanceButton onCreated={fetchManutencoes} user={user} />
           </div>
         </div>
 
@@ -284,34 +310,42 @@ function Maintenance() {
                 </tr>
               </thead>
               <tbody>
-                {filteredManutencoes.map((manutencao) => (
-                  <tr 
-                    key={manutencao.id} 
-                    className="work-row"
-                    onClick={() => handleManutencaoClick(manutencao)}
-                  >
-                    <td className="title-cell">
-                      <div className="work-title">{manutencao.title}</div>
-                      {manutencao.description && (
-                        <div className="work-subtitle">{manutencao.description}</div>
-                      )}
-                    </td>
-                    <td>{manutencao.date && new Date(manutencao.date).toLocaleDateString()}</td>
-                    <td>{manutencao.category}</td>
-                    <td>
-                      <span className={`priority-badge ${manutencao.priority?.toLowerCase() || ''}`}>
-                        {manutencao.priority || 'Normal'}
-                      </span>
-                    </td>
-                    <td>
-                      <span className={`status-badge ${manutencao.status?.toLowerCase() || ''}`}>
-                        {manutencao.status === 'concluido' ? 'Concluída' :
-                         manutencao.status === 'em-andamento' ? 'Em andamento' :
-                         'Disponível'}
-                      </span>
+                {paginatedManutencoes.length === 0 ? (
+                  <tr>
+                    <td colSpan="5" style={{ textAlign: 'center', padding: '20px' }}>
+                      Nenhuma manutenção encontrada
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  paginatedManutencoes.map((manutencao) => (
+                    <tr 
+                      key={manutencao.id} 
+                      className="work-row"
+                      onClick={() => handleManutencaoClick(manutencao)}
+                    >
+                      <td className="title-cell">
+                        <div className="work-title">{manutencao.title}</div>
+                        {manutencao.description && (
+                          <div className="work-subtitle">{manutencao.description}</div>
+                        )}
+                      </td>
+                      <td>{manutencao.date && new Date(manutencao.date).toLocaleDateString()}</td>
+                      <td>{manutencao.category}</td>
+                      <td>
+                        <span className={`priority-badge ${manutencao.priority?.toLowerCase() || ''}`}>
+                          {manutencao.priority || 'Normal'}
+                        </span>
+                      </td>
+                      <td>
+                        <span className={`status-badge ${manutencao.status?.toLowerCase() || ''}`}>
+                          {manutencao.status === 'concluido' ? 'Concluída' :
+                           manutencao.status === 'em-andamento' ? 'Em andamento' :
+                           'Disponível'}
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           ) : (
@@ -320,14 +354,45 @@ function Maintenance() {
             </div>
           )}
         </div>
+
+        <div className="pagination">
+          <button
+            className="pagination-button"
+            onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+            disabled={currentPage === 1}
+          >
+            Anterior
+          </button>
+          {[...Array(totalPages)].map((_, idx) => (
+            <button
+              key={idx + 1}
+              className={`pagination-button${currentPage === idx + 1 ? ' active' : ''}`}
+              onClick={() => setCurrentPage(idx + 1)}
+            >
+              {idx + 1}
+            </button>
+          ))}
+          <button
+            className="pagination-button"
+            onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+            disabled={currentPage === totalPages}
+          >
+            Próxima
+          </button>
+          <span className="pagination-info">
+            Página {currentPage} de {totalPages}
+          </span>
+        </div>
       </div>
 
       {selectedWork && (
         <WorkDetailsModal
           work={selectedWork}
+          workOrcamentos={orcamentos}
+          orcamentosLoading={orcamentosLoading}
           onClose={handleCloseModal}
-          onEdit={() => {}}
-          onDelete={() => {}}
+          onEdit={() => handleEdit(selectedWork)}
+          onDelete={() => handleDelete(selectedWork.id)}
           onComplete={handleComplete}
           onFileDownload={() => {}}
         />

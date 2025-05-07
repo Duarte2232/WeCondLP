@@ -129,37 +129,38 @@ const DashTecnico = () => {
         
         console.log("Especialidades normalizadas:", especialidadesNormalizadas);
 
-        // Buscar todas as obras
-        const obrasRef = collection(db, 'works');
-        const querySnapshot = await getDocs(obrasRef);
+        // Buscar todas as obras da coleção ObrasPedidos
+        const obrasRef = collection(db, 'ObrasPedidos');
+        const obrasQuerySnapshot = await getDocs(obrasRef);
         
-        console.log("Total de obras encontradas:", querySnapshot.size);
+        // Buscar todas as manutenções da coleção ManutençãoPedidos
+        const manutencoesRef = collection(db, 'ManutençãoPedidos');
+        const manutencoesQuerySnapshot = await getDocs(manutencoesRef);
         
-        // Filtrar obras com base nas especialidades do técnico
-        const obrasData = [];
-        querySnapshot.forEach((doc) => {
-          const obraData = { id: doc.id, ...doc.data() };
-          console.log("Obra encontrada:", obraData.title, "Categoria:", obraData.category, "Status:", obraData.status, "Manutenção:", obraData.isMaintenance);
-          
+        console.log("Total de obras encontradas:", obrasQuerySnapshot.size);
+        console.log("Total de manutenções encontradas:", manutencoesQuerySnapshot.size);
+        
+        // Função para filtrar trabalhos com base nas especialidades
+        const filterBySpecialties = (trabalho) => {
           // Se a obra já tiver um técnico atribuído que não seja o usuário atual, pular
-          if (obraData.technicianId && obraData.technicianId !== auth.currentUser.uid) {
-            console.log("Obra já atribuída a outro técnico:", obraData.title);
-            return;
+          if (trabalho.technicianId && trabalho.technicianId !== auth.currentUser.uid) {
+            console.log("Trabalho já atribuído a outro técnico:", trabalho.title);
+            return false;
           }
           
-          // Se a obra não tiver status ou não for "disponivel", mas tiver técnico atribuído igual ao usuário atual, mostrar
-          const statusCompativel = !obraData.status || 
-                                  obraData.status === "disponivel" || 
-                                  (obraData.technicianId === auth.currentUser.uid);
+          // Se o trabalho não tiver status ou não for "disponivel", mas tiver técnico atribuído igual ao usuário atual, mostrar
+          const statusCompativel = !trabalho.status || 
+                                  trabalho.status === "disponivel" || 
+                                  (trabalho.technicianId === auth.currentUser.uid);
           
           if (!statusCompativel) {
-            console.log("Status incompatível:", obraData.status);
-            return;
+            console.log("Status incompatível:", trabalho.status);
+            return false;
           }
           
-          // Normalizar categoria da obra
-          const categoriaNormalizada = obraData.category 
-            ? obraData.category.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+          // Normalizar categoria do trabalho
+          const categoriaNormalizada = trabalho.category 
+            ? trabalho.category.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
             : "";
           
           // Mapeamento de categorias para palavras-chave de especialidades
@@ -182,7 +183,7 @@ const DashTecnico = () => {
             "outros": ["outros", "diversos", "geral"]
           };
 
-          // Verificar se a categoria da obra corresponde a alguma especialidade do técnico
+          // Verificar se a categoria do trabalho corresponde a alguma especialidade do técnico
           let correspondeEspecialidade = false;
           
           // Primeiro, verificar correspondência direta
@@ -198,19 +199,37 @@ const DashTecnico = () => {
             );
           }
 
-          if (correspondeEspecialidade) {
-            console.log("Obra corresponde à especialidade:", obraData.title);
-            if (obraData.isMaintenance) {
-              console.log("Manutenção encontrada para o técnico:", obraData.title);
-            }
+          return correspondeEspecialidade;
+        };
+
+        // Processar obras
+        const obrasData = [];
+        obrasQuerySnapshot.forEach((doc) => {
+          const obraData = { id: doc.id, ...doc.data(), isMaintenance: false };
+          if (filterBySpecialties(obraData)) {
             obrasData.push(obraData);
           }
         });
 
-        console.log("Obras filtradas para exibição:", obrasData.length);
-        setObras(obrasData);
+        // Processar manutenções
+        const manutencoesData = [];
+        manutencoesQuerySnapshot.forEach((doc) => {
+          const manutencaoData = { id: doc.id, ...doc.data(), isMaintenance: true };
+          if (filterBySpecialties(manutencaoData)) {
+            manutencoesData.push(manutencaoData);
+          }
+        });
+
+        // Combinar obras e manutenções
+        const allTrabalhos = [...obrasData, ...manutencoesData];
+        
+        console.log("Obras filtradas:", obrasData.length);
+        console.log("Manutenções filtradas:", manutencoesData.length);
+        console.log("Total de trabalhos:", allTrabalhos.length);
+        
+        setObras(allTrabalhos);
       } catch (error) {
-        console.error("Erro ao buscar obras:", error);
+        console.error("Erro ao buscar trabalhos:", error);
       } finally {
         setLoading(false);
       }

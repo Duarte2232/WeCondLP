@@ -10,6 +10,7 @@ import {
 } from '../../../../services/cloudinary.service.js';
 import { v4 as uuidv4 } from 'uuid';
 import './BudgetModal.css';
+import { CLOUDINARY_CONFIG } from '../../../../config/cloudinary';
 
 // Constants for validation
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
@@ -28,7 +29,6 @@ const BudgetModal = ({ job, onClose, onSuccess }) => {
   const [budgetData, setBudgetData] = useState({
     amount: '',
     description: '',
-    timeEstimate: '',
     files: []
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -75,18 +75,6 @@ const BudgetModal = ({ job, onClose, onSuccess }) => {
     return errors;
   };
 
-  // Validate time estimate format
-  const validateTimeEstimate = (value) => {
-    const errors = {};
-    const timePattern = /^(\d+)\s*(dia|dias|semana|semanas|mês|meses)$/i;
-    
-    if (value && !timePattern.test(value)) {
-      errors.timeEstimate = 'Formato inválido. Use: "X dias", "X semanas" ou "X meses"';
-    }
-    
-    return errors;
-  };
-
   // Handle budget data changes with validation
   const handleBudgetChange = (e) => {
     const { name, value } = e.target;
@@ -107,12 +95,6 @@ const BudgetModal = ({ job, onClose, onSuccess }) => {
       setValidationErrors(prev => ({
         ...prev,
         amount: errors.amount
-      }));
-    } else if (name === 'timeEstimate') {
-      const errors = validateTimeEstimate(value);
-      setValidationErrors(prev => ({
-        ...prev,
-        timeEstimate: errors.timeEstimate
       }));
     }
   };
@@ -220,90 +202,77 @@ const BudgetModal = ({ job, onClose, onSuccess }) => {
   };
 
   // Submit budget with validation
-  const submitBudget = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    // Clear previous messages
+    setIsSubmitting(true);
     setErrorMessage('');
     setSuccessMessage('');
-    
-    // Validate all fields
-    const amountErrors = validateAmount(budgetData.amount);
-    const timeErrors = validateTimeEstimate(budgetData.timeEstimate);
-    
-    const errors = {
-      ...amountErrors,
-      ...timeErrors,
-      description: !budgetData.description.trim() ? 'A descrição é obrigatória' : undefined
-    };
 
-    // Check for validation errors
-    const hasErrors = Object.values(errors).some(error => error !== undefined);
-    if (hasErrors) {
-      setValidationErrors(errors);
-      return;
-    }
-    
     try {
-      setIsSubmitting(true);
-      
-      // Upload files to Cloudinary first
-      let processedFiles = [];
-      if (budgetData.files.length > 0) {
-        try {
-          console.log(`Iniciando upload de ${budgetData.files.length} arquivos com múltiplos métodos...`);
-          
-          // Processa cada arquivo individualmente para melhor tratamento de erros
-          const uploadPromises = budgetData.files.map(fileObj => 
-            uploadSingleFileWithRetry(fileObj.file)
-          );
-          
-          processedFiles = await Promise.all(uploadPromises);
-          console.log('Todos os arquivos foram enviados com sucesso:', processedFiles);
-        } catch (error) {
-          console.error('Todos os métodos de upload falharam para pelo menos um arquivo:', error);
-          setErrorMessage('Erro ao enviar arquivos. Por favor, tente novamente.');
-          setIsSubmitting(false);
-          return;
-        }
+      // Validate form
+      const errors = {};
+      if (!budgetData.amount || budgetData.amount <= 0) {
+        errors.amount = 'Por favor, insira um valor válido para o orçamento';
       }
-      
-      // Create budget data
-      const orcamentoData = {
-        workId: job.id,
-        gestorId: job.userId,
-        technicianId: auth.currentUser.uid,
-        amount: parseFloat(budgetData.amount.replace(',', '.')),
-        description: budgetData.description.trim(),
-        timeEstimate: budgetData.timeEstimate,
-        status: 'pending',
-        createdAt: serverTimestamp(),
-        viewed: false,
-        files: processedFiles // Add the uploaded files
-      };
-      
-      // Save to Firestore
-      const docRef = await addDoc(collection(db, 'orcamentos'), orcamentoData);
-      
-      // Update work status if needed
-      if (job.status === 'disponivel') {
-        const workRef = doc(db, 'works', job.id);
-        await updateDoc(workRef, {
-          hasOrcamentos: true
-        });
+      if (!budgetData.description) {
+        errors.description = 'Por favor, insira uma descrição do orçamento';
       }
-      
-      setSuccessMessage('Orçamento enviado com sucesso!');
-      
-      // Close modal after success
-      setTimeout(() => {
+
+      if (Object.keys(errors).length > 0) {
+        setValidationErrors(errors);
         setIsSubmitting(false);
+        return;
+      }
+
+      // Process files if any
+      const processedFiles = await Promise.all(
+        budgetData.files.map(async (file) => {
+          if (file.preview) {
+            // This is a local file that needs to be uploaded
+            const response = await uploadToCloudinary(file.file);
+            return {
+              name: file.name,
+              url: response.url,
+              type: file.type,
+              size: file.size
+            };
+          }
+          return file; // Already processed file
+        })
+      );
+
+      // Create budget document
+      const budgetDoc = {
+        workId: job.id,
+        technicianId: auth.currentUser.uid,
+        technicianEmail: auth.currentUser.email,
+        amount: budgetData.amount,
+        description: budgetData.description,
+        files: processedFiles,
+        createdAt: serverTimestamp(),
+        status: 'pendente',
+        isMaintenance: job.isMaintenance || false
+      };
+
+      // Adiciona o campo manutencaoId se for manutenção
+      if (job.isMaintenance) {
+        budgetDoc.manutencaoId = job.id;
+      }
+
+      // Store in appropriate collection based on whether it's a maintenance or work
+      const collectionName = job.isMaintenance ? 'ManutençãoOrçamentos' : 'ObrasOrçamentos';
+      await addDoc(collection(db, collectionName), budgetDoc);
+
+      setSuccessMessage('Orçamento enviado com sucesso!');
+      setTimeout(() => {
         onSuccess();
-      }, 1500);
-      
+        onClose();
+      }, 2000);
+
     } catch (error) {
-      console.error("Erro ao enviar orçamento:", error);
+      console.error('Error submitting budget:', error);
       setErrorMessage('Erro ao enviar orçamento. Por favor, tente novamente.');
+    } finally {
       setIsSubmitting(false);
     }
   };
@@ -346,10 +315,10 @@ const BudgetModal = ({ job, onClose, onSuccess }) => {
             </div>
           )}
           
-          <form onSubmit={submitBudget}>
+          <form onSubmit={handleSubmit}>
             <div className="form-group">
               <label htmlFor="amount">
-                <FiDollarSign /> Valor do Orçamento (R$)
+                <FiDollarSign /> Valor do Orçamento 
               </label>
               <input
                 type="text"
@@ -359,21 +328,6 @@ const BudgetModal = ({ job, onClose, onSuccess }) => {
                 value={budgetData.amount}
                 onChange={handleBudgetChange}
                 required
-                disabled={isSubmitting}
-              />
-            </div>
-            
-            <div className="form-group">
-              <label htmlFor="timeEstimate">
-                <FiClock /> Tempo Estimado
-              </label>
-              <input
-                type="text"
-                id="timeEstimate"
-                name="timeEstimate"
-                placeholder="ex: 5 dias, 2 semanas"
-                value={budgetData.timeEstimate}
-                onChange={handleBudgetChange}
                 disabled={isSubmitting}
               />
             </div>

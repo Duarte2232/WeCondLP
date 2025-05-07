@@ -484,6 +484,7 @@ function DashAdmin() {
         data: new Date().toISOString(),
         aceito: false,
         visualizado: false,
+        workId: selectedWorkForOrcamento.id,
         documento: documentoData ? {
           url: documentoData.url,
           nome: documentoData.nome,
@@ -492,20 +493,13 @@ function DashAdmin() {
         } : null
       };
 
-      // Atualizar no Firestore
-      const workRef = doc(db, 'works', selectedWorkForOrcamento.id);
-      const workDoc = await getDoc(workRef);
-      const workData = workDoc.data();
-      
-      // Inicializa o array de orçamentos se não existir
-      let currentOrcamentos = [];
-      if (workData && Array.isArray(workData.orcamentos)) {
-        currentOrcamentos = workData.orcamentos;
-      }
+      // Adicionar à coleção ObrasOrçamentos
+      await addDoc(collection(db, 'ObrasOrçamentos'), orcamentoData);
 
-      // Atualiza o documento com o novo array de orçamentos
+      // Atualizar a flag hasOrcamentos na obra
+      const workRef = doc(db, 'ObrasPedidos', selectedWorkForOrcamento.id);
       await updateDoc(workRef, {
-        orcamentos: arrayUnion(orcamentoData)
+        hasOrcamentos: true
       });
 
       // Tenta enviar o email passando apenas workData

@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { FiSend, FiPaperclip, FiPlus, FiUser } from 'react-icons/fi';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { FiSend, FiUser } from 'react-icons/fi';
 import { getAuth } from 'firebase/auth';
-import { ref, onValue, push, set, serverTimestamp, get, update } from 'firebase/database';
-import { collection, query, where, getDocs, getDoc, doc } from 'firebase/firestore';
-import { db, database } from '../../../../services/firebase.jsx';
+import { collection, query, where, getDocs, getDoc, doc, addDoc, serverTimestamp, onSnapshot, updateDoc, arrayUnion, orderBy } from 'firebase/firestore';
+import { db } from '../../../../services/firebase.jsx';
 import './Messages.css';
 
 const Messages = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const auth = getAuth();
   const [conversations, setConversations] = useState([]);
   const [selectedConversation, setSelectedConversation] = useState(null);
@@ -47,68 +47,67 @@ const Messages = () => {
 
     const loadConversations = async () => {
       try {
-        // Buscar obras onde o técnico está associado
-        const worksRef = collection(db, 'works');
-        const q = query(worksRef, where('technicianId', '==', auth.currentUser.uid));
-        const worksSnapshot = await getDocs(q);
+        // Buscar conversas onde o técnico está associado
+        const conversationsRef = collection(db, 'conversations');
+        const q = query(
+          conversationsRef, 
+          where('technicianId', '==', auth.currentUser.uid)
+        );
         
-        const conversationsData = [];
-        
-        for (const workDoc of worksSnapshot.docs) {
-          const workData = workDoc.data();
+        // Use onSnapshot para ouvir mudanças em tempo real
+        const unsubscribe = onSnapshot(q, async (snapshot) => {
+          const conversationsData = [];
           
-          // Buscar dados do gestor
-          const gestorDoc = await getDoc(doc(db, 'users', workData.userId));
-          const gestorData = gestorDoc.data();
-
-          // Criar ID único para o chat
-          const chatId = [auth.currentUser.uid, workData.userId].sort().join('_');
-          
-          // Buscar mensagens
-          const messagesRef = ref(database, `chats/${chatId}/messages`);
-          const messagesSnapshot = await get(messagesRef);
-          const messages = messagesSnapshot.val();
-          
-          let lastMessage = null;
-          let unreadCount = 0;
-          
-          if (messages) {
-            const messagesArray = Object.values(messages);
-            lastMessage = messagesArray[messagesArray.length - 1];
+          for (const conversationDoc of snapshot.docs) {
+            const conversationData = conversationDoc.data();
             
-            // Contar mensagens não lidas
-            unreadCount = messagesArray.filter(msg => 
-              msg.senderId !== auth.currentUser.uid && !msg.read
-            ).length;
+            // Buscar dados do gestor
+            const gestorDoc = await getDoc(doc(db, 'users', conversationData.gestorId));
+            const gestorData = gestorDoc.data();
+
+            conversationsData.push({
+              id: conversationDoc.id,
+              gestorId: conversationData.gestorId,
+              gestorName: gestorData?.name || gestorData?.email || 'Gestor',
+              obraId: conversationData.workId,
+              obraTitle: conversationData.workTitle,
+              lastMessage: conversationData.lastMessage || '',
+              timestamp: conversationData.lastMessageTimestamp,
+              unreadCount: conversationData.messages?.filter(msg => 
+                msg.senderId !== auth.currentUser.uid && !msg.read
+              ).length || 0
+            });
           }
 
-          conversationsData.push({
-            chatId,
-            gestorId: workData.userId,
-            gestorName: gestorData.name || gestorData.email,
-            obraId: workDoc.id,
-            obraTitle: workData.title,
-            lastMessage: lastMessage?.text || '',
-            timestamp: lastMessage?.timestamp || null,
-            unreadCount
+          // Ordenar as conversas pelo timestamp da última mensagem
+          conversationsData.sort((a, b) => {
+            if (!a.timestamp) return 1;
+            if (!b.timestamp) return -1;
+            
+            const dateA = a.timestamp.toDate ? a.timestamp.toDate() : new Date(a.timestamp);
+            const dateB = b.timestamp.toDate ? b.timestamp.toDate() : new Date(b.timestamp);
+            
+            return dateB - dateA;
           });
-        }
 
-        // Ordenar conversas pela última mensagem
-        conversationsData.sort((a, b) => {
-          if (!a.timestamp) return 1;
-          if (!b.timestamp) return -1;
-          return b.timestamp - a.timestamp;
+          setConversations(conversationsData);
+          
+          // Seleção automática da conversa se vier via location.state
+          if (location.state?.conversationId) {
+            const found = conversationsData.find(conv => conv.id === location.state.conversationId);
+            if (found) {
+              setSelectedConversation(found);
+            } else if (conversationsData.length > 0) {
+              setSelectedConversation(conversationsData[0]);
+            }
+          } else if (!selectedConversation && conversationsData.length > 0) {
+            setSelectedConversation(conversationsData[0]);
+          }
+          
+          setLoading(false);
         });
 
-        setConversations(conversationsData);
-        
-        // Se não houver conversa selecionada e houver conversas disponíveis, selecionar a primeira
-        if (!selectedConversation && conversationsData.length > 0) {
-          setSelectedConversation(conversationsData[0]);
-        }
-        
-        setLoading(false);
+        return () => unsubscribe();
       } catch (error) {
         console.error('Erro ao carregar conversas:', error);
         setLoading(false);
@@ -117,185 +116,87 @@ const Messages = () => {
     };
 
     loadConversations();
-  }, [auth.currentUser, selectedConversation]);
+  }, [auth.currentUser]);
 
-  // Listen for new messages in all conversations
+  // Carregar e ouvir mensagens da conversa selecionada
   useEffect(() => {
-    if (!auth.currentUser || !conversations.length) return;
+    if (!selectedConversation) return;
 
-    const unsubscribeListeners = conversations.map(conversation => {
-      const messagesRef = ref(database, `chats/${conversation.chatId}/messages`);
-      return onValue(messagesRef, (snapshot) => {
-        const data = snapshot.val();
-        if (data) {
-          const messagesArray = Object.values(data);
-          const lastMessage = messagesArray[messagesArray.length - 1];
-          
-          // Set unread count to 0 if this conversation is currently selected
-          const isSelected = selectedConversation?.chatId === conversation.chatId;
-          
-          // Only update unread messages if this is not the selected conversation
-          if (!isSelected) {
-            // Only count messages as unread if they're from the other user and not marked as read
-            const unreadCount = messagesArray.filter(msg => 
-              msg.senderId !== auth.currentUser.uid && !msg.read
-            ).length;
+    const conversationRef = doc(db, 'conversations', selectedConversation.id);
+    
+    const unsubscribe = onSnapshot(conversationRef, (doc) => {
+      if (doc.exists()) {
+        const data = doc.data();
+        setMessages(data.messages || []);
 
-            // Update conversations state with unread count
-            setConversations(prevConversations => 
-              prevConversations.map(conv => 
-                conv.chatId === conversation.chatId
-                  ? { 
-                      ...conv, 
-                      lastMessage: lastMessage?.text || '',
-                      timestamp: lastMessage?.timestamp || null,
-                      unreadCount: unreadCount
-                    }
-                  : conv
-              )
-            );
-          } else {
-            // For selected conversation, update last message without changing unread count
-            setConversations(prevConversations => 
-              prevConversations.map(conv => 
-                conv.chatId === conversation.chatId
-                  ? { 
-                      ...conv, 
-                      lastMessage: lastMessage?.text || '',
-                      timestamp: lastMessage?.timestamp || null,
-                      // Keep unread count at 0 for selected conversation
-                      unreadCount: 0
-                    }
-                  : conv
-              )
-            );
+        // Marcar mensagens como lidas
+        const unreadMessages = data.messages?.filter(msg => 
+          msg.senderId !== auth.currentUser.uid && !msg.read
+        ) || [];
 
-            // Check if this is a new message (not initial load)
-            const oldMessages = messages;
-            
-            // If this is the selected conversation, update messages and mark them as read
-            // Map messages with their IDs
-            const sortedMessages = Object.entries(data)
-              .map(([id, message]) => ({
-                id,
-                ...message
-              }))
-              .sort((a, b) => {
-                const aTime = a.timestamp?.seconds || a.timestamp;
-                const bTime = b.timestamp?.seconds || b.timestamp;
-                return aTime - bTime; // Sort in ascending order (oldest to newest)
-              });
-            
-            // Update the messages state
-            setMessages(sortedMessages);
-            
-            // Find messages that need to be marked as read
-            const updates = {};
-            Object.entries(data).forEach(([messageId, message]) => {
-              if (message.senderId !== auth.currentUser.uid && !message.read) {
-                updates[`${messageId}/read`] = true;
-              }
-            });
-            
-            // Update read status in Firebase if there are unread messages
-            if (Object.keys(updates).length > 0) {
-              update(ref(database, `chats/${conversation.chatId}/messages`), updates);
-            }
-            
-            // Only scroll to bottom if:
-            // 1. This is a new message (more messages than before)
-            // 2. The new message is from the current user
-            const hasNewMessages = sortedMessages.length > oldMessages.length;
-            if (hasNewMessages) {
-              const lastMsg = sortedMessages[sortedMessages.length - 1];
-              const isFromCurrentUser = lastMsg.senderId === auth.currentUser.uid;
-              
-              if (isFromCurrentUser) {
-                // Always scroll to bottom for user's own messages
-                setTimeout(() => {
-                  messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-                }, 100);
-              } else {
-                // For other users' messages, only scroll if near bottom
-                const messagesContent = document.querySelector('.messages-content');
-                if (messagesContent) {
-                  const isNearBottom = messagesContent.scrollHeight - messagesContent.clientHeight - messagesContent.scrollTop < 100;
-                  if (isNearBottom) {
-                    setTimeout(() => {
-                      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-                    }, 100);
-                  }
-                }
-              }
-            }
-          }
-        } else {
-          // If there's no data, set empty messages array for the selected conversation
-          if (selectedConversation?.chatId === conversation.chatId) {
-            setMessages([]);
-          }
+        if (unreadMessages.length > 0) {
+          const updatedMessages = data.messages.map(msg => ({
+            ...msg,
+            read: msg.senderId !== auth.currentUser.uid ? true : msg.read
+          }));
+
+          updateDoc(conversationRef, {
+            messages: updatedMessages
+          });
         }
-      });
+
+        // Scroll para a última mensagem
+        setTimeout(() => {
+          messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+        }, 100);
+      }
     });
 
-    return () => {
-      unsubscribeListeners.forEach(unsubscribe => unsubscribe());
-    };
-  }, [auth.currentUser, conversations, selectedConversation, messages]);
+    return () => unsubscribe();
+  }, [selectedConversation, auth.currentUser]);
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!newMessage.trim() || !selectedConversation) return;
 
     try {
-      const messagesRef = ref(database, `chats/${selectedConversation.chatId}/messages`);
-      const newMessageRef = push(messagesRef);
+      const conversationRef = doc(db, 'conversations', selectedConversation.id);
+      
+      // Primeiro, buscar o documento atual
+      const conversationDoc = await getDoc(conversationRef);
+      if (!conversationDoc.exists()) {
+        throw new Error('Conversa não encontrada');
+      }
 
-      const currentTime = new Date().getTime();
+      const currentData = conversationDoc.data();
+      const currentMessages = currentData.messages || [];
 
-      await set(newMessageRef, {
+      // Criar a nova mensagem com timestamp do cliente
+      const messageData = {
         text: newMessage.trim(),
         senderId: auth.currentUser.uid,
         senderName: userData?.empresaNome || userData?.name || 'Técnico',
-        timestamp: currentTime,
+        timestamp: new Date(),
         read: false
+      };
+
+      // Atualizar o documento com o novo array de mensagens
+      await updateDoc(conversationRef, {
+        messages: [...currentMessages, messageData],
+        lastMessage: messageData.text,
+        lastMessageTimestamp: serverTimestamp()
       });
 
       setNewMessage('');
       setError(null);
-      
-      // Scroll to bottom after sending message
-      setTimeout(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-      }, 100);
     } catch (error) {
       console.error('Erro ao enviar mensagem:', error);
-      if (error.message.includes('PERMISSION_DENIED')) {
-        setError('Erro de permissão: Você não tem permissão para enviar mensagens neste chat. Por favor, tente fazer login novamente.');
-      } else {
-        setError('Erro ao enviar mensagem. Por favor, tente novamente.');
-      }
+      setError('Erro ao enviar mensagem. Por favor, tente novamente.');
     }
   };
 
-  const handleConversationSelect = async (conversation) => {
+  const handleConversationSelect = (conversation) => {
     setSelectedConversation(conversation);
-    
-    // We don't need to mark messages as read here as the listener will handle it
-    
-    // Update local state immediately
-    setConversations(prevConversations => 
-      prevConversations.map(conv => 
-        conv.chatId === conversation.chatId
-          ? { ...conv, unreadCount: 0 }
-          : conv
-      )
-    );
-    
-    // Scroll to bottom when selecting a conversation, but only after a small delay to ensure messages are loaded
-    setTimeout(() => {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }, 200);
   };
 
   const filteredConversations = conversations.filter(conv =>
@@ -344,8 +245,8 @@ const Messages = () => {
           <div className="conversations-list">
             {filteredConversations.map((conversation) => (
               <div
-                key={conversation.chatId}
-                className={`conversation-item ${selectedConversation?.chatId === conversation.chatId ? 'active' : ''}`}
+                key={conversation.id}
+                className={`conversation-item ${selectedConversation?.id === conversation.id ? 'active' : ''}`}
                 onClick={() => handleConversationSelect(conversation)}
               >
                 <div className="conversation-info">
@@ -368,22 +269,18 @@ const Messages = () => {
                   <FiUser className="user-icon" />
                   <div className="user-details">
                     <h2>{selectedConversation.gestorName}</h2>
-                    <span className="obra-title">{selectedConversation.obraTitle}</span>
+                    <p className="obra-title">{selectedConversation.obraTitle}</p>
                   </div>
                 </div>
               </div>
 
-        <div className="messages-content">
+              <div className="messages-content">
                 {error && <p className="error-message">{error}</p>}
-                {loading ? (
-                  <div className="loading">
-                    <p>Carregando mensagens...</p>
-                  </div>
-                ) : messages.length > 0 ? (
+                {messages.length > 0 ? (
                   <div className="messages-list">
-                    {messages.map((message) => (
+                    {messages.map((message, index) => (
                       <div 
-                        key={message.id} 
+                        key={index}
                         className={`message ${message.senderId === auth.currentUser.uid ? 'sent' : 'received'}`}
                       >
                         <div className="message-content">
@@ -392,9 +289,7 @@ const Messages = () => {
                           </span>
                           <p>{message.text}</p>
                           <span className="message-time">
-                            {message.timestamp?.seconds ? 
-                              new Date(message.timestamp.seconds * 1000).toLocaleTimeString() :
-                              new Date().toLocaleTimeString()}
+                            {message.timestamp?.toDate().toLocaleTimeString()}
                           </span>
                         </div>
                       </div>

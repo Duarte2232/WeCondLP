@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiArrowLeft, FiSearch, FiPlus } from 'react-icons/fi';
-import { collection, query, where, getDocs, doc, updateDoc, getDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, updateDoc, getDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../../../../services/firebase';
 import { useAuth } from '../../../../contexts/auth';
 import { toast } from 'react-hot-toast';
@@ -22,6 +22,9 @@ function Jobs() {
   const [priorityFilter, setPriorityFilter] = useState('all');
   const [locationFilter, setLocationFilter] = useState('');
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 15;
+
   // Instead of using useEffect for debugging, we'll create a separate utility function
   const logWorkData = (work) => {
     if (process.env.NODE_ENV === 'development') {
@@ -38,27 +41,26 @@ function Jobs() {
     fetchObras();
   }, [user]);
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter, categoryFilter, priorityFilter, locationFilter]);
+
   const fetchObras = async () => {
     try {
       setLoading(true);
-      if (!user?.uid) return;
-      
-      const worksRef = collection(db, 'works');
-      const q = query(worksRef, where('userId', '==', user.uid));
+      const obrasRef = collection(db, 'ObrasPedidos');
+      const q = query(obrasRef, where('userId', '==', user.uid));
       const querySnapshot = await getDocs(q);
       
       const obrasData = querySnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       }));
-
-      const sortedObras = obrasData.sort((a, b) => 
-        new Date(b.date) - new Date(a.date)
-      );
       
-      setObras(sortedObras);
+      setObras(obrasData);
     } catch (error) {
-      console.error("Erro ao buscar obras:", error);
+      console.error('Erro ao buscar obras:', error);
+      toast.error('Erro ao carregar obras');
     } finally {
       setLoading(false);
     }
@@ -72,7 +74,7 @@ function Jobs() {
       }
       
       // First check if the work document already has orcamentos array
-      const workRef = doc(db, 'works', workId);
+      const workRef = doc(db, 'ObrasPedidos', workId);
       const workDoc = await getDoc(workRef);
       const workData = workDoc.data();
       
@@ -92,7 +94,7 @@ function Jobs() {
       }
 
       // If not found in the work document, try to fetch from orcamentos collection
-      const orcamentosRef = collection(db, 'orcamentos');
+      const orcamentosRef = collection(db, 'ObrasOrçamentos');
       const q = query(orcamentosRef, where('workId', '==', workId));
       const querySnapshot = await getDocs(q);
       
@@ -156,6 +158,12 @@ function Jobs() {
 
     return matchesSearch && matchesStatus && matchesCategory && matchesPriority && matchesLocation;
   });
+
+  const totalPages = Math.ceil(filteredObras.length / itemsPerPage);
+  const paginatedObras = filteredObras.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
 
   const handleBack = () => {
     navigate('/dashgestor');
@@ -222,21 +230,18 @@ function Jobs() {
 
   const handleComplete = async (workId, newStatus) => {
     try {
-      const workRef = doc(db, 'works', workId);
+      const workRef = doc(db, 'ObrasPedidos', workId);
       await updateDoc(workRef, {
         status: newStatus
       });
-      
       // Update the local state
       setObras(prevObras => 
         prevObras.map(obra => 
           obra.id === workId ? { ...obra, status: newStatus } : obra
         )
       );
-      
       // Close the modal
       setSelectedWork(null);
-      
       // Optionally refresh the data
       fetchObras();
     } catch (error) {
@@ -299,6 +304,21 @@ function Jobs() {
       alert('Erro ao aceitar orçamento: ' + error.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDelete = async (workId) => {
+    if (!workId) return;
+    if (window.confirm('Tem certeza que deseja eliminar esta obra?')) {
+      try {
+        const workRef = doc(db, 'ObrasPedidos', workId);
+        await deleteDoc(workRef);
+        setObras(prevObras => prevObras.filter(obra => obra.id !== workId));
+        setSelectedWork(null);
+      } catch (error) {
+        console.error('Erro ao eliminar obra:', error);
+        alert('Ocorreu um erro ao eliminar a obra.');
+      }
     }
   };
 
@@ -397,14 +417,14 @@ function Jobs() {
                   Carregando obras...
                 </td>
               </tr>
-            ) : filteredObras.length === 0 ? (
+            ) : paginatedObras.length === 0 ? (
               <tr>
                 <td colSpan="5" style={{ textAlign: 'center', padding: '20px' }}>
                   Nenhuma obra encontrada
                 </td>
               </tr>
             ) : (
-              filteredObras.map((obra) => (
+              paginatedObras.map((obra) => (
                 <tr 
                   key={obra.id} 
                   className="work-row"
@@ -435,6 +455,34 @@ function Jobs() {
             )}
           </tbody>
         </table>
+        <div className="pagination">
+          <button
+            className="pagination-button"
+            onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+            disabled={currentPage === 1}
+          >
+            Anterior
+          </button>
+          {[...Array(totalPages)].map((_, idx) => (
+            <button
+              key={idx + 1}
+              className={`pagination-button${currentPage === idx + 1 ? ' active' : ''}`}
+              onClick={() => setCurrentPage(idx + 1)}
+            >
+              {idx + 1}
+            </button>
+          ))}
+          <button
+            className="pagination-button"
+            onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+            disabled={currentPage === totalPages}
+          >
+            Próxima
+          </button>
+          <span className="pagination-info">
+            Página {currentPage} de {totalPages}
+          </span>
+        </div>
       </div>
 
       {selectedWork && (
@@ -442,7 +490,7 @@ function Jobs() {
           work={selectedWork}
           onClose={handleCloseModal}
           onEdit={() => {}}
-          onDelete={() => {}}
+          onDelete={() => handleDelete(selectedWork.id)}
           onComplete={handleComplete}
           onFileDownload={handleFileDownload}
           onAcceptOrcamento={handleAcceptOrcamento}

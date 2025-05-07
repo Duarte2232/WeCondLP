@@ -5,19 +5,17 @@ import { db } from '../../../../services/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import './NewMaintenanceButton.css';
 
-const NewMaintenanceButton = ({ onCreated }) => {
+const NewMaintenanceButton = ({ onCreated, user }) => {
   const [showForm, setShowForm] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   const handleSubmit = async (formData) => {
     setIsSubmitting(true);
     try {
-      const user = JSON.parse(sessionStorage.getItem('user')) || {};
-      
       const maintenanceData = {
         ...formData,
-        userEmail: user.email || 'não especificado',
-        userId: user.uid || '',
+        userEmail: user?.email || 'não especificado',
+        userId: user?.uid || '',
         createdAt: serverTimestamp(),
         isMaintenance: true,
         status: "disponivel"
@@ -36,11 +34,8 @@ const NewMaintenanceButton = ({ onCreated }) => {
         maintenanceData.prazoOrcamentos = formData.prazoOrcamentos || '';
       }
       
-      // Add to maintenances collection
-      await addDoc(collection(db, 'maintenances'), maintenanceData);
-      
-      // Also add to works collection with the same data so it appears on the technician dashboard
-      await addDoc(collection(db, 'works'), maintenanceData);
+      // Add to ManutençãoPedidos collection instead of maintenances
+      await addDoc(collection(db, 'ManutençãoPedidos'), maintenanceData);
       
       setShowForm(false);
       
