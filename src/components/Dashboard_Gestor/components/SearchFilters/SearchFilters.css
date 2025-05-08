@@ -1,0 +1,99 @@
+.filters-container {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-grow: 1;
+}
+
+.search-bar {
+  position: relative;
+  background-color: white;
+  border-radius: 4px;
+  width: 300px;
+  border: 1px solid #e0e0e0;
+  padding: 0.5rem;
+  display: flex;
+  align-items: center;
+}
+
+.search-icon {
+  color: #555;
+  margin-right: 8px;
+  flex-shrink: 0;
+}
+
+.search-bar input {
+  border: none;
+  outline: none;
+  width: 100%;
+  font-size: 0.9rem;
+}
+
+.filters {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: nowrap;
+}
+
+.filters select {
+  padding: 0.5rem;
+  border-radius: 4px;
+  border: 1px solid #e0e0e0;
+  background-color: white;
+  width: 140px;
+  height: 38px;
+  flex-shrink: 0;
+}
+
+.calendar-toggle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  padding: 0.5rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.calendar-toggle-btn.active {
+  background-color: #f0f8ff;
+  border-color: #007bff;
+  color: #007bff;
+}
+
+@media (max-width: 768px) {
+  .filters-container {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    width: 100%;
+    gap: 12px;
+    justify-content: space-between;
+  }
+
+  .search-bar {
+    width: 100%;
+    margin-bottom: 12px;
+  }
+
+  .filters {
+    display: flex;
+    width: 100%;
+    flex-direction: row;
+    justify-content: space-between;
+    gap: 10px;
+    overflow-x: auto;
+    padding-bottom: 5px;
+  }
+
+  .filters select {
+    flex: 0 0 auto;
+    width: 120px;
+    min-width: 120px;
+  }
+} 

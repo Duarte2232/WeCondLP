@@ -1,0 +1,1058 @@
+.jobs-container {
+  padding: 16px;
+  min-height: 100vh;
+  background-color: white;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.jobs-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 8px;
+}
+
+.back-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: none;
+  color: #333;
+  cursor: pointer;
+  font-size: 16px;
+  padding: 8px;
+}
+
+.jobs-header h1 {
+  font-size: 24px;
+  color: #333;
+  margin: 0;
+  font-weight: 500;
+}
+
+.view-toggle {
+  display: flex;
+  gap: 8px;
+}
+
+.view-toggle-btn {
+  background: none;
+  border: 1px solid #E5E7EB;
+  color: #6B7280;
+  width: 36px;
+  height: 36px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.view-toggle-btn.active {
+  background-color: #2563EB;
+  color: white;
+  border-color: #2563EB;
+}
+
+.view-toggle-btn:hover:not(.active) {
+  background-color: #F3F4F6;
+}
+
+/* Estilos para o grid de categorias */
+.categories-container {
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  padding: 24px;
+  margin-bottom: 24px;
+  overflow: visible;
+}
+
+.categories-container h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #111827;
+  margin-top: 0;
+  margin-bottom: 24px;
+}
+
+.categories-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  justify-content: flex-start;
+}
+
+.category-card {
+  display: flex;
+  align-items: center;
+  background-color: #f9fafb;
+  border-radius: 8px;
+  padding: 16px;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  width: calc(25% - 16px);
+  min-width: 220px;
+  max-width: 280px;
+}
+
+.category-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+}
+
+.category-card.active {
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+}
+
+.category-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  margin-right: 16px;
+  flex-shrink: 0;
+}
+
+.category-name {
+  font-weight: 600;
+  color: #111827;
+  font-size: 16px;
+}
+
+/* Responsividade para as categorias */
+@media (max-width: 1200px) {
+  .category-card {
+    width: calc(33.333% - 16px);
+  }
+}
+
+@media (max-width: 992px) {
+  .category-card {
+    width: calc(50% - 16px);
+  }
+}
+
+@media (max-width: 768px) {
+  .categories-grid {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: space-between;
+  }
+  
+  .category-card {
+    width: calc(50% - 8px);
+    min-width: 150px;
+  }
+}
+
+.create-work-btn {
+  margin-top: 8px;
+  background-color: #2563EB;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: background-color 0.2s;
+  width: 100%;
+  justify-content: center;
+}
+
+.create-work-btn:hover {
+  background-color: #1D4ED8;
+}
+
+/* Estilos para a lista de obras */
+.works-list-container {
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  padding: 24px;
+}
+
+/* Estilos para as subcategorias */
+.subcategorias-container {
+  margin-bottom: 24px;
+  padding: 16px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  border-left: 4px solid #2563EB;
+}
+
+.subcategorias-container h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #111827;
+  margin-top: 0;
+  margin-bottom: 12px;
+}
+
+.subcategorias-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 10px;
+}
+
+.subcategoria-item {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  background-color: white;
+  border-radius: 6px;
+  font-size: 14px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  transition: all 0.2s ease;
+}
+
+.subcategoria-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.subcategoria-bullet {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 10px;
+  flex-shrink: 0;
+}
+
+.works-list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.works-list-header h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #111827;
+  margin: 0;
+}
+
+.create-work-btn-header {
+  background-color: #2563EB;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 16px;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: background-color 0.2s;
+}
+
+.create-work-btn-header:hover {
+  background-color: #1D4ED8;
+}
+
+/* Grid de obras */
+.works-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+}
+
+.work-card {
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  height: 100%;
+  min-height: 180px;
+  border: none;
+}
+
+.work-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.work-card-title {
+  font-weight: 600;
+  font-size: 1.2rem;
+  margin-bottom: 10px;
+  color: #333;
+}
+
+.work-card-description {
+  color: #666;
+  line-height: 1.4;
+  font-size: 0.9rem;
+  text-align: left;
+  width: 100%;
+}
+
+.work-card-status {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+.work-card-status.disponivel {
+  background-color: rgba(46, 213, 115, 0.15);
+  color: #2ed573;
+}
+
+.work-card-status.pendente {
+  background-color: rgba(255, 171, 25, 0.15);
+  color: #ffab19;
+}
+
+.work-card-status.concluido {
+  background-color: rgba(54, 162, 235, 0.15);
+  color: #36a2eb;
+}
+
+.work-card-status.confirmada {
+  background-color: #BBF7D0;
+  color: #166534;
+}
+
+.work-card-footer {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 10px;
+  font-size: 0.85rem;
+  color: #888;
+}
+
+.work-card-date, .work-card-category {
+  display: inline-block;
+}
+
+.work-card-category {
+  font-weight: 500;
+}
+
+.truncate {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.multiline-truncate {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: left;
+  width: 100%;
+  height: auto;
+  min-height: 3.8em;
+  max-height: 4.2em;
+  padding-bottom: 4px;
+  margin-bottom: 15px;
+}
+
+.files-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 16px;
+  margin-top: 12px;
+}
+
+.file-preview-item {
+  border: 1px solid #E5E7EB;
+  border-radius: 8px;
+  overflow: hidden;
+  position: relative;
+}
+
+.file-preview-item img,
+.file-preview-item video {
+  width: 100%;
+  height: 120px;
+  object-fit: cover;
+}
+
+.file-icon {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background-color: #F9FAFB;
+  height: 120px;
+}
+
+.file-icon span {
+  font-size: 12px;
+  color: #6B7280;
+  margin-top: 8px;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.work-card-header {
+  margin-bottom: 16px;
+}
+
+.work-card-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1F2937;
+  margin-bottom: 12px;
+}
+
+.work-card-description {
+  font-size: 14px;
+  color: #6B7280;
+  margin-bottom: 16px;
+  line-height: 1.5;
+}
+
+.work-card-description.truncate {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.work-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 24px;
+  padding: 24px;
+}
+
+.no-works-message {
+  grid-column: 1 / -1;
+  text-align: center;
+  color: #6B7280;
+  padding: 32px 0;
+  font-style: italic;
+  font-size: 14px;
+}
+
+/* Status e categoria badges */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.status-badge.pendente {
+  background-color: #FEF3C7;
+  color: #92400E;
+}
+
+.status-badge.em-andamento {
+  background-color: #DBEAFE;
+  color: #1E40AF;
+}
+
+.status-badge.concluído {
+  background-color: #D1FAE5;
+  color: #065F46;
+}
+
+.status-badge.disponivel {
+  background-color: #E0E7FF;
+  color: #3730A3;
+}
+
+.status-badge.confirmada {
+  background-color: #BBF7D0;
+  color: #166534;
+}
+
+.category-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 500;
+  background-color: #E5E7EB;
+  color: #4B5563;
+}
+
+.category-badge.infiltração {
+  background-color: #EFF6FF;
+  color: #1E40AF;
+}
+
+.category-badge.fissuras-e-rachaduras {
+  background-color: #FEF2F2;
+  color: #991B1B;
+}
+
+.category-badge.canalização {
+  background-color: #ECFDF5;
+  color: #065F46;
+}
+
+.category-badge.manutenção {
+  background-color: #FFFBEB;
+  color: #92400E;
+}
+
+.category-badge.jardinagem {
+  background-color: #F0FDF4;
+  color: #166534;
+}
+
+.category-badge.fiscalização {
+  background-color: #F5F3FF;
+  color: #5B21B6;
+}
+
+.category-badge.reabilitação-de-fachada {
+  background-color: #F3F4F6;
+  color: #1F2937;
+}
+
+.category-badge.eletricidade {
+  background-color: #FEFCE8;
+  color: #854D0E;
+}
+
+.category-badge.construção {
+  background-color: #FFF7ED;
+  color: #9A3412;
+}
+
+.category-badge.pintura {
+  background-color: #ECFEFF;
+  color: #155E75;
+}
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 12px;
+  padding: 0;
+  width: 90%;
+  max-width: 800px;
+  max-height: 90vh;
+  overflow-y: auto;
+  position: relative;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+.modal-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid #E5E7EB;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: sticky;
+  top: 0;
+  background: white;
+  z-index: 1;
+  border-radius: 12px 12px 0 0;
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.close-button {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: #6B7280;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  line-height: 1;
+}
+
+.close-button:hover {
+  background-color: #F3F4F6;
+  color: #111827;
+}
+
+.modal-body {
+  padding: 16px 20px;
+}
+
+.status-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 8px;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.action-buttons button {
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.edit-btn {
+  background-color: #EFF6FF;
+  color: #1D4ED8;
+  border: 1px solid #BFDBFE;
+}
+
+.edit-btn:hover {
+  background-color: #DBEAFE;
+}
+
+.delete-btn {
+  background-color: #FEF2F2;
+  color: #DC2626;
+  border: 1px solid #FECACA;
+}
+
+.delete-btn:hover {
+  background-color: #FEE2E2;
+}
+
+.complete-btn {
+  background-color: #ECFDF5;
+  color: #059669;
+  border: 1px solid #A7F3D0;
+}
+
+.complete-btn:hover {
+  background-color: #D1FAE5;
+}
+
+/* Ajustes para os arquivos no modal */
+.modal-body .files-grid {
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+}
+
+.modal-body .file-preview-item {
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.modal-body .file-preview-item:hover {
+  transform: scale(1.02);
+}
+
+/* Estilo para scrollbar personalizado no modal */
+.modal-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.modal-content::-webkit-scrollbar-track {
+  background: #F3F4F6;
+  border-radius: 0 12px 12px 0;
+}
+
+.modal-content::-webkit-scrollbar-thumb {
+  background: #D1D5DB;
+  border-radius: 20px;
+}
+
+.modal-content::-webkit-scrollbar-thumb:hover {
+  background: #9CA3AF;
+}
+
+/* Estilos dos filtros */
+.filters-container {
+  margin-bottom: 12px;
+  margin-top: 8px;
+}
+
+.filters-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  width: 100%;
+  padding-bottom: 8px;
+}
+
+.filters-inline {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 8px;
+  background-color: white;
+  width: 100%;
+}
+
+.search-box {
+  position: relative;
+  flex: 1 1 25%;
+  min-width: 150px;
+}
+
+.search-box input {
+  width: 100%;
+  padding: 10px 12px 10px 36px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 14px;
+  height: 40px;
+  color: #6b7280;
+  background-color: #f9fafb;
+}
+
+.filter-select {
+  padding: 10px 12px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 14px;
+  background-color: #f9fafb;
+  color: #333;
+  flex: 1 1 15%;
+  min-width: 100px;
+}
+
+.location-filter {
+  flex: 1 1 15%;
+  min-width: 120px;
+}
+
+.new-work-button {
+  background-color: #2563EB;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 16px;
+  height: 40px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  transition: background-color 0.2s;
+  flex: 0 0 auto;
+}
+
+.obras-table-container {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  overflow: visible;
+  width: 100%;
+  margin-top: 8px;
+}
+
+.obras-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  border: 1px solid #f0f0f0;
+  border-radius: 8px;
+  margin-top: 16px;
+  background-color: white;
+}
+
+.obras-table th {
+  font-weight: 600;
+  color: #333;
+  background-color: #FAFAFA;
+  padding: 16px;
+  text-align: left;
+  border-bottom: 2px solid #f0f0f0;
+  vertical-align: middle;
+}
+
+.obras-table td {
+  padding: 16px;
+  color: #333;
+  border-bottom: 1px solid #f0f0f0;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.work-row {
+  cursor: pointer;
+  transition: background-color 0.2s;
+  min-height: 72px;
+}
+
+.work-row:hover {
+  background-color: #f5f5f5;
+}
+
+.work-title {
+  font-weight: 500;
+  color: #333;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.work-subtitle {
+  font-size: 12px;
+  color: #666666;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+}
+
+.priority-badge,
+.status-badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 500;
+  background: #f5f5f5;
+  color: #333;
+}
+
+/* Estilos da paginação */
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  gap: 16px;
+  border-top: 1px solid #f0f0f0;
+}
+
+.pagination-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border: 1px solid #e8e8e8;
+  border-radius: 4px;
+  background: white;
+  color: #333;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.pagination-button:hover:not(:disabled) {
+  background: #f5f5f5;
+}
+
+.pagination-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pagination-info {
+  color: #666;
+  font-size: 14px;
+}
+
+/* Responsividade */
+@media (max-width: 1200px) {
+  .filters-row {
+    gap: 8px;
+  }
+  
+  .search-box, .filter-select {
+    flex-shrink: 1;
+  }
+}
+
+@media (max-width: 768px) {
+  .jobs-container {
+    padding: 16px;
+  }
+
+  .filters-row {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  
+  .search-box {
+    flex: 1 1 100%;
+  }
+  
+  .filter-select {
+    flex: 1 1 calc(50% - 8px);
+  }
+  
+  .new-work-button {
+    flex: 1 1 100%;
+    margin-top: 8px;
+    justify-content: center;
+  }
+}
+
+.search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #9ca3af;
+  font-size: 18px;
+}
+
+.obras-table th:first-child,
+.obras-table td:first-child {
+  padding-left: 20px;
+  width: 30%;
+}
+
+.obras-table th:nth-child(2),
+.obras-table td:nth-child(2) {
+  width: 12%;
+}
+
+.obras-table th:nth-child(3),
+.obras-table td:nth-child(3) {
+  width: 20%;
+}
+
+.obras-table th:nth-child(4),
+.obras-table td:nth-child(4),
+.obras-table th:nth-child(5),
+.obras-table td:nth-child(5) {
+  width: 12%;
+}
+
+.main-title {
+  font-size: 30px;
+  font-weight: 800;
+  color: #111827;
+  margin: 0 0 10px 0;
+  padding: 0 0 8px 0;
+  border-bottom: 1px solid #f3f4f6;
+  text-align: center;
+}
+
+.new-work-button {
+  background-color: #2563EB;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 16px;
+  height: 40px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  transition: background-color 0.2s;
+}
+
+.new-work-button:hover {
+  background-color: #1D4ED8;
+}
+
+/* For the location input */
+input.filter-select {
+  background-color: #f9fafb;
+}
+
+.title-cell {
+  max-width: 0;
+  width: 30%;
+}
+
+.filters-inline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 8px;
+  background-color: white;
+  width: 100%;
+}
+
+.search-box {
+  position: relative;
+  width: 170px;
+}
+
+.search-box input {
+  width: 100%;
+  padding: 10px 12px 10px 36px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 14px;
+  height: 40px;
+  color: #6b7280;
+  background-color: #f9fafb;
+}
+
+.filter-select {
+  padding: 10px 12px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 14px;
+  background-color: #f9fafb;
+  color: #333;
+  width: 120px;
+}
+
+.location-filter {
+  width: 140px;
+}
+
+.new-work-button {
+  background-color: #2563EB;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 16px;
+  height: 40px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  transition: background-color 0.2s;
+  width: 130px;
+} 

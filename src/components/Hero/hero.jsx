@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import './hero.css';
+import './Hero.css';
 
 const Hero = () => {
     const [menuOpen, setMenuOpen] = useState(false);
