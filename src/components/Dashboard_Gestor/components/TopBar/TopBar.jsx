@@ -6,7 +6,7 @@ import { getDoc, doc } from 'firebase/firestore';
 import { db } from '../../../../services/firebase.jsx';
 import './TopBar.css';
 
-const TopBar = () => {
+const TopBar = ({ unreadCount = 0 }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const [empresaNome, setEmpresaNome] = useState('');
@@ -82,6 +82,9 @@ const TopBar = () => {
           <Link to="/dashgestor/mensagens" className={isActive('/mensagens') ? 'active' : ''}>
             <FiMessageSquare />
             <span>Mensagens</span>
+            {unreadCount > 0 && (
+              <span className="messages-badge">{unreadCount}</span>
+            )}
           </Link>
           <Link to="/dashgestor/perfil" className={isActive('/perfil') ? 'active' : ''}>
             <FiUser />

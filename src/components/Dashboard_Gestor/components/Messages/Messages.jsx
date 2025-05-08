@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { FiSend, FiPaperclip, FiPlus, FiUser } from 'react-icons/fi';
 import { getAuth } from 'firebase/auth';
 import { ref, onValue, push, set, serverTimestamp, get, update } from 'firebase/database';
@@ -9,6 +9,7 @@ import './Messages.css';
 
 const Messages = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const auth = getAuth();
   const [conversations, setConversations] = useState([]);
   const [selectedConversation, setSelectedConversation] = useState(null);
@@ -78,13 +79,21 @@ const Messages = () => {
         return getMillis(b.timestamp) - getMillis(a.timestamp);
       });
       setConversations(conversationsData);
-      if (!selectedConversation && conversationsData.length > 0) {
+      // Selecionar automaticamente a conversa correta se vier via location.state
+      if (location.state?.conversationId) {
+        const found = conversationsData.find(conv => conv.id === location.state.conversationId);
+        if (found) {
+          setSelectedConversation(found);
+        } else if (conversationsData.length > 0) {
+          setSelectedConversation(conversationsData[0]);
+        }
+      } else if (!selectedConversation && conversationsData.length > 0) {
         setSelectedConversation(conversationsData[0]);
       }
       setLoading(false);
     });
     return () => unsubscribe();
-  }, [auth.currentUser]);
+  }, [auth.currentUser, location.state?.conversationId]);
 
   // Carregar e ouvir mensagens da conversa selecionada
   useEffect(() => {

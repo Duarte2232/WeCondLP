@@ -7,7 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import { getAuth } from 'firebase/auth';
 import { addDoc, serverTimestamp } from 'firebase/firestore';
 
-const WorkDetailsModal = ({ work, onClose, onEdit, onDelete, onComplete, onFileDownload, onAcceptOrcamento, workOrcamentos }) => {
+const WorkDetailsModal = ({ work, onClose, onEdit, onDelete, onComplete, onFileDownload, onAcceptOrcamento, workOrcamentos, onCancelarAceitacao }) => {
   if (!work) return null;
   
   const [technicianNames, setTechnicianNames] = useState({});
@@ -232,6 +232,9 @@ const WorkDetailsModal = ({ work, onClose, onEdit, onDelete, onComplete, onFileD
     }
   };
 
+  // Antes do return, obter o orçamento aceite:
+  const orcamentoAceite = orcamentos.find(o => o.aceito);
+
   return (
     <div className="work-details-modal-overlay" onClick={onClose}>
       <div className="work-details-modal-content" onClick={e => e.stopPropagation()}>
@@ -319,6 +322,14 @@ const WorkDetailsModal = ({ work, onClose, onEdit, onDelete, onComplete, onFileD
                     </>
                   )}
                 </button>
+                {orcamentoAceite && (
+                  <button
+                    className="action-btn cancelar bordered"
+                    onClick={() => onCancelarAceitacao(work.id, orcamentoAceite.id, work.isMaintenance)}
+                  >
+                    Cancelar Aceitação
+                  </button>
+                )}
               </div>
             </div>
           )}
@@ -469,7 +480,15 @@ const WorkDetailsModal = ({ work, onClose, onEdit, onDelete, onComplete, onFileD
                           )}
                           {orcamento.aceito && (
                             <div className="orcamento-aceito-badge">
-                              <FiCheckCircle /> Aceito
+                              <div className="orcamento-aceito-btn">
+                                <FiCheckCircle /> Aceito
+                              </div>
+                              <button
+                                className="orcamento-mensagem"
+                                onClick={() => handleMessageTechnician(orcamento)}
+                              >
+                                <FiMessageSquare /> MENSAGEM
+                              </button>
                             </div>
                           )}
                         </div>

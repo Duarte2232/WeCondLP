@@ -13,6 +13,7 @@ import sha1 from 'crypto-js/sha1';
 import { FaEye, FaEdit, FaTrash } from 'react-icons/fa';
 import { toast } from 'react-hot-toast';
 import { uploadToCloudinary, uploadToCloudinaryWithSignature } from '../../services/cloudinary.service.js';
+import { getAuth } from 'firebase/auth';
 
 // Importação dos componentes
 import Metrics from './components/Metrics/Metrics';
@@ -57,6 +58,7 @@ function DashGestor() {
   const [selectedRecentWork, setSelectedRecentWork] = useState(null);
   const [selectedWork, setSelectedWork] = useState(null);
   const [workOrcamentos, setWorkOrcamentos] = useState({});
+  const [unreadCount, setUnreadCount] = useState(0);
 
   const [newWork, setNewWork] = useState({
     title: '',
@@ -525,59 +527,70 @@ function DashGestor() {
     }
   };
 
-  const handleAceitarOrcamento = async (workId, orcamentoId) => {
+  const handleAceitarOrcamento = async (workId, orcamentoId, isMaintenance = false) => {
     try {
-      console.log('Accepting orçamento:', { workId, orcamentoId });
+      console.log('Accepting orçamento:', { workId, orcamentoId, isMaintenance });
       
-      // Get references to both documents
-      const workRef = doc(db, 'works', workId);
-      const orcamentoRef = doc(db, 'orcamentos', orcamentoId);
+      // Escolher as coleções corretas
+      const workCollection = isMaintenance ? 'ManutençãoPedidos' : 'ObrasPedidos';
+      const orcamentoCollection = isMaintenance ? 'ManutençãoOrçamentos' : 'ObrasOrçamentos';
       
-      console.log('Updating work status to em-andamento');
-      // Update work status in works collection
+      // Referências
+      const workRef = doc(db, workCollection, workId);
+      const orcamentoRef = doc(db, orcamentoCollection, orcamentoId);
+      
+      // Verificar se o documento existe
+      const workDoc = await getDoc(workRef);
+      const orcamentoDoc = await getDoc(orcamentoRef);
+      
+      if (!workDoc.exists()) {
+        throw new Error('Serviço não encontrado');
+      }
+      
+      if (!orcamentoDoc.exists()) {
+        throw new Error('Orçamento não encontrado');
+      }
+      
+      // Atualizar status da obra/manutenção
       await updateDoc(workRef, {
-        status: "em-andamento"
+        status: 'em-andamento'
       });
-      console.log('Work status updated successfully');
-
-      console.log('Updating orçamento status to accepted');
-      // Update orcamento status in orcamentos collection
+      
+      // Atualizar status do orçamento
       await updateDoc(orcamentoRef, {
         aceito: true
       });
-      console.log('Orçamento status updated successfully');
-
-      // Update local work state
-      setWorks(prevWorks => {
-        console.log('Updating local works state');
-        return prevWorks.map(work => 
-          work.id === workId
-            ? { ...work, status: "em-andamento" }
-            : work
-        );
-      });
-
-      // Update local orcamentos state
+      
+      // Atualizar estado local
+      if (isMaintenance) {
+        setMaintenances(prevMaintenances => prevMaintenances.map(work =>
+          work.id === workId ? { ...work, status: 'em-andamento' } : work
+        ));
+      } else {
+        setWorks(prevWorks => prevWorks.map(work =>
+          work.id === workId ? { ...work, status: 'em-andamento' } : work
+        ));
+      }
+      
+      // Atualizar estado dos orçamentos
       setWorkOrcamentos(prev => {
-        console.log('Updating local orçamentos state');
+        const currentOrcamentos = prev[workId] || [];
+        const updatedOrcamentos = currentOrcamentos.map(orc =>
+          orc.id === orcamentoId ? { ...orc, aceito: true } : orc
+        );
+        console.log('Updated orcamentos:', updatedOrcamentos);
         return {
           ...prev,
-          [workId]: prev[workId].map(orc => {
-            if (orc.id === orcamentoId) {
-              console.log('Marking orçamento as accepted:', orcamentoId);
-              return { ...orc, aceito: true };
-            }
-            return orc;
-          })
+          [workId]: updatedOrcamentos
         };
       });
-
-      console.log('All updates completed successfully');
+      
       alert('Orçamento aceito com sucesso!');
     } catch (error) {
       console.error('Error accepting orçamento:', {
         workId,
         orcamentoId,
+        isMaintenance,
         errorMessage: error.message,
         errorStack: error.stack
       });
@@ -649,8 +662,19 @@ function DashGestor() {
                          (servico.status && servico.status.toLowerCase() === selectedFilters.status.toLowerCase());
     const matchesCategory = selectedFilters.category === '' || 
                            (servico.category && servico.category.toLowerCase() === selectedFilters.category.toLowerCase());
+    
+    // Normalizar as prioridades para comparação
+    const normalizePriority = (priority) => {
+      if (!priority) return '';
+      return priority.toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace('media', 'média');
+    };
+
     const matchesPriority = selectedFilters.priority === '' || 
-                           (servico.priority && servico.priority.toLowerCase() === selectedFilters.priority.toLowerCase());
+                           (servico.priority && normalizePriority(servico.priority) === normalizePriority(selectedFilters.priority));
+    
     const matchesLocation = selectedFilters.location === '' || 
                           (servico.location && servico.location.morada && 
                            servico.location.morada.toLowerCase().includes(selectedFilters.location.toLowerCase()));
@@ -894,6 +918,45 @@ function DashGestor() {
     setSelectedWork(null);
   };
 
+  const handleCancelarAceitacao = async (workId, orcamentoId, isMaintenance = false) => {
+    try {
+      const collectionName = isMaintenance ? 'ManutençãoPedidos' : 'ObrasPedidos';
+      const workRef = doc(db, collectionName, workId);
+      const workDoc = await getDoc(workRef);
+      
+      if (!workDoc.exists()) {
+        throw new Error('Serviço não encontrado');
+      }
+
+      const workData = workDoc.data();
+      const orcamentos = workData.orcamentos || [];
+      
+      // Encontrar o orçamento e atualizar seu status
+      const updatedOrcamentos = orcamentos.map(orc => {
+        if (orc.id === orcamentoId) {
+          return { ...orc, aceito: false };
+        }
+        return orc;
+      });
+
+      // Atualizar o documento com os orçamentos atualizados
+      await updateDoc(workRef, {
+        orcamentos: updatedOrcamentos,
+        status: 'disponivel',
+        technicianId: null
+      });
+
+      // Recarregar os dados
+      await loadWorks();
+      
+      // Fechar o modal
+      setSelectedWork(null);
+    } catch (error) {
+      console.error('Erro ao cancelar aceitação:', error);
+      alert('Erro ao cancelar aceitação do orçamento. Por favor, tente novamente.');
+    }
+  };
+
   const renderRecentActions = () => {
     return (
       <>
@@ -1054,6 +1117,9 @@ function DashGestor() {
             }
           }}
           onFileDownload={handleFileDownload}
+          onCancelarAceitacao={handleCancelarAceitacao}
+          onAcceptOrcamento={handleAceitarOrcamento}
+          workOrcamentos={workOrcamentos[selectedWork?.id] || []}
         />
       </>
     );
@@ -1126,7 +1192,7 @@ function DashGestor() {
     // Esta é a interface padrão do dashboard
     content = (
       <>
-        <TopBar />
+        <TopBar unreadCount={unreadCount} />
         <div className="dashboard-container">
           <div className="dashboard-content">
             {renderRecentActions()}
@@ -1190,8 +1256,21 @@ function DashGestor() {
       });
       const manutencoes = Array.from(manutencoesMap.values());
 
-      setWorks(obras);
-      setMaintenances(manutencoes);
+      // Sort works and maintenances by date in descending order
+      const sortedObras = obras.sort((a, b) => {
+        const dateA = a.date ? new Date(a.date) : new Date(0);
+        const dateB = b.date ? new Date(b.date) : new Date(0);
+        return dateB - dateA;
+      });
+
+      const sortedManutencoes = manutencoes.sort((a, b) => {
+        const dateA = a.date ? new Date(a.date) : new Date(0);
+        const dateB = b.date ? new Date(b.date) : new Date(0);
+        return dateB - dateA;
+      });
+
+      setWorks(sortedObras);
+      setMaintenances(sortedManutencoes);
 
       console.log('Obras carregadas:', obras.length);
       console.log('Manutenções carregadas:', manutencoes.length);
@@ -1273,275 +1352,32 @@ function DashGestor() {
             if (categoriaLower.includes("eletr") && obraData.category !== "Eletricidade") {
               atualizacoes.category = "Eletricidade";
               precisaAtualizar = true;
-              console.log(`Obra ${docSnapshot.id}: Categoria corrigida para "Eletricidade"`);
+              console.log(`Categoria normalizada para 'Eletricidade'`);
             }
           }
           
-          // Verificar se o status está como "disponivel" para obras que ainda não têm técnico atribuído
-          if (!obraData.technicianId && obraData.status !== "disponivel") {
-            atualizacoes.status = "disponivel";
-            precisaAtualizar = true;
-            console.log(`Obra ${docSnapshot.id}: Status atualizado para "disponivel"`);
-          }
-          
-          // Se precisar atualizar, adiciona ao batch
           if (precisaAtualizar) {
-            const obraRef = doc(db, 'works', docSnapshot.id);
-            batch.update(obraRef, atualizacoes);
+            atualizacoes.updatedAt = serverTimestamp();
+            batch.update(docSnapshot.ref, atualizacoes);
             contadorAtualizacoes++;
           }
         });
         
-        // Executar o batch se houver atualizações
-        if (contadorAtualizacoes > 0) {
-          await batch.commit();
-          console.log(`${contadorAtualizacoes} obras foram atualizadas com sucesso!`);
-          // Atualizar as obras localmente depois do batch
-          loadWorks();
-        } else {
-          console.log("Nenhuma obra precisou ser atualizada.");
-        }
-        
+        await batch.commit();
+        console.log(`${contadorAtualizacoes} obras atualizadas`);
       } catch (error) {
-        console.error("Erro ao normalizar obras existentes:", error);
+        console.error('Erro ao normalizar obras existentes:', error);
       }
     };
-    
-    // Executar a normalização
+
     normalizarObrasExistentes();
-  }, []); // Este efeito será executado apenas uma vez na montagem
+  }, []);
 
-  const getWorksForDate = (date) => {
-    return works.filter(work => {
-      const workDate = new Date(work.date);
-      return workDate.toDateString() === date.toDateString();
-    });
+  const handleWorkClick = (servico) => {
+    setSelectedWork(servico);
   };
-
-  const handleDateClick = (date) => {
-    setSelectedDate(date);
-  };
-
-  const handleNotificationClick = () => {
-    setShowNotifications(!showNotifications);
-    if (!showNotifications) {
-      setNotifications(notifications.map(notif => ({ ...notif, read: true })));
-    }
-  };
-
-  const updateWork = async (workId, updatedWork) => {
-    try {
-      const workRef = doc(db, 'works', workId);
-      await updateDoc(workRef, {
-        title: updatedWork.title,
-        description: updatedWork.description,
-        category: updatedWork.category,
-        priority: updatedWork.priority,
-        location: updatedWork.location,
-        date: updatedWork.date,
-        files: updatedWork.files,
-        // Don't update status here as it's handled separately
-      });
-
-      // Update local state
-      setWorks(works.map(work => 
-        work.id === workId 
-          ? { ...work, ...updatedWork }
-          : work
-      ));
-    } catch (error) {
-      console.error('Error updating work:', error);
-      throw error;
-    }
-  };
-
-  const tileContent = ({ date }) => {
-    const worksForDate = getWorksForDate(date);
-    return worksForDate.length > 0 ? (
-      <div className="work-dot-container">
-        {worksForDate.map(work => (
-          <span 
-            key={work.id} 
-            className={`work-dot ${work.status.toLowerCase().replace(' ', '-')}`}
-            title={`${work.title} - ${work.status}`}
-          />
-        ))}
-      </div>
-    ) : null;
-  };
-
-  useEffect(() => {
-    const fetchServicos = async () => {
-      if (user) {
-        setIsLoading(true);
-        try {
-          // Buscar obras do Firestore usando tanto userEmail quanto userId
-          const obrasEmailQuery = query(collection(db, 'ObrasPedidos'), where("userEmail", "==", user.email));
-          const obrasUserIdQuery = query(collection(db, 'ObrasPedidos'), where("userId", "==", user.uid));
-
-          const [obrasEmailSnapshot, obrasUserIdSnapshot] = await Promise.all([
-            getDocs(obrasEmailQuery),
-            getDocs(obrasUserIdQuery)
-          ]);
-
-          // Criar um mapa para evitar duplicações
-          const obrasMap = new Map();
-          [...obrasEmailSnapshot.docs, ...obrasUserIdSnapshot.docs].forEach(doc => {
-            if (!obrasMap.has(doc.id)) {
-              obrasMap.set(doc.id, {
-                id: doc.id,
-                ...doc.data(),
-                isMaintenance: false
-              });
-            }
-          });
-          const obras = Array.from(obrasMap.values());
-
-          // Buscar manutenções do Firestore usando tanto userEmail quanto userId
-          const manutencoesEmailQuery = query(collection(db, 'ManutençãoPedidos'), where("userEmail", "==", user.email));
-          const manutencoesUserIdQuery = query(collection(db, 'ManutençãoPedidos'), where("userId", "==", user.uid));
-
-          const [manutencoesEmailSnapshot, manutencoesUserIdSnapshot] = await Promise.all([
-            getDocs(manutencoesEmailQuery),
-            getDocs(manutencoesUserIdQuery)
-          ]);
-
-          // Criar um mapa para evitar duplicações
-          const manutencoesMap = new Map();
-          [...manutencoesEmailSnapshot.docs, ...manutencoesUserIdSnapshot.docs].forEach(doc => {
-            if (!manutencoesMap.has(doc.id)) {
-              manutencoesMap.set(doc.id, {
-                id: doc.id,
-                ...doc.data(),
-                isMaintenance: true
-              });
-            }
-          });
-          const manutencoes = Array.from(manutencoesMap.values());
-
-          setWorks(obras);
-          setMaintenances(manutencoes);
-
-          console.log('Obras carregadas:', obras.length);
-          console.log('Manutenções carregadas:', manutencoes.length);
-        } catch (error) {
-          console.error('Erro ao carregar serviços:', error);
-        } finally {
-          setIsLoading(false);
-        }
-      }
-    };
-
-    fetchServicos();
-  }, [user, db]);
-
-  // Função para lidar com o clique em uma obra recente
-  const handleRecentWorkClick = (work) => {
-    setSelectedRecentWork(work);
-  };
-
-  // Add this function to handle work selection
-  const handleWorkClick = (work) => {
-    setSelectedWork(work);
-  };
-
-  // Adicionar listener para monitorar orçamentos em tempo real
-  useEffect(() => {
-    if (!works.length) return;
-    
-    console.log('Setting up real-time listener for orcamentos');
-    
-    // Criar um listener para a coleção de orçamentos
-    const orcamentosRef = collection(db, 'ObrasOrçamentos');
-    const q = query(orcamentosRef);
-    
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      console.log('Real-time orcamentos update detected');
-      
-      // Processa alterações nos documentos
-      snapshot.docChanges().forEach((change) => {
-        const orcamentoData = change.doc.data();
-        const orcamentoId = change.doc.id;
-        const workId = orcamentoData.workId;
-        
-        console.log(`Orcamento ${change.type}:`, {
-          id: orcamentoId,
-          workId: workId,
-          amount: orcamentoData.amount,
-          change: change.type
-        });
-        
-        // Se o orçamento for para uma obra que estamos monitorando
-        if (works.some(w => w.id === workId)) {
-          if (change.type === 'added' || change.type === 'modified') {
-            // Atualizar o estado workOrcamentos
-            setWorkOrcamentos(prev => {
-              const workOrcs = prev[workId] || [];
-              
-              // Verifica se já existe este orçamento
-              const existingIndex = workOrcs.findIndex(o => o.id === orcamentoId);
-              
-              if (existingIndex >= 0) {
-                // Atualiza orçamento existente
-                const updatedOrcs = [...workOrcs];
-                updatedOrcs[existingIndex] = {
-                  id: orcamentoId,
-                  ...orcamentoData
-                };
-                return {
-                  ...prev,
-                  [workId]: updatedOrcs
-                };
-              } else {
-                // Adiciona novo orçamento
-                return {
-                  ...prev,
-                  [workId]: [
-                    ...workOrcs,
-                    {
-                      id: orcamentoId,
-                      ...orcamentoData
-                    }
-                  ]
-                };
-              }
-            });
-            
-            // Atualiza a flag hasOrcamentos na obra
-            const workRef = doc(db, 'ObrasPedidos', workId);
-            updateDoc(workRef, {
-              hasOrcamentos: true
-            }).catch(err => {
-              console.error('Error updating work hasOrcamentos flag:', err);
-            });
-          }
-          
-          if (change.type === 'removed') {
-            // Remove orçamento do estado
-            setWorkOrcamentos(prev => {
-              if (!prev[workId]) return prev;
-              
-              return {
-                ...prev,
-                [workId]: prev[workId].filter(o => o.id !== orcamentoId)
-              };
-            });
-          }
-        }
-      });
-    }, (error) => {
-      console.error('Error in orcamentos listener:', error);
-    });
-    
-    // Cleanup
-    return () => {
-      console.log('Cleaning up orcamentos listener');
-      unsubscribe();
-    };
-  }, [works]);
 
   return content;
 }
 
 export default DashGestor;
-

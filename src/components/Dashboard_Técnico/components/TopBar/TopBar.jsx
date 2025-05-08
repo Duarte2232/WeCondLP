@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { FiHome, FiCalendar, FiBriefcase, FiMessageSquare, FiUser, FiSearch, FiTool, FiArrowLeft } from 'react-icons/fi';
 import { getAuth, signOut } from 'firebase/auth';
-import { getDoc, doc } from 'firebase/firestore';
+import { getDoc, doc, collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../../../../services/firebase.jsx';
 import './TopBar.css';
 
@@ -10,6 +10,7 @@ const TopBar = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [empresaNome, setEmpresaNome] = useState('');
+  const [unreadCount, setUnreadCount] = useState(0);
   const auth = getAuth();
 
   useEffect(() => {
@@ -32,6 +33,28 @@ const TopBar = () => {
     };
 
     carregarDadosUsuario();
+  }, [auth.currentUser]);
+
+  // Listener para mensagens não lidas
+  useEffect(() => {
+    if (!auth.currentUser) return;
+
+    const conversationsRef = collection(db, 'conversations');
+    const q = query(conversationsRef, where('technicianId', '==', auth.currentUser.uid));
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      let totalUnread = 0;
+      snapshot.forEach((doc) => {
+        const conversation = doc.data();
+        const unreadMessages = conversation.messages?.filter(msg => 
+          msg.senderId !== auth.currentUser.uid && !msg.read
+        ).length || 0;
+        totalUnread += unreadMessages;
+      });
+      setUnreadCount(totalUnread);
+    });
+
+    return () => unsubscribe();
   }, [auth.currentUser]);
 
   const isActive = (path) => {
@@ -78,6 +101,9 @@ const TopBar = () => {
           <Link to="/dashtecnico/mensagens" className={isActive('/mensagens') ? 'active' : ''}>
             <FiMessageSquare />
             <span>Mensagens</span>
+            {unreadCount > 0 && (
+              <span className="messages-badge">{unreadCount}</span>
+            )}
           </Link>
           <Link to="/dashtecnico/perfil" className={isActive('/perfil') ? 'active' : ''}>
             <FiUser />

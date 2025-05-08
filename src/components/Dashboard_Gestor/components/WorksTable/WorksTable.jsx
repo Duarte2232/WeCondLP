@@ -21,7 +21,8 @@ function WorksTable({
   isSimplified = false,
   onSendMessage,
   expandedWorks,
-  workOrcamentos
+  workOrcamentos,
+  onCancelarAceitacao
 }) {
   const [selectedWork, setSelectedWork] = useState(null);
 
@@ -263,6 +264,7 @@ function WorksTable({
               onFileDownload={onFileDownload}
               workOrcamentos={workOrcamentos[selectedWork.id] || []}
               onAcceptOrcamento={onAcceptOrcamento}
+              onCancelarAceitacao={onCancelarAceitacao}
             />
           )}
         </>

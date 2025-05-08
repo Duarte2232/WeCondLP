@@ -4,7 +4,7 @@ import { FiArrowLeft, FiSearch, FiRefreshCcw } from 'react-icons/fi';
 import NewMaintenanceButton from './NewMaintenanceButton';
 import WorkDetailsModal from '../WorkDetailsModal/WorkDetailsModal';
 import { db } from '../../../../services/firebase';
-import { collection, query, where, getDocs, doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, updateDoc, deleteDoc, getDoc } from 'firebase/firestore';
 import { useAuth } from '../../../../contexts/auth';
 import './Maintenance.css';
 
@@ -88,6 +88,18 @@ function Maintenance() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (manutencoes) {
+      // Sort maintenances by date in descending order
+      const sortedManutencoes = [...manutencoes].sort((a, b) => {
+        const dateA = a.date ? new Date(a.date) : new Date(0);
+        const dateB = b.date ? new Date(b.date) : new Date(0);
+        return dateB - dateA;
+      });
+      setFilteredManutencoes(sortedManutencoes);
+    }
+  }, [manutencoes]);
 
   useEffect(() => {
     const filtered = manutencoes.filter(manutencao => {
@@ -197,6 +209,92 @@ function Maintenance() {
       setOrcamentos([]);
     } finally {
       setOrcamentosLoading(false);
+    }
+  };
+
+  const handleAcceptOrcamento = async (manutencaoId, orcamentoId) => {
+    try {
+      setLoading(true);
+      const manutencaoRef = doc(db, 'ManutençãoPedidos', manutencaoId);
+      const orcamentoRef = doc(db, 'ManutençãoOrçamentos', orcamentoId);
+      
+      // Update maintenance status to em-andamento
+      await updateDoc(manutencaoRef, {
+        status: 'em-andamento'
+      });
+
+      // Update orcamento status to accepted
+      await updateDoc(orcamentoRef, {
+        aceito: true
+      });
+
+      // Update local state
+      setManutencoes(prevManutencoes => 
+        prevManutencoes.map(manutencao => 
+          manutencao.id === manutencaoId 
+            ? { ...manutencao, status: 'em-andamento' }
+            : manutencao
+        )
+      );
+
+      // Update orcamentos state
+      setOrcamentos(prevOrcamentos => 
+        prevOrcamentos.map(orcamento => 
+          orcamento.id === orcamentoId
+            ? { ...orcamento, aceito: true }
+            : orcamento
+        )
+      );
+
+      // Update selected work if it's the current one
+      if (selectedWork && selectedWork.id === manutencaoId) {
+        setSelectedWork({
+          ...selectedWork,
+          status: 'em-andamento'
+        });
+      }
+
+      alert('Orçamento aceito com sucesso!');
+    } catch (error) {
+      console.error('Erro ao aceitar orçamento:', error);
+      alert('Erro ao aceitar orçamento: ' + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCancelarAceitacao = async (workId, orcamentoId, isMaintenance = false) => {
+    try {
+      // Atualizar o orçamento na coleção ManutençãoOrçamentos
+      const orcamentoRef = doc(db, 'ManutençãoOrçamentos', orcamentoId);
+      await updateDoc(orcamentoRef, {
+        aceito: false
+      });
+
+      // Atualizar o status da manutenção
+      const manutencaoRef = doc(db, 'ManutençãoPedidos', workId);
+      await updateDoc(manutencaoRef, {
+        status: 'disponivel',
+        technicianId: null
+      });
+
+      // Atualizar o estado local
+      setOrcamentos(prevOrcamentos => 
+        prevOrcamentos.map(orcamento => 
+          orcamento.id === orcamentoId
+            ? { ...orcamento, aceito: false }
+            : orcamento
+        )
+      );
+
+      // Recarregar os dados
+      await fetchManutencoes();
+      
+      // Fechar o modal
+      setSelectedWork(null);
+    } catch (error) {
+      console.error('Erro ao cancelar aceitação:', error);
+      alert('Erro ao cancelar aceitação do orçamento. Por favor, tente novamente.');
     }
   };
 
@@ -395,6 +493,8 @@ function Maintenance() {
           onDelete={() => handleDelete(selectedWork.id)}
           onComplete={handleComplete}
           onFileDownload={() => {}}
+          onAcceptOrcamento={handleAcceptOrcamento}
+          onCancelarAceitacao={handleCancelarAceitacao}
         />
       )}
     </div>

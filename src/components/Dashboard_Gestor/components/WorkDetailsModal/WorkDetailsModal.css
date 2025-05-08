@@ -187,6 +187,21 @@
   background-color: #FFF1B8;
 }
 
+.action-btn.cancelar.bordered {
+  background-color: #fff;
+  color: #d48806;
+  border: 2px solid #ffe58f;
+  box-shadow: none;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.action-btn.cancelar.bordered:hover {
+  background-color: #fffbe6;
+  color: #ad6800;
+  border-color: #ffd666;
+}
+
 .work-details-section {
   margin-bottom: 24px;
   padding-bottom: 24px;
@@ -467,15 +482,58 @@
 }
 
 .orcamento-aceito-badge {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 5px;
-  padding: 6px 12px;
-  background-color: #28a745;
-  color: white;
-  border-radius: 4px;
-  font-size: 13px;
+  gap: 8px;
+  color: #4CAF50;
   font-weight: 500;
+  padding: 8px 12px;
+  background-color: #E8F5E9;
+  border-radius: 4px;
+  margin-top: 10px;
+}
+
+.orcamento-aceito-badge > * {
+  flex: 0 0 auto !important;
+  width: auto !important;
+  min-width: 0 !important;
+  display: flex !important;
+  align-items: center;
+}
+
+.orcamento-aceito-btn {
+  display: flex !important;
+  align-items: center;
+  background: #4CAF50;
+  color: #fff;
+  border-radius: 4px;
+  padding: 6px 12px;
+  font-weight: 500;
+  font-size: 0.95em;
+  border: none;
+  gap: 6px;
+}
+
+.orcamento-aceito-badge .orcamento-mensagem {
+  background-color: #2196F3;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.9em;
+  transition: background-color 0.2s;
+}
+
+.orcamento-aceito-badge .orcamento-mensagem:hover {
+  background-color: #1976D2;
+}
+
+.orcamento-aceito-badge .orcamento-mensagem svg {
+  font-size: 1.1em;
 }
 
 .orcamento-card.orcamento-aceito {

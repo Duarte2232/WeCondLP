@@ -199,6 +199,20 @@
   color: white;
 }
 
+.messages-badge {
+  background: #e11d48;
+  color: #fff;
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 12px;
+  margin-left: 4px;
+  font-weight: bold;
+  vertical-align: top;
+  display: inline-block;
+  min-width: 20px;
+  text-align: center;
+}
+
 /* Responsive adjustments */
 @media (max-width: 1024px) {
   .topbar {

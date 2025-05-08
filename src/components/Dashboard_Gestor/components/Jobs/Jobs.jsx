@@ -56,8 +56,15 @@ function Jobs() {
         id: doc.id,
         ...doc.data()
       }));
+
+      // Sort works by date in descending order when first fetched
+      const sortedObras = obrasData.sort((a, b) => {
+        const dateA = a.date ? new Date(a.date) : new Date(0);
+        const dateB = b.date ? new Date(b.date) : new Date(0);
+        return dateB - dateA;
+      });
       
-      setObras(obrasData);
+      setObras(sortedObras);
     } catch (error) {
       console.error('Erro ao buscar obras:', error);
       toast.error('Erro ao carregar obras');
@@ -149,7 +156,19 @@ function Jobs() {
                          obra.description?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || obra.status === statusFilter;
     const matchesCategory = categoryFilter === 'all' || obra.category === categoryFilter;
-    const matchesPriority = priorityFilter === 'all' || obra.priority === priorityFilter;
+    
+    // Normalizar as prioridades para comparação
+    const normalizePriority = (priority) => {
+      if (!priority) return '';
+      return priority.toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace('media', 'média');
+    };
+
+    const matchesPriority = priorityFilter === 'all' || 
+                           (obra.priority && normalizePriority(obra.priority) === normalizePriority(priorityFilter));
+    
     const matchesLocation = !locationFilter || 
                           (obra.location && 
                            (obra.location.morada?.toLowerCase().includes(locationFilter.toLowerCase()) ||
@@ -260,7 +279,7 @@ function Jobs() {
   const handleAcceptOrcamento = async (workId, orcamentoIndex) => {
     try {
       setLoading(true);
-      const workRef = doc(db, 'works', workId);
+      const workRef = doc(db, 'ObrasPedidos', workId);
       const workDoc = await getDoc(workRef);
       const workData = workDoc.data();
       
@@ -277,15 +296,16 @@ function Jobs() {
         return orcamento;
       });
 
-      // Update in Firestore
+      // Update in Firestore - both orcamentos and status
       await updateDoc(workRef, {
-        orcamentos: updatedOrcamentos
+        orcamentos: updatedOrcamentos,
+        status: 'em-andamento'
       });
 
       // Update local state
       setObras(prevObras => 
         prevObras.map(obra => 
-          obra.id === workId ? { ...obra, orcamentos: updatedOrcamentos } : obra
+          obra.id === workId ? { ...obra, orcamentos: updatedOrcamentos, status: 'em-andamento' } : obra
         )
       );
       
@@ -293,7 +313,8 @@ function Jobs() {
       if (selectedWork && selectedWork.id === workId) {
         setSelectedWork({
           ...selectedWork,
-          orcamentos: updatedOrcamentos
+          orcamentos: updatedOrcamentos,
+          status: 'em-andamento'
         });
       }
 
@@ -319,6 +340,49 @@ function Jobs() {
         console.error('Erro ao eliminar obra:', error);
         alert('Ocorreu um erro ao eliminar a obra.');
       }
+    }
+  };
+
+  const handleCancelarAceitacao = async (workId, orcamentoId, isMaintenance = false) => {
+    try {
+      // Atualizar o orçamento na coleção ObrasOrçamentos
+      const orcamentoRef = doc(db, 'ObrasOrçamentos', orcamentoId);
+      await updateDoc(orcamentoRef, {
+        aceito: false
+      });
+
+      // Atualizar o status da obra
+      const obraRef = doc(db, 'ObrasPedidos', workId);
+      await updateDoc(obraRef, {
+        status: 'disponivel',
+        technicianId: null
+      });
+
+      // Atualizar o estado local
+      setObras(prevObras => 
+        prevObras.map(obra => {
+          if (obra.id === workId) {
+            return {
+              ...obra,
+              status: 'disponivel',
+              technicianId: null,
+              orcamentos: obra.orcamentos?.map(orc => 
+                orc.id === orcamentoId ? { ...orc, aceito: false } : orc
+              )
+            };
+          }
+          return obra;
+        })
+      );
+
+      // Recarregar os dados
+      await fetchObras();
+      
+      // Fechar o modal
+      setSelectedWork(null);
+    } catch (error) {
+      console.error('Erro ao cancelar aceitação:', error);
+      toast.error('Erro ao cancelar aceitação do orçamento. Por favor, tente novamente.');
     }
   };
 
@@ -494,6 +558,7 @@ function Jobs() {
           onComplete={handleComplete}
           onFileDownload={handleFileDownload}
           onAcceptOrcamento={handleAcceptOrcamento}
+          onCancelarAceitacao={handleCancelarAceitacao}
         />
       )}
     </div>
