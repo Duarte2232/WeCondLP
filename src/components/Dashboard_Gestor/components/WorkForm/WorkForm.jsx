@@ -107,7 +107,6 @@ function WorkForm({
   handleRemoveFile, 
   isSubmitting,
   onSubmit,
-  onCancel,
   editMode
 }) {
   const { id } = useParams();
@@ -180,12 +179,16 @@ function WorkForm({
     }
   };
 
+  const onCancel = () => {~
+    navigate('/dashgestor/obras')
+  }
+
   return (
     <div className="modal-overlay">
       <div className="modal-content">
         <div className="modal-header">
           <h2>{editMode ? 'Editar' : 'Nova'} Obra</h2>
-          <button className="close-btn" onClick={onCancel || (() => navigate('/dashgestor/obras'))}>
+          <button className="close-btn" onClick={(() => navigate('/dashgestor/obras'))}>
             <FiX />
           </button>
         </div>

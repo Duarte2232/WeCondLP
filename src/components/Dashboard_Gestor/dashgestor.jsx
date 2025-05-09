@@ -1162,11 +1162,6 @@ function DashGestor() {
               handleFileUpload={handleFileUpload}
               handleRemoveFile={handleRemoveFile}
               isSubmitting={isSubmitting}
-              onSubmit={handleSubmit}
-              onCancel={() => {
-                setShowNewWorkForm(false);
-                setEditingWork(null);
-              }}
               editMode={!!editingWork}
             />
           } />
