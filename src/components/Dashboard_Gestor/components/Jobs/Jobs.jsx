@@ -76,73 +76,19 @@ function Jobs() {
   // Function to fetch orcamentos for a specific work
   const fetchOrcamentosForWork = async (workId) => {
     try {
-      if (process.env.NODE_ENV === 'development') {
-        console.log(`[DEBUG] Starting fetchOrcamentosForWork for workId: ${workId}`);
-      }
-      
-      // First check if the work document already has orcamentos array
-      const workRef = doc(db, 'ObrasPedidos', workId);
-      const workDoc = await getDoc(workRef);
-      const workData = workDoc.data();
-      
-      if (process.env.NODE_ENV === 'development') {
-        console.log(`[DEBUG] Work data:`, workData);
-      }
-
-      if (workData && Array.isArray(workData.orcamentos) && workData.orcamentos.length > 0) {
-        if (process.env.NODE_ENV === 'development') {
-          console.log(`[DEBUG] Found ${workData.orcamentos.length} orcamentos in work document:`, workData.orcamentos);
-        }
-        return workData.orcamentos;
-      }
-      
-      if (process.env.NODE_ENV === 'development') {
-        console.log(`[DEBUG] No orcamentos array found in work document, checking orcamentos collection`);
-      }
-
-      // If not found in the work document, try to fetch from orcamentos collection
+      // Only fetch from ObrasOrçamentos collection
       const orcamentosRef = collection(db, 'ObrasOrçamentos');
       const q = query(orcamentosRef, where('workId', '==', workId));
       const querySnapshot = await getDocs(q);
       
-      if (process.env.NODE_ENV === 'development') {
-        console.log(`[DEBUG] Orcamentos collection query result: ${querySnapshot.size} documents found`);
-      }
-      
       if (querySnapshot.empty) {
-        if (process.env.NODE_ENV === 'development') {
-          console.log(`[DEBUG] No orcamentos found in collection for workId: ${workId}`);
-        }
         return [];
       }
       
-      const orcamentosData = querySnapshot.docs.map(doc => {
-        const data = doc.data();
-        if (process.env.NODE_ENV === 'development') {
-          console.log(`[DEBUG] Orcamento document data:`, data);
-        }
-        return {
-          id: doc.id,
-          ...data
-        };
-      });
-
-      if (process.env.NODE_ENV === 'development') {
-        console.log(`[DEBUG] Processed ${orcamentosData.length} orcamentos from collection:`, orcamentosData);
-      }
-
-      // Update the work document with these orcamentos for future reference
-      if (orcamentosData.length > 0) {
-        if (process.env.NODE_ENV === 'development') {
-          console.log(`[DEBUG] Updating work document with orcamentos array`);
-        }
-        await updateDoc(workRef, {
-          orcamentos: orcamentosData
-        });
-        if (process.env.NODE_ENV === 'development') {
-          console.log(`[DEBUG] Work document updated successfully`);
-        }
-      }
+      const orcamentosData = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
 
       return orcamentosData;
     } catch (error) {
@@ -306,26 +252,51 @@ function Jobs() {
         aceito: true
       });
 
-      // Atualizar estado local
+      // Atualizar estado local das obras
       setObras(prevObras => 
-        prevObras.map(obra => 
-          obra.id === workId ? { ...obra, status: 'em-andamento' } : obra
-        )
+        prevObras.map(obra => {
+          if (obra.id === workId) {
+            // Create a safe copy of the obra
+            const updatedObra = {
+              ...obra,
+              status: 'em-andamento'
+            };
+            
+            // Update orcamentos if they exist
+            if (Array.isArray(obra.orcamentos)) {
+              updatedObra.orcamentos = obra.orcamentos.map(orc => 
+                orc.id === orcamentoId ? { ...orc, aceito: true } : orc
+              );
+            }
+            
+            return updatedObra;
+          }
+          return obra;
+        })
       );
       
       // Atualizar o selected work
       if (selectedWork && selectedWork.id === workId) {
-        setSelectedWork({
+        const updatedWork = {
           ...selectedWork,
           status: 'em-andamento'
-        });
+        };
+
+        // Update orcamentos in selectedWork if they exist
+        if (Array.isArray(selectedWork.orcamentos)) {
+          updatedWork.orcamentos = selectedWork.orcamentos.map(orc =>
+            orc.id === orcamentoId ? { ...orc, aceito: true } : orc
+          );
+        }
+
+        setSelectedWork(updatedWork);
       }
 
       // Show success message
-      alert('Orçamento aceito com sucesso!');
+      toast.success('Orçamento aceito com sucesso!');
     } catch (error) {
       console.error('Erro ao aceitar orçamento:', error);
-      alert('Erro ao aceitar orçamento: ' + error.message);
+      toast.error('Erro ao aceitar orçamento: ' + error.message);
     } finally {
       setLoading(false);
     }
@@ -335,8 +306,22 @@ function Jobs() {
     if (!workId) return;
     if (window.confirm('Tem certeza que deseja eliminar esta obra?')) {
       try {
+        // First, delete all associated orçamentos
+        const orcamentosRef = collection(db, 'ObrasOrçamentos');
+        const q = query(orcamentosRef, where('workId', '==', workId));
+        const querySnapshot = await getDocs(q);
+        
+        // Delete each orçamento
+        const deleteOrcamentosPromises = querySnapshot.docs.map(doc => 
+          deleteDoc(doc.ref)
+        );
+        await Promise.all(deleteOrcamentosPromises);
+
+        // Then delete the work itself
         const workRef = doc(db, 'ObrasPedidos', workId);
         await deleteDoc(workRef);
+        
+        // Update local state
         setObras(prevObras => prevObras.filter(obra => obra.id !== workId));
         setSelectedWork(null);
       } catch (error) {
@@ -365,24 +350,49 @@ function Jobs() {
       setObras(prevObras => 
         prevObras.map(obra => {
           if (obra.id === workId) {
-            return {
+            // Create a safe copy of the obra without modifying orcamentos if they don't exist
+            const updatedObra = {
               ...obra,
               status: 'disponivel',
-              technicianId: null,
-              orcamentos: obra.orcamentos?.map(orc => 
-                orc.id === orcamentoId ? { ...orc, aceito: false } : orc
-              )
+              technicianId: null
             };
+            
+            // Only modify orcamentos if they exist and are an array
+            if (Array.isArray(obra.orcamentos)) {
+              updatedObra.orcamentos = obra.orcamentos.map(orc => 
+                orc.id === orcamentoId ? { ...orc, aceito: false } : orc
+              );
+            }
+            
+            return updatedObra;
           }
           return obra;
         })
       );
 
-      // Recarregar os dados
-      await fetchObras();
+      // Update selectedWork if it's the current one
+      if (selectedWork && selectedWork.id === workId) {
+        const updatedWork = {
+          ...selectedWork,
+          status: 'disponivel',
+          technicianId: null
+        };
+        
+        // Only modify orcamentos if they exist and are an array
+        if (Array.isArray(selectedWork.orcamentos)) {
+          updatedWork.orcamentos = selectedWork.orcamentos.map(orc => 
+            orc.id === orcamentoId ? { ...orc, aceito: false } : orc
+          );
+        }
+        
+        setSelectedWork(updatedWork);
+      }
+
+      // Success message
+      toast.success('Orçamento cancelado com sucesso!');
       
-      // Fechar o modal
-      setSelectedWork(null);
+      // Recarregar os dados em segundo plano
+      fetchObras();
     } catch (error) {
       console.error('Erro ao cancelar aceitação:', error);
       toast.error('Erro ao cancelar aceitação do orçamento. Por favor, tente novamente.');

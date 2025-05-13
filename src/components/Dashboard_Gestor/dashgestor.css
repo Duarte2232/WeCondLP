@@ -1,3 +1,7 @@
+/* Import statements must come first */
+@import './styles/metrics.css';
+@import './styles/search-filters.css';
+
 /* Empty CSS file */
 
 :root {
@@ -564,12 +568,6 @@
     opacity: 0.6;
   }
 }
-
-/* Importar os outros arquivos CSS */
-@import './styles/metrics.css';
-@import './styles/search-filters.css';
-
-/* O restante do CSS atual permanece aqui... */
 
 /* Override react-calendar default styles */
 .react-calendar {

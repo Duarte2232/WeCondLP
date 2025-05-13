@@ -606,4 +606,38 @@
 
 .file-download-btn[title="Descarregar ficheiro"]:hover {
   color: #059669;
+}
+
+.action-btn.cancelar-orcamento,
+.action-btn.aceitar-orcamento {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.action-btn.cancelar-orcamento {
+  background-color: #ef4444;
+  color: white;
+  border: none;
+}
+
+.action-btn.cancelar-orcamento:hover {
+  background-color: #dc2626;
+}
+
+.action-btn.aceitar-orcamento {
+  background-color: #10b981;
+  color: white;
+  border: none;
+}
+
+.action-btn.aceitar-orcamento:hover {
+  background-color: #059669;
 } 

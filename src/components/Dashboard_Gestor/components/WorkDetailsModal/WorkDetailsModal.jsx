@@ -63,7 +63,7 @@ const WorkDetailsModal = ({ work, onClose, onEdit, onDelete, onComplete, onFileD
     };
     
     fetchData();
-  }, [work.id, workOrcamentos]);
+  }, [work.id, work.isMaintenance, workOrcamentos]);
   
   // Fetch technician names when orcamentos are loaded
   useEffect(() => {
@@ -117,6 +117,14 @@ const WorkDetailsModal = ({ work, onClose, onEdit, onDelete, onComplete, onFileD
   
   const handleAcceptOrcamento = (orcamentoId) => {
     if (onAcceptOrcamento) {
+      // Update local state immediately
+      setOrcamentos(prevOrcamentos => 
+        prevOrcamentos.map(orc => 
+          orc.id === orcamentoId ? { ...orc, aceito: true } : orc
+        )
+      );
+      
+      // Call the parent handler
       onAcceptOrcamento(work.id, orcamentoId);
     } else {
       console.error('onAcceptOrcamento function not provided');
@@ -236,16 +244,24 @@ const WorkDetailsModal = ({ work, onClose, onEdit, onDelete, onComplete, onFileD
   const orcamentoAceite = orcamentos.find(o => o.aceito);
 
   return (
-    <div className="work-details-modal-overlay" onClick={onClose}>
-      <div className="work-details-modal-content" onClick={e => e.stopPropagation()}>
+    <div className="work-details-modal-overlay" onClick={(e) => {
+      // Only close if clicking directly on the overlay
+      if (e.target === e.currentTarget) {
+        onClose();
+      }
+    }}>
+      <div className="work-details-modal-content" onClick={(e) => e.stopPropagation()}>
         <div className="work-details-modal-header">
           <h2>{isEditing ? 'Editar' : work.title}</h2>
-          <button className="close-button" onClick={onClose}>
+          <button className="close-button" onClick={(e) => {
+            e.stopPropagation();
+            onClose();
+          }}>
             <FiX />
           </button>
         </div>
 
-        <div className="work-details-modal-body">
+        <div className="work-details-modal-body" onClick={(e) => e.stopPropagation()}>
           {isEditing ? (
             <form className="edit-work-form" onSubmit={e => { e.preventDefault(); handleEditSave(); }}>
               <div className="work-details-section">
@@ -322,14 +338,6 @@ const WorkDetailsModal = ({ work, onClose, onEdit, onDelete, onComplete, onFileD
                     </>
                   )}
                 </button>
-                {orcamentoAceite && (
-                  <button
-                    className="action-btn cancelar bordered"
-                    onClick={() => onCancelarAceitacao(work.id, orcamentoAceite.id, work.isMaintenance)}
-                  >
-                    Cancelar Aceitação
-                  </button>
-                )}
               </div>
             </div>
           )}
@@ -404,18 +412,11 @@ const WorkDetailsModal = ({ work, onClose, onEdit, onDelete, onComplete, onFileD
               ) : orcamentos.length > 0 ? (
                 <div className="orcamentos-list">
                   {orcamentos.map((orcamento, index) => {
-                    if (process.env.NODE_ENV === 'development') {
-                      console.log(`[DEBUG] Rendering orcamento at index ${index}:`, orcamento);
-                    }
-                    
-                    // Determine the display name
-                    let displayName = orcamento.empresa || 'Empresa';
-                    if (orcamento.technicianId && technicianNames[orcamento.technicianId]) {
-                      displayName = technicianNames[orcamento.technicianId];
-                    }
-                    
+                    const displayName = orcamento.technicianName || orcamento.technicianId || 'Técnico';
                     return (
-                      <div key={orcamento.id || index} className={`orcamento-card ${orcamento.aceito ? 'orcamento-aceito' : ''}`}>
+                      <div key={orcamento.id || index} 
+                           className={`orcamento-card ${orcamento.aceito ? 'orcamento-aceito' : ''}`}
+                           onClick={(e) => e.stopPropagation()}>
                         <div className="orcamento-info">
                           <h4>{displayName}</h4>
                           <span className="orcamento-date">
@@ -434,63 +435,36 @@ const WorkDetailsModal = ({ work, onClose, onEdit, onDelete, onComplete, onFileD
                             {orcamento.description}
                           </div>
                         )}
-                        <div className="orcamento-actions">
-                          {orcamento.documento && (
-                            <div className="orcamento-document">
-                              <a 
-                                href={orcamento.documento.url} 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                                className="document-link"
-                              >
-                                <FiDownload /> Ver documento
-                              </a>
-                            </div>
-                          )}
-                          {orcamento.files && orcamento.files.length > 0 && (
-                            <div className="orcamento-files">
-                              {orcamento.files.map((file, fileIndex) => (
-                                <a 
-                                  key={fileIndex}
-                                  href={file.url} 
-                                  target="_blank" 
-                                  rel="noopener noreferrer"
-                                  className="document-link"
-                                >
-                                  <FiDownload /> {file.name || `Arquivo ${fileIndex + 1}`}
-                                </a>
-                              ))}
-                            </div>
-                          )}
-                          {!orcamento.aceito && work.status === 'disponivel' && (
-                            <>
-                              <button
-                                className="orcamento-aceitar"
-                                onClick={() => handleAcceptOrcamento(orcamento.id)}
-                              >
-                                <FiCheckCircle /> ACEITAR
-                              </button>
-                              <button
-                                className="orcamento-mensagem"
-                                onClick={() => handleMessageTechnician(orcamento)}
-                              >
-                                <FiMessageSquare /> MENSAGEM
-                              </button>
-                            </>
-                          )}
-                          {orcamento.aceito && (
-                            <div className="orcamento-aceito-badge">
-                              <div className="orcamento-aceito-btn">
-                                <FiCheckCircle /> Aceito
-                              </div>
-                              <button
-                                className="orcamento-mensagem"
-                                onClick={() => handleMessageTechnician(orcamento)}
-                              >
-                                <FiMessageSquare /> MENSAGEM
-                              </button>
-                            </div>
-                          )}
+                        <div className="orcamento-actions" onClick={(e) => e.stopPropagation()}>
+                          {orcamento.aceito ? (
+                            <button
+                              className="action-btn cancelar-orcamento"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                // Update local state immediately
+                                setOrcamentos(prevOrcamentos => 
+                                  prevOrcamentos.map(orc => 
+                                    orc.id === orcamento.id ? { ...orc, aceito: false } : orc
+                                  )
+                                );
+                                onCancelarAceitacao(work.id, orcamento.id, work.isMaintenance);
+                              }}
+                            >
+                              <FiX /> Cancelar Orçamento
+                            </button>
+                          ) : work.status === 'disponivel' && !orcamento.aceito ? (
+                            <button
+                              className="action-btn aceitar-orcamento"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleAcceptOrcamento(orcamento.id);
+                              }}
+                            >
+                              <FiCheck /> Aceitar Orçamento
+                            </button>
+                          ) : null}
                         </div>
                       </div>
                     );

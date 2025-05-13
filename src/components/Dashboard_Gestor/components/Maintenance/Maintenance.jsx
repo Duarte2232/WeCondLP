@@ -166,9 +166,22 @@ function Maintenance() {
 
     if (window.confirm('Tem certeza que deseja excluir esta manutenção?')) {
       try {
+        // First, delete all associated orçamentos
+        const orcamentosRef = collection(db, 'ManutençãoOrçamentos');
+        const q = query(orcamentosRef, where('manutencaoId', '==', workId));
+        const querySnapshot = await getDocs(q);
+        
+        // Delete each orçamento
+        const deleteOrcamentosPromises = querySnapshot.docs.map(doc => 
+          deleteDoc(doc.ref)
+        );
+        await Promise.all(deleteOrcamentosPromises);
+
+        // Then delete the maintenance itself
         const workRef = doc(db, 'ManutençãoPedidos', workId);
         await deleteDoc(workRef);
 
+        // Update local state
         setManutencoes(prevManutencoes => 
           prevManutencoes.filter(manutencao => manutencao.id !== workId)
         );

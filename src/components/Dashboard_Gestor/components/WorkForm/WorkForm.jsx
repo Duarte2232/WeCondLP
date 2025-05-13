@@ -340,39 +340,6 @@ function WorkForm({
             </div>
           </div>
           
-          {/* Campos de orçamento e prazo */}
-          <div className="form-row">
-            <div className="form-group">
-              <label>Orçamento Estimado</label>
-              <div className="orcamento-range">
-                <div className="form-group">
-                  <label>Mínimo</label>
-                  <input
-                    type="number"
-                    value={newWork.orcamentos?.minimo || ''}
-                    onChange={(e) => setNewWork({
-                      ...newWork, 
-                      orcamentos: {...(newWork.orcamentos || {}), minimo: e.target.value}
-                    })}
-                    placeholder="0"
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Máximo</label>
-                  <input
-                    type="number"
-                    value={newWork.orcamentos?.maximo || ''}
-                    onChange={(e) => setNewWork({
-                      ...newWork, 
-                      orcamentos: {...(newWork.orcamentos || {}), maximo: e.target.value}
-                    })}
-                    placeholder="0"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-          
           <div className="form-row">
             <div className="form-group">
               <label>Prazo para Orçamentos</label>
