@@ -529,61 +529,94 @@ function DashGestor() {
 
   const handleAceitarOrcamento = async (workId, orcamentoId, isMaintenance = false) => {
     try {
-      console.log('Accepting orçamento:', { workId, orcamentoId, isMaintenance });
+      console.log('Starting handleAceitarOrcamento:', { workId, orcamentoId, isMaintenance });
       
-      // Escolher as coleções corretas
-      const workCollection = isMaintenance ? 'ManutençãoPedidos' : 'ObrasPedidos';
-      const orcamentoCollection = isMaintenance ? 'ManutençãoOrçamentos' : 'ObrasOrçamentos';
+      // Primeiro, verificar em qual coleção o trabalho existe
+      const obrasRef = doc(db, 'ObrasPedidos', workId);
+      const manutencaoRef = doc(db, 'ManutençãoPedidos', workId);
       
-      // Referências
+      const [obrasDoc, manutencaoDoc] = await Promise.all([
+        getDoc(obrasRef),
+        getDoc(manutencaoRef)
+      ]);
+      
+      // Determinar qual coleção usar baseado em onde o trabalho foi encontrado
+      const workCollection = manutencaoDoc.exists() ? 'ManutençãoPedidos' : 'ObrasPedidos';
+      const orcamentoCollection = manutencaoDoc.exists() ? 'ManutençãoOrçamentos' : 'ObrasOrçamentos';
+      
+      console.log('Found work in collection:', workCollection);
+      
+      // Referências corretas
       const workRef = doc(db, workCollection, workId);
       const orcamentoRef = doc(db, orcamentoCollection, orcamentoId);
       
-      // Verificar se o documento existe
-      const workDoc = await getDoc(workRef);
+      // Verificar se o orçamento existe
       const orcamentoDoc = await getDoc(orcamentoRef);
-      
-      if (!workDoc.exists()) {
-        throw new Error('Serviço não encontrado');
-      }
-      
       if (!orcamentoDoc.exists()) {
-        throw new Error('Orçamento não encontrado');
+        throw new Error(`Orçamento não encontrado na coleção ${orcamentoCollection}`);
+      }
+
+      const orcamentoData = orcamentoDoc.data();
+      console.log('Found orcamento:', orcamentoData);
+
+      // Verificar se o trabalho existe
+      const workDoc = await getDoc(workRef);
+      if (!workDoc.exists()) {
+        throw new Error(`Serviço não encontrado na coleção ${workCollection}`);
       }
       
-      // Atualizar status da obra/manutenção
+      // Atualizar status do serviço
       await updateDoc(workRef, {
-        status: 'em-andamento'
+        status: 'em-andamento',
+        technicianId: orcamentoData.technicianId,
+        acceptedOrcamentoId: orcamentoId
       });
-      
+
       // Atualizar status do orçamento
       await updateDoc(orcamentoRef, {
-        aceito: true
+        aceito: true,
+        dataAceitacao: serverTimestamp()
       });
-      
-      // Atualizar estado local
-      if (isMaintenance) {
+
+      // Atualizar estado local baseado no tipo de serviço
+      if (workCollection === 'ManutençãoPedidos') {
         setMaintenances(prevMaintenances => prevMaintenances.map(work =>
-          work.id === workId ? { ...work, status: 'em-andamento' } : work
+          work.id === workId ? { 
+            ...work, 
+            status: 'em-andamento',
+            technicianId: orcamentoData.technicianId,
+            acceptedOrcamentoId: orcamentoId
+          } : work
         ));
       } else {
         setWorks(prevWorks => prevWorks.map(work =>
-          work.id === workId ? { ...work, status: 'em-andamento' } : work
+          work.id === workId ? { 
+            ...work, 
+            status: 'em-andamento',
+            technicianId: orcamentoData.technicianId,
+            acceptedOrcamentoId: orcamentoId
+          } : work
         ));
       }
-      
+
       // Atualizar estado dos orçamentos
       setWorkOrcamentos(prev => {
         const currentOrcamentos = prev[workId] || [];
         const updatedOrcamentos = currentOrcamentos.map(orc =>
-          orc.id === orcamentoId ? { ...orc, aceito: true } : orc
+          orc.id === orcamentoId ? { 
+            ...orc, 
+            aceito: true,
+            dataAceitacao: new Date()
+          } : orc
         );
-        console.log('Updated orcamentos:', updatedOrcamentos);
         return {
           ...prev,
           [workId]: updatedOrcamentos
         };
       });
+
+      // Fechar o modal
+      setSelectedWork(null);
       
       alert('Orçamento aceito com sucesso!');
     } catch (error) {
@@ -920,37 +953,64 @@ function DashGestor() {
 
   const handleCancelarAceitacao = async (workId, orcamentoId, isMaintenance = false) => {
     try {
-      const collectionName = isMaintenance ? 'ManutençãoPedidos' : 'ObrasPedidos';
-      const workRef = doc(db, collectionName, workId);
+      // Escolher as coleções corretas
+      const workCollection = isMaintenance ? 'ManutençãoPedidos' : 'ObrasPedidos';
+      const orcamentoCollection = isMaintenance ? 'ManutençãoOrçamentos' : 'ObrasOrçamentos';
+      
+      // Referências
+      const workRef = doc(db, workCollection, workId);
+      const orcamentoRef = doc(db, orcamentoCollection, orcamentoId);
+      
+      // Verificar se os documentos existem
       const workDoc = await getDoc(workRef);
+      const orcamentoDoc = await getDoc(orcamentoRef);
       
       if (!workDoc.exists()) {
         throw new Error('Serviço não encontrado');
       }
-
-      const workData = workDoc.data();
-      const orcamentos = workData.orcamentos || [];
       
-      // Encontrar o orçamento e atualizar seu status
-      const updatedOrcamentos = orcamentos.map(orc => {
-        if (orc.id === orcamentoId) {
-          return { ...orc, aceito: false };
-        }
-        return orc;
-      });
+      if (!orcamentoDoc.exists()) {
+        throw new Error('Orçamento não encontrado');
+      }
 
-      // Atualizar o documento com os orçamentos atualizados
+      // Atualizar status da obra/manutenção
       await updateDoc(workRef, {
-        orcamentos: updatedOrcamentos,
         status: 'disponivel',
         technicianId: null
       });
 
-      // Recarregar os dados
-      await loadWorks();
-      
+      // Atualizar status do orçamento
+      await updateDoc(orcamentoRef, {
+        aceito: false
+      });
+
+      // Atualizar estado local
+      if (isMaintenance) {
+        setMaintenances(prevMaintenances => prevMaintenances.map(work =>
+          work.id === workId ? { ...work, status: 'disponivel' } : work
+        ));
+      } else {
+        setWorks(prevWorks => prevWorks.map(work =>
+          work.id === workId ? { ...work, status: 'disponivel' } : work
+        ));
+      }
+
+      // Atualizar estado dos orçamentos
+      setWorkOrcamentos(prev => {
+        const currentOrcamentos = prev[workId] || [];
+        const updatedOrcamentos = currentOrcamentos.map(orc =>
+          orc.id === orcamentoId ? { ...orc, aceito: false } : orc
+        );
+        return {
+          ...prev,
+          [workId]: updatedOrcamentos
+        };
+      });
+
       // Fechar o modal
       setSelectedWork(null);
+      
+      alert('Aceitação do orçamento cancelada com sucesso!');
     } catch (error) {
       console.error('Erro ao cancelar aceitação:', error);
       alert('Erro ao cancelar aceitação do orçamento. Por favor, tente novamente.');

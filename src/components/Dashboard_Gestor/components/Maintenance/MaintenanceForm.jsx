@@ -114,28 +114,46 @@ function MaintenanceForm({
   handleFileUpload: handleFileUploadProp,
   handleRemoveFile: handleRemoveFileProp
 }) {
-  const [newMaintenance, setNewMaintenance] = useState(initialData || {
-    title: '',
-    description: '',
-    category: '',
-    subcategoria: '',
-    priority: '',
-    date: new Date().toISOString().split('T')[0],
-    status: 'disponivel',
-    files: [],
-    location: {
+  const [newMaintenance, setNewMaintenance] = useState({
+    ...initialData,
+    date: '',
+    title: initialData?.title || '',
+    description: initialData?.description || '',
+    category: initialData?.category || '',
+    subcategoria: initialData?.subcategoria || '',
+    priority: initialData?.priority || '',
+    status: initialData?.status || 'disponivel',
+    files: initialData?.files || [],
+    location: initialData?.location || {
       morada: '',
       codigoPostal: '',
       cidade: '',
       andar: ''
     },
-    orcamentos: {
+    orcamentos: initialData?.orcamentos || {
       minimo: '',
       maximo: ''
     },
-    prazoOrcamentos: ''
+    prazoOrcamentos: initialData?.prazoOrcamentos || ''
   });
   const [availableSubcategories, setAvailableSubcategories] = useState([]);
+
+  // Function to format date to dd/mm/yyyy
+  const formatDate = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}/${month}/${year}`;
+  };
+
+  // Function to parse dd/mm/yyyy to yyyy-mm-dd for the input
+  const parseDate = (dateString) => {
+    if (!dateString) return '';
+    const [day, month, year] = dateString.split('/');
+    return `${year}-${month}-${day}`;
+  };
 
   const handleLocalFileUpload = async (e) => {
     const newFiles = await handleFileUploadProp(e);
@@ -278,10 +296,24 @@ function MaintenanceForm({
             <div className="form-group">
               <label>Data</label>
               <input
-                type="date"
+                type="text"
                 required
-                value={newMaintenance.date}
-                onChange={(e) => setNewMaintenance({...newMaintenance, date: e.target.value})}
+                value={formatDate(newMaintenance.date)}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  // Allow only numbers and forward slashes
+                  if (/^[0-9/]*$/.test(value)) {
+                    // Format the input as user types
+                    let formatted = value.replace(/\D/g, '');
+                    if (formatted.length > 0) {
+                      formatted = formatted.match(new RegExp('.{1,2}', 'g')).join('/');
+                      if (formatted.length > 10) formatted = formatted.substr(0, 10);
+                    }
+                    setNewMaintenance({...newMaintenance, date: parseDate(formatted)});
+                  }
+                }}
+                placeholder="dd/mm/aaaa"
+                maxLength="10"
               />
             </div>
             <div className="form-group">

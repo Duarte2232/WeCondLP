@@ -417,7 +417,7 @@ const WorkDetailsModal = ({ work, onClose, onEdit, onDelete, onComplete, onFileD
                       <div key={orcamento.id || index} 
                            className={`orcamento-card ${orcamento.aceito ? 'orcamento-aceito' : ''}`}
                            onClick={(e) => e.stopPropagation()}>
-                        <div className="orcamento-info">
+                        <div className="orcamento-info" style={{flexDirection: 'column', alignItems: 'flex-start'}}>
                           <h4>{displayName}</h4>
                           <span className="orcamento-date">
                             {orcamento.data 
@@ -465,6 +465,16 @@ const WorkDetailsModal = ({ work, onClose, onEdit, onDelete, onComplete, onFileD
                               <FiCheck /> Aceitar Orçamento
                             </button>
                           ) : null}
+                          <button
+                            className="action-btn mensagens"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleMessageTechnician(orcamento);
+                            }}
+                          >
+                            <FiMessageSquare /> Mensagens
+                          </button>
                         </div>
                       </div>
                     );

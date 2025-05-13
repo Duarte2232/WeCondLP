@@ -7,6 +7,7 @@ import { db } from '../../../../services/firebase.jsx';
 import './Jobs.css';
 import JobDetailsModal from '../JobDetailsModal/JobDetailsModal';
 import BudgetModal from '../BudgetModal/BudgetModal';
+import SearchFilters from '../SearchFilters/SearchFilters.jsx';
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
@@ -58,6 +59,14 @@ const Jobs = ({ jobs, loading }) => {
   const auth = getAuth();
   const [state, dispatch] = useReducer(jobsReducer, initialState);
 
+  // Add search filters state
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedFilters, setSelectedFilters] = useState({
+    status: '',
+    category: '',
+    location: ''
+  });
+
   const checkBudgetStatus = async () => {
     if (!jobs) return;
     
@@ -77,9 +86,19 @@ const Jobs = ({ jobs, loading }) => {
           );
           const querySnapshot = await getDocs(q);
           
+          // Verificar se algum orçamento foi aceito
+          let hasAcceptedBudget = false;
+          querySnapshot.forEach(doc => {
+            const orcamento = doc.data();
+            if (orcamento.aceito) {
+              hasAcceptedBudget = true;
+            }
+          });
+          
           return {
             ...job,
-            hasSubmittedBudget: !querySnapshot.empty
+            hasSubmittedBudget: !querySnapshot.empty,
+            status: hasAcceptedBudget ? 'em-andamento' : job.status
           };
         } catch (error) {
           console.error(`Error checking budget status for job ${job.id}:`, error);
@@ -216,6 +235,45 @@ const Jobs = ({ jobs, loading }) => {
     toast.success('Orçamento enviado com sucesso!');
   };
 
+  // Add filtered jobs logic
+  const filteredJobs = state.jobsWithBudgetStatus.filter(job => {
+    const matchesSearch = job.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         job.description?.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    let matchesStatus = true;
+    
+    if (selectedFilters.status) {
+      if (selectedFilters.status === 'orcamento-enviado') {
+        matchesStatus = job.hasSubmittedBudget;
+      } else if (selectedFilters.status === 'disponivel') {
+        // Uma obra está disponível se:
+        // 1. Não tem status definido OU tem status 'disponivel'
+        // 2. Não tem técnico atribuído
+        // 3. Não tem orçamento enviado pelo técnico atual
+        matchesStatus = (!job.status || job.status === 'disponivel') && 
+                       !job.technicianId && 
+                       !job.hasSubmittedBudget;
+      } else if (selectedFilters.status === 'em-andamento') {
+        // Uma obra está em andamento se:
+        // 1. Tem status 'em-andamento' OU
+        // 2. Tem um orçamento aceito do técnico atual
+        matchesStatus = job.status === 'em-andamento' || 
+                       (job.hasSubmittedBudget && job.status === 'em-andamento');
+      } else {
+        matchesStatus = job.status === selectedFilters.status;
+      }
+    }
+    
+    const matchesCategory = !selectedFilters.category || 
+                           (job.category && job.category.toLowerCase() === selectedFilters.category.toLowerCase());
+    const matchesLocation = !selectedFilters.location || 
+                          (job.location && 
+                           (job.location.cidade?.toLowerCase().includes(selectedFilters.location.toLowerCase()) ||
+                            job.location.morada?.toLowerCase().includes(selectedFilters.location.toLowerCase())));
+    
+    return matchesSearch && matchesStatus && matchesCategory && matchesLocation;
+  });
+
   if (loading || state.isLoadingBudgetStatus) {
     return <div className="loading">Carregando obras...</div>;
   }
@@ -229,10 +287,17 @@ const Jobs = ({ jobs, loading }) => {
         </button>
         <h1 className="page-title">Obras</h1>
       </div>
+
+      <SearchFilters
+        searchTerm={searchTerm}
+        setSearchTerm={setSearchTerm}
+        selectedFilters={selectedFilters}
+        setSelectedFilters={setSelectedFilters}
+      />
       
       <div className="jobs-list">
-        {state.jobsWithBudgetStatus && state.jobsWithBudgetStatus.length > 0 ? (
-          state.jobsWithBudgetStatus.map((job) => (
+        {filteredJobs && filteredJobs.length > 0 ? (
+          filteredJobs.map((job) => (
             <div key={job.id} className="job-card">
               <div className="job-top-content">
                 <div className="job-header">
@@ -276,8 +341,9 @@ const Jobs = ({ jobs, loading }) => {
                       <span>{job.contact}</span>
                     </div>
                   )}
-                  <span className={`status-badge ${job.hasSubmittedBudget ? 'orcamento-enviado' : job.status || 'disponivel'}`}>
-                    {job.hasSubmittedBudget ? "Orçamento Enviado" :
+                  <span className={`status-badge ${job.hasSubmittedBudget && job.status === 'em-andamento' ? 'em-andamento' : job.hasSubmittedBudget ? 'orcamento-enviado' : job.status || 'disponivel'}`}>
+                    {job.hasSubmittedBudget && job.status === 'em-andamento' ? "Em Andamento" :
+                     job.hasSubmittedBudget ? "Orçamento Enviado" :
                      !job.status ? "Disponível" :
                      job.status === "disponivel" ? "Disponível" :
                      job.status === "confirmada" ? "Confirmada" :

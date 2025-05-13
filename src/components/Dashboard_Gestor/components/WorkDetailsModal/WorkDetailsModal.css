@@ -402,6 +402,9 @@
 .orcamento-date {
   color: #6B7280;
   font-size: 12px;
+  text-align: center;
+  width: 100%;
+  display: block;
 }
 
 .orcamento-value {
@@ -640,4 +643,27 @@
 
 .action-btn.aceitar-orcamento:hover {
   background-color: #059669;
+}
+
+.action-btn.mensagens {
+  background-color: #4a90e2;
+  color: white;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 8px 12px;
+  border-radius: 4px;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.2s;
+}
+
+.action-btn.mensagens:hover {
+  background-color: #357abd;
+}
+
+.action-btn.mensagens svg {
+  width: 16px;
+  height: 16px;
 } 
