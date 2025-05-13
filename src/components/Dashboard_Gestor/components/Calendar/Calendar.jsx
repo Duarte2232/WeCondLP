@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiArrowLeft, FiPlus, FiChevronLeft, FiChevronRight, FiFilter, FiCheck } from 'react-icons/fi';
-import { collection, getDocs, query } from 'firebase/firestore';
+import { collection, getDocs, query, doc, getDoc } from 'firebase/firestore';
 import { db } from '../../../../services/firebase';
 import './Calendar.css';
 
@@ -26,136 +26,53 @@ const Calendar = () => {
       try {
         setIsLoading(true);
 
-        // Buscar as obras no Firestore
-        const q = query(collection(db, 'works'));
-        const querySnapshot = await getDocs(q);
-        const obrasData = querySnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
+        // Buscar todos os orçamentos aceitos
+        const orcamentosRef = collection(db, 'ObrasOrçamentos');
+        const orcamentosQuery = query(orcamentosRef);
+        const orcamentosSnapshot = await getDocs(orcamentosQuery);
+        const orcamentosAceitos = orcamentosSnapshot.docs
+          .map(doc => ({ id: doc.id, ...doc.data() }))
+          .filter(orc => orc.aceito === true && orc.workId);
 
-        console.log('Obras carregadas:', obrasData); // Debug log
+        // Buscar as obras correspondentes
+        const obrasPromises = orcamentosAceitos.map(async (orcamento) => {
+          const obraRef = doc(db, 'ObrasPedidos', orcamento.workId);
+          const obraDoc = await getDoc(obraRef);
+          if (obraDoc.exists()) {
+            return { id: obraDoc.id, ...obraDoc.data(), orcamentoAceito: orcamento };
+          }
+          return null;
+        });
+        const obrasData = (await Promise.all(obrasPromises)).filter(Boolean);
+
         setObras(obrasData);
 
         // Transformar as obras em eventos de calendário
         const obrasEventos = [];
-        
         obrasData.forEach(obra => {
-          // Adicionar a data da obra
           if (obra.date) {
             try {
               const obraDate = new Date(obra.date);
               if (!isNaN(obraDate.getTime())) {
-                // Create the base event
-                const baseEvent = {
+                obrasEventos.push({
                   id: `obra-${obra.id}`,
                   titulo: obra.title,
                   data: formatDateToDisplay(obraDate),
-                  tipo: obra.isMaintenance ? 'Manutenção' : 'Obra',
-                  color: obra.isMaintenance ? '#f59e0b' : '#2563eb',
+                  tipo: 'Obra',
+                  color: '#2563eb',
                   details: obra.description,
                   local: obra.location ? `${obra.location.morada || ''}, ${obra.location.cidade || ''}` : '',
                   originalDate: obraDate,
-                  frequency: obra.frequency || 'Única' // Add frequency information
-                };
-
-                // Add the event to the array
-                obrasEventos.push(baseEvent);
-
-                // If it's a maintenance with a frequency, generate recurring events
-                if (obra.isMaintenance && obra.frequency && obra.frequency !== 'Única') {
-                  const startDate = new Date(obraDate);
-                  // Generate recurring events up to 1 year in the future
-                  const endDate = new Date(startDate);
-                  endDate.setFullYear(endDate.getFullYear() + 1);
-                  
-                  let currentDate = new Date(startDate);
-                  currentDate.setDate(currentDate.getDate() + 1); // Start from the next day
-                  
-                  while (currentDate <= endDate) {
-                    let shouldAddEvent = false;
-                    
-                    // Calculate the next occurrence based on frequency
-                    switch(obra.frequency) {
-                      case 'Diária':
-                        shouldAddEvent = true;
-                        currentDate.setDate(currentDate.getDate() + 1);
-                        break;
-                      case 'Semanal':
-                        shouldAddEvent = true;
-                        currentDate.setDate(currentDate.getDate() + 7);
-                        break;
-                      case 'Quinzenal':
-                        shouldAddEvent = true;
-                        currentDate.setDate(currentDate.getDate() + 14);
-                        break;
-                      case 'Mensal':
-                        shouldAddEvent = true;
-                        currentDate.setMonth(currentDate.getMonth() + 1);
-                        break;
-                      case 'Trimestral':
-                        shouldAddEvent = true;
-                        currentDate.setMonth(currentDate.getMonth() + 3);
-                        break;
-                      case 'Semestral':
-                        shouldAddEvent = true;
-                        currentDate.setMonth(currentDate.getMonth() + 6);
-                        break;
-                      case 'Anual':
-                        shouldAddEvent = true;
-                        currentDate.setFullYear(currentDate.getFullYear() + 1);
-                        break;
-                      default:
-                        // If no valid frequency, don't add recurring events
-                        currentDate = new Date(endDate);
-                        currentDate.setDate(currentDate.getDate() + 1); // break the loop
-                    }
-                    
-                    if (shouldAddEvent) {
-                      const recurringDate = new Date(currentDate);
-                      obrasEventos.push({
-                        ...baseEvent,
-                        id: `${baseEvent.id}-recur-${recurringDate.getTime()}`,
-                        titulo: `${baseEvent.titulo} (${obra.frequency})`,
-                        data: formatDateToDisplay(recurringDate),
-                        originalDate: new Date(recurringDate),
-                        isRecurring: true
-                      });
-                    }
-                  }
-                }
+                  orcamentoAceito: obra.orcamentoAceito
+                });
               }
             } catch (error) {
               console.error('Erro ao processar data da obra:', error);
             }
           }
-          
-          // Adicionar o prazo de orçamentos se existir
-          if (obra.prazoOrcamentos) {
-            try {
-              const prazoDate = new Date(obra.prazoOrcamentos);
-              if (!isNaN(prazoDate.getTime())) {
-                obrasEventos.push({
-                  id: `prazo-${obra.id}`,
-                  titulo: `Prazo: ${obra.title}`,
-                  data: formatDateToDisplay(prazoDate),
-                  tipo: 'Prazo Orçamento',
-                  color: '#10b981',
-                  details: `Prazo final para envio de orçamentos para a obra "${obra.title}"`,
-                  local: obra.location ? `${obra.location.morada || ''}, ${obra.location.cidade || ''}` : '',
-                  originalDate: prazoDate
-                });
-              }
-            } catch (error) {
-              console.error('Erro ao processar prazo de orçamentos:', error);
-            }
-          }
         });
-        
-        console.log('Eventos gerados das obras:', obrasEventos); // Debug log
 
         // Eventos padrão - apenas eventos futuros
-        const dataAtual = new Date();
         const eventosPadrao = [
           {
             id: 1,
@@ -165,7 +82,7 @@ const Calendar = () => {
             local: 'Salão de Festas',
             tipo: 'Evento',
             color: '#6366f1',
-            originalDate: new Date(2024, 4, 25) // Maio é mês 4 no JavaScript
+            originalDate: new Date(2024, 4, 25)
           },
           {
             id: 2,
@@ -173,16 +90,14 @@ const Calendar = () => {
             data: '10/06/2024',
             tipo: 'Evento',
             color: '#6366f1',
-            originalDate: new Date(2024, 5, 10) // Junho é mês 5 no JavaScript
+            originalDate: new Date(2024, 5, 10)
           }
         ];
 
-        // Combinar com os eventos existentes
         const todosEventos = [
           ...eventosPadrao,
           ...obrasEventos
         ];
-        
         setEventos(todosEventos);
       } catch (error) {
         console.error('Erro ao carregar dados:', error);

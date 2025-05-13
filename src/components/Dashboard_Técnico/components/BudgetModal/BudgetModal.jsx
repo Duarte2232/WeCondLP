@@ -225,21 +225,29 @@ const BudgetModal = ({ job, onClose, onSuccess }) => {
       }
 
       // Process files if any
-      const processedFiles = await Promise.all(
-        budgetData.files.map(async (file) => {
-          if (file.preview) {
-            // This is a local file that needs to be uploaded
-            const response = await uploadToCloudinary(file.file);
-            return {
-              name: file.name,
-              url: response.url,
-              type: file.type,
-              size: file.size
-            };
-          }
-          return file; // Already processed file
-        })
-      );
+      let processedFiles = [];
+      if (budgetData.files && budgetData.files.length > 0) {
+        console.log('Iniciando upload de', budgetData.files.length, 'arquivos...');
+        processedFiles = await Promise.all(
+          budgetData.files.map(async (fileData) => {
+            try {
+              console.log('Processando arquivo:', fileData.name);
+              const response = await uploadSingleFileWithRetry(fileData.file);
+              console.log('Upload concluído para:', fileData.name, response);
+              return {
+                name: fileData.name,
+                url: response.url,
+                type: fileData.type,
+                size: fileData.size
+              };
+            } catch (error) {
+              console.error('Erro ao fazer upload do arquivo:', fileData.name, error);
+              throw new Error(`Falha ao fazer upload do arquivo ${fileData.name}: ${error.message}`);
+            }
+          })
+        );
+        console.log('Todos os arquivos foram processados:', processedFiles);
+      }
 
       // Create budget document
       const budgetDoc = {
@@ -261,7 +269,8 @@ const BudgetModal = ({ job, onClose, onSuccess }) => {
 
       // Store in appropriate collection based on whether it's a maintenance or work
       const collectionName = job.isMaintenance ? 'ManutençãoOrçamentos' : 'ObrasOrçamentos';
-      await addDoc(collection(db, collectionName), budgetDoc);
+      const docRef = await addDoc(collection(db, collectionName), budgetDoc);
+      console.log('Orçamento salvo com sucesso. ID:', docRef.id);
 
       setSuccessMessage('Orçamento enviado com sucesso!');
       setTimeout(() => {
@@ -271,7 +280,7 @@ const BudgetModal = ({ job, onClose, onSuccess }) => {
 
     } catch (error) {
       console.error('Error submitting budget:', error);
-      setErrorMessage('Erro ao enviar orçamento. Por favor, tente novamente.');
+      setErrorMessage('Erro ao enviar orçamento: ' + error.message);
     } finally {
       setIsSubmitting(false);
     }

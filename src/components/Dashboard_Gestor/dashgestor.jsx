@@ -1162,6 +1162,7 @@ function DashGestor() {
               handleFileUpload={handleFileUpload}
               handleRemoveFile={handleRemoveFile}
               isSubmitting={isSubmitting}
+              onSubmit={handleSubmit}
               editMode={!!editingWork}
             />
           } />

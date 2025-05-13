@@ -276,44 +276,47 @@ function Jobs() {
   };
 
   // Function to handle accepting an orcamento
-  const handleAcceptOrcamento = async (workId, orcamentoIndex) => {
+  const handleAcceptOrcamento = async (workId, orcamentoId) => {
     try {
       setLoading(true);
-      const workRef = doc(db, 'ObrasPedidos', workId);
-      const workDoc = await getDoc(workRef);
-      const workData = workDoc.data();
       
-      if (!workData.orcamentos || !Array.isArray(workData.orcamentos)) {
-        alert('Não foi possível encontrar os orçamentos desta obra.');
-        return;
+      // Referências
+      const workRef = doc(db, 'ObrasPedidos', workId);
+      const orcamentoRef = doc(db, 'ObrasOrçamentos', orcamentoId);
+      
+      // Verificar se os documentos existem
+      const workDoc = await getDoc(workRef);
+      const orcamentoDoc = await getDoc(orcamentoRef);
+      
+      if (!workDoc.exists()) {
+        throw new Error('Obra não encontrada');
       }
-
-      // Update the specific orcamento to mark it as accepted and viewed
-      const updatedOrcamentos = workData.orcamentos.map((orcamento, index) => {
-        if (index === orcamentoIndex) {
-          return { ...orcamento, aceito: true, visualizado: true };
-        }
-        return orcamento;
-      });
-
-      // Update in Firestore - both orcamentos and status
+      
+      if (!orcamentoDoc.exists()) {
+        throw new Error('Orçamento não encontrado');
+      }
+      
+      // Atualizar status da obra
       await updateDoc(workRef, {
-        orcamentos: updatedOrcamentos,
         status: 'em-andamento'
       });
+      
+      // Atualizar status do orçamento
+      await updateDoc(orcamentoRef, {
+        aceito: true
+      });
 
-      // Update local state
+      // Atualizar estado local
       setObras(prevObras => 
         prevObras.map(obra => 
-          obra.id === workId ? { ...obra, orcamentos: updatedOrcamentos, status: 'em-andamento' } : obra
+          obra.id === workId ? { ...obra, status: 'em-andamento' } : obra
         )
       );
       
-      // Update the selected work
+      // Atualizar o selected work
       if (selectedWork && selectedWork.id === workId) {
         setSelectedWork({
           ...selectedWork,
-          orcamentos: updatedOrcamentos,
           status: 'em-andamento'
         });
       }
