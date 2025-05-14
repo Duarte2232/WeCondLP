@@ -307,7 +307,9 @@ const Jobs = ({ jobs, loading }) => {
   const handleMessageGestor = async (job) => {
     // Dismiss the notification before starting the conversation
     await dismissNotification(job.id);
-    startConversation(job);
+    
+    // Navigate to messages with gestor ID and work ID as URL parameters
+    navigate(`/dashtecnico/mensagens?gestor=${job.userId}&workId=${job.id}`);
   };
 
   // Add filtered jobs logic

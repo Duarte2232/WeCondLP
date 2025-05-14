@@ -13,7 +13,18 @@ const OrcamentoDetailsModal = ({ orcamento, technicianName, workId, workTitle, o
 
   const handleMessageTechnician = () => {
     if (onMessageTechnician) {
-      onMessageTechnician(orcamento);
+      const orcamentoWithWorkId = {
+        ...orcamento,
+        workId: workId
+      };
+      
+      console.log('OrcamentoDetailsModal - Enviando mensagem para técnico:', {
+        technicianId: orcamento.technicianId,
+        workId: workId,
+        orcamento: orcamentoWithWorkId
+      });
+      
+      onMessageTechnician(orcamentoWithWorkId);
     }
   };
 

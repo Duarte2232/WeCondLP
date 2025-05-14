@@ -19,6 +19,28 @@ const Messages = () => {
   const [error, setError] = useState(null);
   const [userData, setUserData] = useState(null);
   const messagesEndRef = useRef(null);
+  // Keep track of the selected conversation ID to prevent losing it on reloads
+  const selectedConversationIdRef = useRef(null);
+  
+  // When selectedConversation changes, update the ref
+  useEffect(() => {
+    if (selectedConversation) {
+      selectedConversationIdRef.current = selectedConversation.id;
+    }
+  }, [selectedConversation]);
+
+  // Parse URL search parameters to get gestor ID and workId
+  const searchParams = new URLSearchParams(location.search);
+  const gestorIdFromUrl = searchParams.get('gestor');
+  const workIdFromUrl = searchParams.get('workId');
+  
+  // Log for debugging
+  console.log('Messages - URL parameters:', {
+    search: location.search,
+    gestorIdFromUrl,
+    workIdFromUrl,
+    pathname: location.pathname
+  });
 
   // Carregar dados do usuário
   useEffect(() => {
@@ -92,6 +114,48 @@ const Messages = () => {
 
           setConversations(conversationsData);
           
+          // First check for gestor parameter in URL
+          if (gestorIdFromUrl) {
+            console.log('Messages - Checking for gestor in URL parameter:', gestorIdFromUrl);
+            let conversationToSelect;
+            
+            // If both gestor and workId are provided, find the specific conversation
+            if (workIdFromUrl) {
+              console.log('Messages - Also checking for workId:', workIdFromUrl);
+              conversationToSelect = conversationsData.find(conv => 
+                conv.gestorId === gestorIdFromUrl && conv.obraId === workIdFromUrl
+              );
+              
+              if (conversationToSelect) {
+                console.log('Messages - Found conversation matching both gestorId and workId:', conversationToSelect);
+              } else {
+                console.log('Messages - No conversation found matching both gestorId and workId');
+                // If no conversation exists with both matches, just find by gestor ID
+                conversationToSelect = conversationsData.find(conv => conv.gestorId === gestorIdFromUrl);
+              }
+            } else {
+              // If only gestor ID is provided, find by gestor ID only
+              conversationToSelect = conversationsData.find(conv => conv.gestorId === gestorIdFromUrl);
+            }
+            
+            if (conversationToSelect) {
+              console.log('Messages - Selected conversation:', conversationToSelect);
+              setSelectedConversation(conversationToSelect);
+              // Clear URL parameter after selecting the conversation
+              navigate('/dashtecnico/mensagens', { replace: true });
+              setLoading(false);
+              return;
+            } else {
+              console.log('Messages - No matching conversation found for gestor:', gestorIdFromUrl);
+              console.log('Messages - Available conversations:', conversationsData.map(c => ({ 
+                id: c.id, 
+                gestorId: c.gestorId,
+                obraId: c.obraId,
+                gestorName: c.gestorName 
+              })));
+            }
+          }
+          
           // Seleção automática da conversa se vier via location.state
           if (location.state?.conversationId) {
             const found = conversationsData.find(conv => conv.id === location.state.conversationId);
@@ -100,7 +164,16 @@ const Messages = () => {
             } else if (conversationsData.length > 0) {
               setSelectedConversation(conversationsData[0]);
             }
+          } else if (selectedConversationIdRef.current) {
+            // If we have a previously selected conversation, try to maintain it
+            console.log('Messages - Trying to maintain previously selected conversation:', selectedConversationIdRef.current);
+            const existingConversation = conversationsData.find(conv => conv.id === selectedConversationIdRef.current);
+            if (existingConversation) {
+              console.log('Messages - Maintaining previously selected conversation');
+              setSelectedConversation(existingConversation);
+            }
           } else if (!selectedConversation && conversationsData.length > 0) {
+            // Only set a default conversation if none is selected yet
             setSelectedConversation(conversationsData[0]);
           }
           
@@ -116,7 +189,7 @@ const Messages = () => {
     };
 
     loadConversations();
-  }, [auth.currentUser]);
+  }, [auth.currentUser, location.state?.conversationId, gestorIdFromUrl, workIdFromUrl, navigate]);
 
   // Carregar e ouvir mensagens da conversa selecionada
   useEffect(() => {

@@ -354,8 +354,15 @@ const WorkDetailsModal = ({ work, onClose, onEdit, onDelete, onComplete, onFileD
     }
     
     try {
-      // Redirecionar para a página de mensagens com o técnico selecionado
-      navigate(`/dashgestor/mensagens?tecnico=${orcamento.technicianId}`);
+      // Redirecionar para a página de mensagens com o técnico selecionado e o ID da obra
+      navigate(`/dashgestor/mensagens?tecnico=${orcamento.technicianId}&workId=${work.id}`);
+      
+      // Adicionar console.log para depuração
+      console.log('Navegando para mensagens com técnico:', {
+        technicianId: orcamento.technicianId,
+        workId: work.id,
+        url: `/dashgestor/mensagens?tecnico=${orcamento.technicianId}&workId=${work.id}`
+      });
     } catch (error) {
       console.error('Erro ao iniciar conversa:', error);
       toast.error('Erro ao iniciar conversa. Por favor, tente novamente.');

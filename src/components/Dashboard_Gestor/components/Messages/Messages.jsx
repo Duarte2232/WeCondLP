@@ -20,6 +20,28 @@ const Messages = () => {
   const [error, setError] = useState(null);
   const [userData, setUserData] = useState(null);
   const messagesEndRef = useRef(null);
+  // Keep track of the selected conversation ID to prevent losing it on reloads
+  const selectedConversationIdRef = useRef(null);
+  
+  // When selectedConversation changes, update the ref
+  useEffect(() => {
+    if (selectedConversation) {
+      selectedConversationIdRef.current = selectedConversation.id;
+    }
+  }, [selectedConversation]);
+
+  // Parse the URL search parameters to get tecnico ID and workId
+  const searchParams = new URLSearchParams(location.search);
+  const tecnicoIdFromUrl = searchParams.get('tecnico');
+  const workIdFromUrl = searchParams.get('workId');
+  
+  // Log for debugging
+  console.log('Messages - URL parameters:', {
+    search: location.search,
+    tecnicoIdFromUrl,
+    workIdFromUrl,
+    pathname: location.pathname
+  });
 
   // Carregar dados do usuário
   useEffect(() => {
@@ -79,7 +101,50 @@ const Messages = () => {
         return getMillis(b.timestamp) - getMillis(a.timestamp);
       });
       setConversations(conversationsData);
-      // Selecionar automaticamente a conversa correta se vier via location.state
+
+      // First check for tecnico parameter in URL
+      if (tecnicoIdFromUrl) {
+        console.log('Messages - Checking for technician in URL parameter:', tecnicoIdFromUrl);
+        let conversationToSelect;
+        
+        // If both tecnico and workId are provided, find the specific conversation
+        if (workIdFromUrl) {
+          console.log('Messages - Also checking for workId:', workIdFromUrl);
+          conversationToSelect = conversationsData.find(conv => 
+            conv.technicianId === tecnicoIdFromUrl && conv.obraId === workIdFromUrl
+          );
+          
+          if (conversationToSelect) {
+            console.log('Messages - Found conversation matching both technicianId and workId:', conversationToSelect);
+          } else {
+            console.log('Messages - No conversation found matching both technicianId and workId');
+            // If no conversation exists with both matches, just find by technician ID
+            conversationToSelect = conversationsData.find(conv => conv.technicianId === tecnicoIdFromUrl);
+          }
+        } else {
+          // If only tecnico ID is provided, find by technician ID only
+          conversationToSelect = conversationsData.find(conv => conv.technicianId === tecnicoIdFromUrl);
+        }
+        
+        if (conversationToSelect) {
+          console.log('Messages - Selected conversation:', conversationToSelect);
+          setSelectedConversation(conversationToSelect);
+          // Clear URL parameter after selecting the conversation
+          navigate('/dashgestor/mensagens', { replace: true });
+          setLoading(false);
+          return;
+        } else {
+          console.log('Messages - No matching conversation found for technician:', tecnicoIdFromUrl);
+          console.log('Messages - Available conversations:', conversationsData.map(c => ({ 
+            id: c.id, 
+            technicianId: c.technicianId,
+            obraId: c.obraId,
+            technicianName: c.technicianName 
+          })));
+        }
+      }
+      
+      // If no tecnico in URL, check for conversationId in location.state
       if (location.state?.conversationId) {
         const found = conversationsData.find(conv => conv.id === location.state.conversationId);
         if (found) {
@@ -87,13 +152,22 @@ const Messages = () => {
         } else if (conversationsData.length > 0) {
           setSelectedConversation(conversationsData[0]);
         }
+      } else if (selectedConversationIdRef.current) {
+        // If we have a previously selected conversation, try to maintain it
+        console.log('Messages - Trying to maintain previously selected conversation:', selectedConversationIdRef.current);
+        const existingConversation = conversationsData.find(conv => conv.id === selectedConversationIdRef.current);
+        if (existingConversation) {
+          console.log('Messages - Maintaining previously selected conversation');
+          setSelectedConversation(existingConversation);
+        }
       } else if (!selectedConversation && conversationsData.length > 0) {
+        // Only set a default conversation if none is selected yet
         setSelectedConversation(conversationsData[0]);
       }
       setLoading(false);
     });
     return () => unsubscribe();
-  }, [auth.currentUser, location.state?.conversationId]);
+  }, [auth.currentUser, location.state?.conversationId, tecnicoIdFromUrl, workIdFromUrl, navigate]);
 
   // Carregar e ouvir mensagens da conversa selecionada
   useEffect(() => {
@@ -127,8 +201,12 @@ const Messages = () => {
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!newMessage.trim() || !selectedConversation) return;
+    
+    // Save the current conversation ID before sending the message
+    const currentConversationId = selectedConversation.id;
+    
     try {
-      const conversationRef = doc(db, 'conversations', selectedConversation.id);
+      const conversationRef = doc(db, 'conversations', currentConversationId);
       const conversationDoc = await getDoc(conversationRef);
       if (!conversationDoc.exists()) {
         throw new Error('Conversa não encontrada');
@@ -142,14 +220,22 @@ const Messages = () => {
         timestamp: new Date(),
         read: false
       };
+      
+      console.log('Messages - Sending message in conversation:', currentConversationId);
+      
       await updateDoc(conversationRef, {
         messages: [...currentMessages, messageData],
         lastMessage: messageData.text,
         lastMessageTimestamp: serverTimestamp()
       });
+      
+      // Ensure the selectedConversationIdRef is set to maintain the conversation
+      selectedConversationIdRef.current = currentConversationId;
+      
       setNewMessage('');
       setError(null);
     } catch (error) {
+      console.error('Error sending message:', error);
       setError('Erro ao enviar mensagem. Por favor, tente novamente.');
     }
   };
