@@ -2,12 +2,13 @@ import React, { useState, useEffect, useReducer } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiMapPin, FiClock, FiPhone, FiArrowLeft, FiTag, FiInfo, FiAlertCircle, FiMessageSquare, FiDollarSign } from 'react-icons/fi';
 import { getAuth } from 'firebase/auth';
-import { doc, getDoc, updateDoc, collection, query, where, getDocs, addDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, collection, query, where, getDocs, addDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { db } from '../../../../services/firebase.jsx';
 import './Jobs.css';
 import JobDetailsModal from '../JobDetailsModal/JobDetailsModal';
 import BudgetModal from '../BudgetModal/BudgetModal';
 import SearchFilters from '../SearchFilters/SearchFilters.jsx';
+import BudgetAcceptedNotification from './BudgetAcceptedNotification';
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
@@ -18,7 +19,8 @@ const initialState = {
   showDetailsModal: false,
   jobsWithBudgetStatus: [],
   isLoadingBudgetStatus: false,
-  error: null
+  error: null,
+  dismissedNotifications: []
 };
 
 // Action types
@@ -29,7 +31,9 @@ const ACTIONS = {
   SET_JOBS_WITH_BUDGET_STATUS: 'SET_JOBS_WITH_BUDGET_STATUS',
   SET_LOADING_BUDGET_STATUS: 'SET_LOADING_BUDGET_STATUS',
   SET_ERROR: 'SET_ERROR',
-  CLEAR_ERROR: 'CLEAR_ERROR'
+  CLEAR_ERROR: 'CLEAR_ERROR',
+  DISMISS_NOTIFICATION: 'DISMISS_NOTIFICATION',
+  SET_DISMISSED_NOTIFICATIONS: 'SET_DISMISSED_NOTIFICATIONS'
 };
 
 // Reducer function
@@ -49,6 +53,16 @@ function jobsReducer(state, action) {
       return { ...state, error: action.payload };
     case ACTIONS.CLEAR_ERROR:
       return { ...state, error: null };
+    case ACTIONS.SET_DISMISSED_NOTIFICATIONS:
+      return {
+        ...state,
+        dismissedNotifications: action.payload
+      };
+    case ACTIONS.DISMISS_NOTIFICATION:
+      return {
+        ...state,
+        dismissedNotifications: [...state.dismissedNotifications, action.payload]
+      };
     default:
       return state;
   }
@@ -66,6 +80,30 @@ const Jobs = ({ jobs, loading }) => {
     category: '',
     location: ''
   });
+
+  // Load dismissed notifications from Firestore on component mount
+  useEffect(() => {
+    const loadDismissedNotifications = async () => {
+      if (!auth.currentUser) return;
+      
+      try {
+        const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          if (userData.dismissedNotifications) {
+            dispatch({ 
+              type: ACTIONS.SET_DISMISSED_NOTIFICATIONS, 
+              payload: userData.dismissedNotifications 
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Error loading dismissed notifications:', error);
+      }
+    };
+
+    loadDismissedNotifications();
+  }, [auth.currentUser]);
 
   const checkBudgetStatus = async () => {
     if (!jobs) return;
@@ -235,6 +273,43 @@ const Jobs = ({ jobs, loading }) => {
     toast.success('Orçamento enviado com sucesso!');
   };
 
+  const dismissNotification = async (jobId) => {
+    try {
+      if (!auth.currentUser) return;
+
+      // Update local state
+      dispatch({ type: ACTIONS.DISMISS_NOTIFICATION, payload: jobId });
+
+      // Update Firestore
+      const userRef = doc(db, 'users', auth.currentUser.uid);
+      const userDoc = await getDoc(userRef);
+      
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        const currentDismissed = userData.dismissedNotifications || [];
+        
+        if (!currentDismissed.includes(jobId)) {
+          await updateDoc(userRef, {
+            dismissedNotifications: [...currentDismissed, jobId]
+          });
+        }
+      } else {
+        // If user document doesn't exist, create it with the dismissed notification
+        await setDoc(userRef, {
+          dismissedNotifications: [jobId]
+        });
+      }
+    } catch (error) {
+      console.error('Error saving dismissed notification:', error);
+    }
+  };
+
+  const handleMessageGestor = async (job) => {
+    // Dismiss the notification before starting the conversation
+    await dismissNotification(job.id);
+    startConversation(job);
+  };
+
   // Add filtered jobs logic
   const filteredJobs = state.jobsWithBudgetStatus.filter(job => {
     const matchesSearch = job.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -258,7 +333,8 @@ const Jobs = ({ jobs, loading }) => {
         // 1. Tem status 'em-andamento' OU
         // 2. Tem um orçamento aceito do técnico atual
         matchesStatus = job.status === 'em-andamento' || 
-                       (job.hasSubmittedBudget && job.status === 'em-andamento');
+                       (job.hasSubmittedBudget && job.status === 'em-andamento') ||
+                       (job.technicianId === auth.currentUser.uid && job.status === 'em-andamento');
       } else {
         matchesStatus = job.status === selectedFilters.status;
       }
@@ -364,13 +440,23 @@ const Jobs = ({ jobs, loading }) => {
                   </button>
                   <button 
                     className="chat-gestor-btn"
-                    onClick={() => startConversation(job)}
+                    onClick={() => handleMessageGestor(job)}
                   >
                     <FiMessageSquare />
                     Conversar com o gestor
                   </button>
                 </div>
               </div>
+
+              {job.hasSubmittedBudget && 
+               job.status === 'em-andamento' && 
+               state.dismissedNotifications && 
+               !state.dismissedNotifications.includes(job.id) && (
+                <BudgetAcceptedNotification
+                  onDismiss={() => dismissNotification(job.id)}
+                  onMessageGestor={() => handleMessageGestor(job)}
+                />
+              )}
             </div>
           ))
         ) : (

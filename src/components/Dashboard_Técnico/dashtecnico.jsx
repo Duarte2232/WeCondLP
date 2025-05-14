@@ -151,6 +151,7 @@ const DashTecnico = () => {
           // Se o trabalho não tiver status ou não for "disponivel", mas tiver técnico atribuído igual ao usuário atual, mostrar
           const statusCompativel = !trabalho.status || 
                                   trabalho.status === "disponivel" || 
+                                  trabalho.status === "em-andamento" ||
                                   (trabalho.technicianId === auth.currentUser.uid);
           
           if (!statusCompativel) {
