@@ -59,6 +59,8 @@ function DashGestor() {
   const [selectedWork, setSelectedWork] = useState(null);
   const [workOrcamentos, setWorkOrcamentos] = useState({});
   const [unreadCount, setUnreadCount] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   const [newWork, setNewWork] = useState({
     title: '',
@@ -1112,6 +1114,39 @@ function DashGestor() {
   };
 
   const renderRecentActions = () => {
+    // Filtrar os serviços
+    const filteredServicos = sortedServicos.filter(servico => {
+      const matchesSearch = servico.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           servico.description?.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesStatus = selectedFilters.status === '' || 
+                           (servico.status && servico.status.toLowerCase() === selectedFilters.status.toLowerCase());
+      const matchesCategory = selectedFilters.category === '' || 
+                             (servico.category && servico.category.toLowerCase() === selectedFilters.category.toLowerCase());
+      
+      // Normalizar as prioridades para comparação
+      const normalizePriority = (priority) => {
+        if (!priority) return '';
+        return priority.toLowerCase()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .replace('media', 'média');
+      };
+
+      const matchesPriority = selectedFilters.priority === '' || 
+                             (servico.priority && normalizePriority(servico.priority) === normalizePriority(selectedFilters.priority));
+      
+      const matchesLocation = selectedFilters.location === '' || 
+                            (servico.location && servico.location.morada && 
+                             servico.location.morada.toLowerCase().includes(selectedFilters.location.toLowerCase()));
+      return matchesSearch && matchesStatus && matchesCategory && matchesPriority && matchesLocation;
+    });
+
+    // Calcular paginação
+    const indexOfLastItem = currentPage * itemsPerPage;
+    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+    const currentItems = filteredServicos.slice(indexOfFirstItem, indexOfLastItem);
+    const totalPages = Math.max(1, Math.ceil(filteredServicos.length / itemsPerPage));
+
     return (
       <>
         <h2>Gestão de Obras e Manutenções</h2>
@@ -1197,8 +1232,8 @@ function DashGestor() {
               onChange={(e) => setSelectedFilters(prev => ({...prev, location: e.target.value}))}
               className="location-filter"
             />
-                  </div>
           </div>
+        </div>
 
         <div className="obras-table">
           <table>
@@ -1216,8 +1251,8 @@ function DashGestor() {
                 <tr>
                   <td colSpan="5" className="loading">Carregando...</td>
                 </tr>
-              ) : filteredServicos.length > 0 ? (
-                filteredServicos.map(servico => (
+              ) : currentItems.length > 0 ? (
+                currentItems.map(servico => (
                   <tr key={servico.id} className="work-row" onClick={() => handleWorkClick(servico)}>
                     <td className="title-cell">
                       {servico.isMaintenance ? (
@@ -1256,7 +1291,54 @@ function DashGestor() {
                 )}
           </tbody>
         </table>
-            </div>
+      </div>
+
+      {/* Paginação */}
+      {filteredServicos.length > 0 && (
+        <div className="pagination">
+          <button
+            className="pagination-button"
+            onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+            disabled={currentPage === 1}
+          >
+            Anterior
+          </button>
+          {Array.from({ length: Math.min(totalPages, 5) }).map((_, idx) => {
+            // Logic for showing page numbers (show always first, last, and pages around current)
+            let pageNumber;
+            if (totalPages <= 5) {
+              // Show all page numbers if 5 or fewer
+              pageNumber = idx + 1;
+            } else if (currentPage <= 3) {
+              // Near the start
+              pageNumber = idx + 1;
+            } else if (currentPage >= totalPages - 2) {
+              // Near the end
+              pageNumber = totalPages - 4 + idx;
+            } else {
+              // In the middle
+              pageNumber = currentPage - 2 + idx;
+            }
+            
+            return (
+              <button
+                key={pageNumber}
+                className={`pagination-button${currentPage === pageNumber ? ' active' : ''}`}
+                onClick={() => setCurrentPage(pageNumber)}
+              >
+                {pageNumber}
+              </button>
+            );
+          })}
+          <button
+            className="pagination-button"
+            onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+            disabled={currentPage === totalPages}
+          >
+            Próximo
+          </button>
+        </div>
+      )}
 
         <WorkDetailsModal
           work={selectedWork}

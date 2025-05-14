@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FiX, FiEdit2, FiTrash2, FiCheck, FiDownload, FiRotateCcw, FiCheckCircle, FiShare2, FiMessageSquare, FiUser } from 'react-icons/fi';
+import { FiX, FiEdit2, FiTrash2, FiCheck, FiDownload, FiRotateCcw, FiCheckCircle, FiShare2, FiMessageSquare, FiUser, FiEye } from 'react-icons/fi';
 import { doc, getDoc, collection, query, where, getDocs, updateDoc, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../../../services/firebase';
 import './WorkDetailsModal.css';
@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import { getAuth } from 'firebase/auth';
 import { toast } from 'react-hot-toast';
 import RatingModal from '../RatingModal/RatingModal';
+import OrcamentoDetailsModal from '../OrcamentoDetailsModal/OrcamentoDetailsModal';
 
 const WorkDetailsModal = ({ work, onClose, onEdit, onDelete, onComplete, onFileDownload, onAcceptOrcamento, workOrcamentos, onCancelarAceitacao }) => {
   // Declarar todos os hooks primeiro, independentemente da condição
@@ -18,6 +19,7 @@ const WorkDetailsModal = ({ work, onClose, onEdit, onDelete, onComplete, onFileD
   const [saving, setSaving] = useState(false);
   const [showRatingModal, setShowRatingModal] = useState(false);
   const [technician, setTechnician] = useState(null);
+  const [selectedOrcamento, setSelectedOrcamento] = useState(null);
   const navigate = useNavigate();
   const auth = getAuth();
   
@@ -260,9 +262,50 @@ const WorkDetailsModal = ({ work, onClose, onEdit, onDelete, onComplete, onFileD
     }
   };
 
-  const handleFileTransfer = (file) => {
-    // TODO: Implement file transfer functionality
-    console.log('Transfer file:', file);
+  const handleFileDownload = (file) => {
+    try {
+      // Verificar se o arquivo tem a URL antes de tentar baixar
+      if (file.url || file.downloadURL) {
+        // Usar a URL disponível no arquivo
+        const fileURL = file.url || file.downloadURL;
+        // Se tiver URL, criar um link temporário para download direto
+        const tempLink = document.createElement('a');
+        tempLink.href = fileURL;
+        tempLink.setAttribute('download', file.name);
+        tempLink.setAttribute('target', '_blank');
+        document.body.appendChild(tempLink);
+        tempLink.click();
+        document.body.removeChild(tempLink);
+        
+        console.log('Download direto via URL:', fileURL);
+        toast.success(`A transferir ficheiro: ${file.name}`, {
+          duration: 3000,
+          position: 'top-right',
+        });
+      } else {
+        // Se não tiver URL direta, usar a função de callback
+        console.log('Usando callback onFileDownload para:', file);
+        if (typeof onFileDownload === 'function') {
+          onFileDownload(file);
+          toast.success(`A transferir ficheiro: ${file.name}`, {
+            duration: 3000,
+            position: 'top-right',
+          });
+        } else {
+          console.error('Função onFileDownload não fornecida ou inválida');
+          toast.error('Não foi possível transferir o ficheiro. Função de download não disponível.', {
+            duration: 4000,
+            position: 'top-right',
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Erro ao transferir ficheiro:', error);
+      toast.error(`Erro ao transferir ficheiro: ${error.message}`, {
+        duration: 4000,
+        position: 'top-right',
+      });
+    }
   };
 
   const handleEditClick = () => {
@@ -319,14 +362,24 @@ const WorkDetailsModal = ({ work, onClose, onEdit, onDelete, onComplete, onFileD
     }
   };
 
-  const handleViewTechnicianProfile = (technicianId) => {
+  const handleViewTechnicianProfile = (technicianId, orcamento) => {
     if (!technicianId) {
       toast.error('ID do técnico não disponível');
       return;
     }
     
-    // Navegar para a página de perfil do técnico
-    navigate(`/dashgestor/tecnicos/${technicianId}`);
+    // Navegar para a página de perfil do técnico com parâmetros adicionais
+    // hideServices=true - não mostrar serviços recentes
+    // workId - ID do serviço atual para filtrar avaliações
+    navigate(`/dashgestor/tecnico/${technicianId}?hideServices=true&workId=${work.id}&workTitle=${encodeURIComponent(work.title)}`);
+  };
+
+  const handleViewOrcamentoDetails = (orcamento) => {
+    setSelectedOrcamento(orcamento);
+  };
+
+  const handleCloseOrcamentoDetails = () => {
+    setSelectedOrcamento(null);
   };
 
   return (
@@ -475,7 +528,11 @@ const WorkDetailsModal = ({ work, onClose, onEdit, onDelete, onComplete, onFileD
                         <div className="file-actions">
                           <button 
                             className="file-download-btn" 
-                            onClick={() => onFileDownload(file)}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleFileDownload(file);
+                            }}
                             title="Descarregar ficheiro"
                           >
                             <FiDownload />
@@ -488,7 +545,7 @@ const WorkDetailsModal = ({ work, onClose, onEdit, onDelete, onComplete, onFileD
               )}
             </div>
 
-            {/* Display orcamentos array if it exists */}
+            {/* Modified orcamentos sidebar */}
             <div className="orcamentos-sidebar">
               <div className="orcamentos-header">
                 <h3>Orçamentos Recebidos ({orcamentos.length})</h3>
@@ -505,25 +562,23 @@ const WorkDetailsModal = ({ work, onClose, onEdit, onDelete, onComplete, onFileD
                            onClick={(e) => e.stopPropagation()}>
                         <div className="orcamento-info" style={{flexDirection: 'column', alignItems: 'center', textAlign: 'center'}}>
                           <h4>{displayName}</h4>
-                          <span className="orcamento-date">
-                            {orcamento.data 
-                              ? new Date(orcamento.data).toLocaleDateString()
-                              : orcamento.createdAt 
-                                ? new Date(orcamento.createdAt.seconds * 1000).toLocaleDateString()
-                                : 'Data não disponível'}
-                          </span>
                         </div>
                         <div className="orcamento-value">
                           {orcamento.valor || orcamento.amount || 0}€
                         </div>
-                        {orcamento.description && (
-                          <div className="orcamento-description">
-                            {orcamento.description.length > 100
-                              ? orcamento.description.slice(0, 100) + '...'
-                              : orcamento.description}
-                          </div>
-                        )}
+                        
                         <div className="orcamento-actions" onClick={(e) => e.stopPropagation()}>
+                          <button
+                            className="action-btn ver-detalhes"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleViewOrcamentoDetails(orcamento);
+                            }}
+                          >
+                            <FiEye /> Ver Detalhes
+                          </button>
+                          
                           {orcamento.aceito ? (
                             <button
                               className="action-btn cancelar-orcamento"
@@ -557,26 +612,6 @@ const WorkDetailsModal = ({ work, onClose, onEdit, onDelete, onComplete, onFileD
                               <FiCheck /> Aceitar Orçamento
                             </button>
                           ) : null}
-                          <button
-                            className="action-btn mensagens"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              handleMessageTechnician(orcamento);
-                            }}
-                          >
-                            <FiMessageSquare /> Mensagens
-                          </button>
-                          <button
-                            className="action-btn ver-perfil"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              handleViewTechnicianProfile(orcamento.technicianId);
-                            }}
-                          >
-                            <FiUser /> Ver Perfil
-                          </button>
                         </div>
                       </div>
                     );
@@ -597,6 +632,19 @@ const WorkDetailsModal = ({ work, onClose, onEdit, onDelete, onComplete, onFileD
           onClose={() => setShowRatingModal(false)} 
           onSubmit={handleRatingSubmit}
           technician={technician}
+        />
+      )}
+
+      {selectedOrcamento && (
+        <OrcamentoDetailsModal
+          orcamento={selectedOrcamento}
+          technicianName={technicianNames[selectedOrcamento.technicianId]}
+          workId={work.id}
+          workTitle={work.title}
+          onClose={handleCloseOrcamentoDetails}
+          onFileDownload={handleFileDownload}
+          onMessageTechnician={handleMessageTechnician}
+          onViewTechnicianProfile={handleViewTechnicianProfile}
         />
       )}
     </div>

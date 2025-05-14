@@ -47,11 +47,19 @@ const TopBar = ({ unreadCount = 0 }) => {
     }
   };
 
+  const handleBackButton = () => {
+    if (location.pathname === '/dashgestor' || location.pathname === '/dashgestor/') {
+      handleLogout();
+    } else {
+      navigate('/dashgestor');
+    }
+  };
+
   return (
     <div className="topbar-container">
       <div className="topbar">
         <div className="topbar-left">
-          <button className="back-button-topbar" onClick={handleLogout}>
+          <button className="back-button-topbar" onClick={handleBackButton}>
             <FiArrowLeft />
           </button>
           <div className="topbar-logo">

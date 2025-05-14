@@ -130,21 +130,31 @@
 }
 
 .action-btn {
+  padding: 8px 12px;
+  border: none;
+  border-radius: 5px;
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 16px;
-  border-radius: 6px;
-  font-size: 14px;
-  font-weight: 500;
+  justify-content: center;
+  gap: 5px;
+  font-size: 12px;
   cursor: pointer;
-  transition: all 0.2s;
-  border: 1px solid transparent;
+  transition: background-color 0.2s ease;
 }
 
 .action-btn svg {
   width: 16px;
   height: 16px;
+}
+
+.action-btn.edit, 
+.action-btn.delete, 
+.action-btn.complete, 
+.action-btn.undo {
+  padding: 8px 16px;
+  font-size: 14px;
+  border-radius: 6px;
+  font-weight: 500;
 }
 
 .action-btn.edit {
@@ -372,12 +382,15 @@
 
 .orcamento-card {
   position: relative;
-  padding: 12px;
+  padding: 16px;
   background: #ffffff;
   border-radius: 8px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   transition: all 0.2s ease;
   border-left: 3px solid #E5E7EB;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .orcamento-card.orcamento-aceito {
@@ -387,9 +400,11 @@
 
 .orcamento-info {
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
   align-items: center;
+  text-align: center;
   margin-bottom: 8px;
+  width: 100%;
 }
 
 .orcamento-info h4 {
@@ -397,21 +412,18 @@
   color: #111827;
   font-size: 14px;
   font-weight: 600;
-}
-
-.orcamento-date {
-  color: #6B7280;
-  font-size: 12px;
-  text-align: center;
-  width: 100%;
-  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 .orcamento-value {
-  font-size: 16px;
+  font-size: 20px;
   font-weight: 700;
   color: #111827;
-  margin-bottom: 8px;
+  margin: 8px 0;
+  text-align: center;
 }
 
 .orcamento-document,
@@ -433,12 +445,123 @@
   overflow-x: hidden;
   white-space: normal;
   max-width: 100%;
+  transition: max-height 0.3s ease;
+}
+
+.orcamento-description.show-full {
+  max-height: 300px;
+}
+
+.orcamento-description-container {
+  display: flex;
+  flex-direction: column;
+  margin-top: 8px;
+}
+
+.ver-mais-btn {
+  align-self: center;
+  background: none;
+  border: none;
+  color: #2563EB;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  margin-top: 4px;
+  padding: 4px 8px;
+  position: relative;
+}
+
+.ver-mais-btn::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  height: 1px;
+  background-color: #E5E7EB;
+}
+
+.ver-mais-btn:hover {
+  color: #1D4ED8;
+}
+
+.ver-mais-btn:hover::after {
+  background-color: #2563EB;
 }
 
 .orcamento-files {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  margin-bottom: 10px;
+  border: 1px solid #E5E7EB;
+  padding: 10px;
+  border-radius: 6px;
+  background-color: #F9FAFB;
+}
+
+.orcamento-files h5 {
+  margin: 0 0 8px 0;
+  font-size: 13px;
+  color: #4B5563;
+  font-weight: 600;
+}
+
+.orcamento-files .files-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+.orcamento-files .file-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: white;
+  padding: 6px 8px;
+  border-radius: 4px;
+  border: 1px solid #E5E7EB;
+}
+
+.orcamento-files .file-name {
+  font-size: 12px;
+  color: #374151;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+  max-width: 150px;
+}
+
+.orcamento-files .file-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.orcamento-files .file-download-btn {
+  background-color: #2196F3;
+  color: white;
+  border: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.2s, transform 0.1s;
+}
+
+.orcamento-files .file-download-btn:hover {
+  background-color: #1976D2;
+}
+
+.orcamento-files .file-download-btn:active {
+  background-color: #0D47A1;
+  transform: scale(0.95);
 }
 
 .document-link {
@@ -457,59 +580,57 @@
 
 .orcamento-actions {
   display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-  justify-content: center;
-  margin-top: 10px;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
 }
 
-.orcamento-actions button {
-  padding: 8px 12px;
-  border: none;
-  border-radius: 5px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 5px;
-  font-size: 12px;
-  cursor: pointer;
-  transition: background-color 0.2s ease;
+.action-btn.ver-detalhes {
+  background-color: #4B5563;
+  color: white;
+  width: 100%;
 }
 
-.aceitar-orcamento {
-  background-color: #4caf50;
+.action-btn.ver-detalhes:hover {
+  background-color: #374151;
+}
+
+.action-btn.aceitar-orcamento {
+  background-color: #10B981;
+  color: white;
+  width: 100%;
+}
+
+.action-btn.aceitar-orcamento:hover {
+  background-color: #059669;
+}
+
+.action-btn.cancelar-orcamento {
+  background-color: #EF4444;
+  color: white;
+  width: 100%;
+}
+
+.action-btn.cancelar-orcamento:hover {
+  background-color: #DC2626;
+}
+
+.action-btn.mensagens {
+  background-color: #6366F1;
   color: white;
 }
 
-.aceitar-orcamento:hover {
-  background-color: #43a047;
+.action-btn.mensagens:hover {
+  background-color: #4F46E5;
 }
 
-.cancelar-orcamento {
-  background-color: #f44336;
-  color: white;
+.action-btn.ver-perfil {
+  background-color: #F3F4F6;
+  color: #4B5563;
 }
 
-.cancelar-orcamento:hover {
-  background-color: #e53935;
-}
-
-.mensagens {
-  background-color: #2196f3;
-  color: white;
-}
-
-.mensagens:hover {
-  background-color: #1e88e5;
-}
-
-.ver-perfil {
-  background-color: #9c27b0;
-  color: white;
-}
-
-.ver-perfil:hover {
-  background-color: #8e24aa;
+.action-btn.ver-perfil:hover {
+  background-color: #E5E7EB;
 }
 
 .orcamento-aceitar {
@@ -652,6 +773,7 @@
   align-items: center;
   justify-content: center;
   transition: all 0.2s;
+  position: relative;
 }
 
 .file-download-btn:hover {
@@ -659,8 +781,17 @@
   color: #111827;
 }
 
+.file-download-btn:active {
+  background-color: #E5E7EB;
+  transform: scale(0.95);
+}
+
 .file-download-btn[title="Descarregar ficheiro"]:hover {
   color: #059669;
+}
+
+.file-download-btn[title="Descarregar ficheiro"]:active {
+  color: #047857;
 }
 
 .action-btn.cancelar-orcamento,
