@@ -414,6 +414,8 @@ function DashGestor() {
         console.log("Obra criada com sucesso, ID:", workRef.id);
         setWorks(prevWorks => [...prevWorks, { ...workData, id: workRef.id }]);
         alert('Obra criada com sucesso!');
+        setShowNewWorkForm(false);
+        navigate('/dashgestor/obras');
       } else {
         // Lógica para atualizar obra existente
         const collectionName = editingWork.isMaintenance ? 'ManutençãoPedidos' : 'ObrasPedidos';

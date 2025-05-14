@@ -412,12 +412,12 @@ const WorkDetailsModal = ({ work, onClose, onEdit, onDelete, onComplete, onFileD
               ) : orcamentos.length > 0 ? (
                 <div className="orcamentos-list">
                   {orcamentos.map((orcamento, index) => {
-                    const displayName = orcamento.technicianName || orcamento.technicianId || 'Técnico';
+                    const displayName = technicianNames[orcamento.technicianId] || 'Técnico';
                     return (
                       <div key={orcamento.id || index} 
                            className={`orcamento-card ${orcamento.aceito ? 'orcamento-aceito' : ''}`}
                            onClick={(e) => e.stopPropagation()}>
-                        <div className="orcamento-info" style={{flexDirection: 'column', alignItems: 'flex-start'}}>
+                        <div className="orcamento-info" style={{flexDirection: 'column', alignItems: 'center', textAlign: 'center'}}>
                           <h4>{displayName}</h4>
                           <span className="orcamento-date">
                             {orcamento.data 
@@ -432,7 +432,9 @@ const WorkDetailsModal = ({ work, onClose, onEdit, onDelete, onComplete, onFileD
                         </div>
                         {orcamento.description && (
                           <div className="orcamento-description">
-                            {orcamento.description}
+                            {orcamento.description.length > 100
+                              ? orcamento.description.slice(0, 100) + '...'
+                              : orcamento.description}
                           </div>
                         )}
                         <div className="orcamento-actions" onClick={(e) => e.stopPropagation()}>
