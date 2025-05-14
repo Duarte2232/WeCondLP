@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { FiX, FiUpload, FiFile, FiDollarSign, FiClock, FiAlignLeft, FiFileText, FiPaperclip, FiTrash2, FiCheck } from 'react-icons/fi';
+import { FiX, FiUpload, FiFile, FiDollarSign, FiClock, FiAlignLeft, FiFileText, FiPaperclip, FiTrash2, FiCheck, FiCalendar } from 'react-icons/fi';
 import { getAuth } from 'firebase/auth';
 import { doc, addDoc, collection, serverTimestamp, updateDoc, getDoc } from 'firebase/firestore';
 import { db } from '../../../../services/firebase.jsx';
@@ -29,7 +29,10 @@ const BudgetModal = ({ job, onClose, onSuccess }) => {
   const [budgetData, setBudgetData] = useState({
     amount: '',
     description: '',
-    files: []
+    files: [],
+    availabilityDate: new Date().toISOString().split('T')[0], // Default to today
+    isMultipleDays: false,
+    endDate: ''
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
@@ -37,6 +40,19 @@ const BudgetModal = ({ job, onClose, onSuccess }) => {
   const [validationErrors, setValidationErrors] = useState({});
   const fileInputRef = useRef(null);
   const modalRef = useRef(null);
+
+  // Initialize endDate when isMultipleDays is enabled
+  useEffect(() => {
+    if (budgetData.isMultipleDays && !budgetData.endDate) {
+      // Set endDate to day after availabilityDate
+      const nextDay = new Date(budgetData.availabilityDate);
+      nextDay.setDate(nextDay.getDate() + 1);
+      setBudgetData(prev => ({
+        ...prev,
+        endDate: nextDay.toISOString().split('T')[0]
+      }));
+    }
+  }, [budgetData.isMultipleDays, budgetData.availabilityDate]);
 
   // Cleanup function for file previews
   useEffect(() => {
@@ -77,7 +93,17 @@ const BudgetModal = ({ job, onClose, onSuccess }) => {
 
   // Handle budget data changes with validation
   const handleBudgetChange = (e) => {
-    const { name, value } = e.target;
+    const { name, value, type, checked } = e.target;
+    
+    // Handle checkbox separately
+    if (type === 'checkbox') {
+      setBudgetData(prev => ({
+        ...prev,
+        [name]: checked
+      }));
+      return;
+    }
+    
     setBudgetData(prev => ({
       ...prev,
       [name]: value
@@ -217,6 +243,15 @@ const BudgetModal = ({ job, onClose, onSuccess }) => {
       if (!budgetData.description) {
         errors.description = 'Por favor, insira uma descrição do orçamento';
       }
+      if (!budgetData.availabilityDate) {
+        errors.availabilityDate = 'Por favor, selecione uma data de disponibilidade';
+      }
+      if (budgetData.isMultipleDays && !budgetData.endDate) {
+        errors.endDate = 'Por favor, selecione uma data final para o intervalo';
+      }
+      if (budgetData.isMultipleDays && new Date(budgetData.endDate) <= new Date(budgetData.availabilityDate)) {
+        errors.endDate = 'A data final deve ser posterior à data inicial';
+      }
 
       if (Object.keys(errors).length > 0) {
         setValidationErrors(errors);
@@ -259,7 +294,10 @@ const BudgetModal = ({ job, onClose, onSuccess }) => {
         files: processedFiles,
         createdAt: serverTimestamp(),
         status: 'pendente',
-        isMaintenance: job.isMaintenance || false
+        isMaintenance: job.isMaintenance || false,
+        availabilityDate: budgetData.availabilityDate,
+        isMultipleDays: budgetData.isMultipleDays,
+        endDate: budgetData.isMultipleDays ? budgetData.endDate : null
       };
 
       // Adiciona o campo manutencaoId se for manutenção
@@ -339,6 +377,9 @@ const BudgetModal = ({ job, onClose, onSuccess }) => {
                 required
                 disabled={isSubmitting}
               />
+              {validationErrors.amount && (
+                <span className="error-text">{validationErrors.amount}</span>
+              )}
             </div>
             
             <div className="form-group">
@@ -354,7 +395,65 @@ const BudgetModal = ({ job, onClose, onSuccess }) => {
                 rows={5}
                 disabled={isSubmitting}
               />
+              {validationErrors.description && (
+                <span className="error-text">{validationErrors.description}</span>
+              )}
             </div>
+            
+            <div className="form-group">
+              <label htmlFor="availabilityDate">
+                <FiCalendar /> Data de Disponibilidade
+              </label>
+              <input
+                type="date"
+                id="availabilityDate"
+                name="availabilityDate"
+                value={budgetData.availabilityDate}
+                onChange={handleBudgetChange}
+                required
+                disabled={isSubmitting}
+              />
+              {validationErrors.availabilityDate && (
+                <span className="error-text">{validationErrors.availabilityDate}</span>
+              )}
+            </div>
+            
+            <div className="form-group checkbox-group">
+              <div className="checkbox-container">
+                <input
+                  type="checkbox"
+                  id="isMultipleDays"
+                  name="isMultipleDays"
+                  checked={budgetData.isMultipleDays}
+                  onChange={handleBudgetChange}
+                  disabled={isSubmitting}
+                />
+                <label htmlFor="isMultipleDays">
+                  Obra com duração de múltiplos dias
+                </label>
+              </div>
+            </div>
+            
+            {budgetData.isMultipleDays && (
+              <div className="form-group">
+                <label htmlFor="endDate">
+                  <FiCalendar /> Data Final
+                </label>
+                <input
+                  type="date"
+                  id="endDate"
+                  name="endDate"
+                  value={budgetData.endDate}
+                  onChange={handleBudgetChange}
+                  min={budgetData.availabilityDate} 
+                  required={budgetData.isMultipleDays}
+                  disabled={isSubmitting}
+                />
+                {validationErrors.endDate && (
+                  <span className="error-text">{validationErrors.endDate}</span>
+                )}
+              </div>
+            )}
             
             <div className="form-group">
               <label>

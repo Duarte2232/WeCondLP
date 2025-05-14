@@ -56,6 +56,17 @@
   margin-bottom: 8px;
 }
 
+.orcamento-details-section p {
+  margin: 0;
+  line-height: 1.5;
+  color: #374151;
+}
+
+.orcamento-details-section p strong {
+  font-weight: 600;
+  color: #111827;
+}
+
 .orcamento-value-large {
   font-size: 2rem;
   font-weight: 700;
@@ -97,49 +108,49 @@
   max-width: 80%;
 }
 
-.file-download-btn {
-  background: none;
+.file-actions button {
+  background: transparent;
   border: none;
-  color: #6366F1;
-  cursor: pointer;
   padding: 4px;
+  cursor: pointer;
+  color: #4B5563;
   border-radius: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 
-.file-download-btn:hover {
-  background-color: rgba(99, 102, 241, 0.1);
+.file-actions button:hover {
+  background: #E5E7EB;
+  color: #111827;
 }
 
 .orcamento-details-actions {
   display: flex;
-  gap: 12px;
-  margin-top: 24px;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 20px;
 }
 
 .action-btn {
   padding: 10px 16px;
+  border: none;
+  border-radius: 6px;
+  font-weight: 500;
+  font-size: 0.875rem;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  border-radius: 6px;
-  font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s;
-  border: none;
+  transition: background-color 0.2s, transform 0.1s;
   flex: 1;
 }
 
 .action-btn.mensagens {
-  background-color: #6366F1;
+  background-color: #3B82F6;
   color: white;
 }
 
 .action-btn.mensagens:hover {
-  background-color: #4F46E5;
+  background-color: #2563EB;
 }
 
 .action-btn.ver-perfil {
@@ -149,6 +160,11 @@
 
 .action-btn.ver-perfil:hover {
   background-color: #E5E7EB;
+  color: #111827;
+}
+
+.action-btn:active {
+  transform: translateY(1px);
 }
 
 .close-button {

@@ -221,6 +221,13 @@ form {
   background-color: #FFFBEB;
 }
 
+.form-group input[type="date"] {
+  font-family: inherit;
+  color: #111827;
+  cursor: pointer;
+  background-color: #F9FAFB;
+}
+
 .form-group textarea {
   resize: vertical;
   min-height: 100px;
@@ -242,10 +249,37 @@ form {
   box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
 }
 
-.error-message {
+.error-text {
   color: #EF4444;
   font-size: 14px;
   margin-top: 4px;
+  display: block;
+}
+
+.checkbox-group {
+  margin-bottom: 16px;
+}
+
+.checkbox-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+}
+
+.checkbox-container input[type="checkbox"] {
+  width: auto;
+  margin: 0;
+  cursor: pointer;
+  height: 18px;
+  width: 18px;
+}
+
+.checkbox-container label {
+  margin-bottom: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
 }
 
 .file-upload-container {
@@ -368,6 +402,54 @@ form {
   border-radius: 50%;
   border-top-color: white;
   animation: spin 0.8s linear infinite;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.cancel-btn, 
+.submit-btn {
+  padding: 12px 20px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.cancel-btn {
+  background-color: white;
+  border: 1px solid #E5E7EB;
+  color: #4B5563;
+}
+
+.cancel-btn:hover {
+  background-color: #F9FAFB;
+  border-color: #D1D5DB;
+}
+
+.submit-btn {
+  background-color: #3B82F6;
+  border: none;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  position: relative;
+}
+
+.submit-btn:hover {
+  background-color: #2563EB;
+}
+
+.submit-btn.loading {
+  opacity: 0.7;
+  cursor: not-allowed;
 }
 
 @keyframes spin {

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiArrowLeft, FiPlus, FiChevronLeft, FiChevronRight, FiFilter, FiCheck } from 'react-icons/fi';
-import { collection, getDocs, query, doc, getDoc } from 'firebase/firestore';
+import { collection, getDocs, query, doc, getDoc, where } from 'firebase/firestore';
 import { db } from '../../../../services/firebase';
 import './Calendar.css';
 
@@ -17,7 +17,8 @@ const Calendar = () => {
     eventos: true,
     obras: true,
     manutencoes: true,
-    prazosOrcamentos: true
+    prazosOrcamentos: true,
+    orcamentosNaoAceitos: true
   });
 
   // Buscar as obras e eventos ao carregar a página
@@ -26,48 +27,112 @@ const Calendar = () => {
       try {
         setIsLoading(true);
 
-        // Buscar todos os orçamentos aceitos
-        const orcamentosRef = collection(db, 'ObrasOrçamentos');
-        const orcamentosQuery = query(orcamentosRef);
-        const orcamentosSnapshot = await getDocs(orcamentosQuery);
-        const orcamentosAceitos = orcamentosSnapshot.docs
-          .map(doc => ({ id: doc.id, ...doc.data() }))
-          .filter(orc => orc.aceito === true && orc.workId);
+        // Buscar todos os orçamentos (aceitos e não aceitos)
+        const orcamentosRefObras = collection(db, 'ObrasOrçamentos');
+        const orcamentosRefManutencao = collection(db, 'ManutençãoOrçamentos');
+        
+        const [orcamentosObrasSnapshot, orcamentosManutencaoSnapshot] = await Promise.all([
+          getDocs(query(orcamentosRefObras)),
+          getDocs(query(orcamentosRefManutencao))
+        ]);
+        
+        const todosOrcamentos = [
+          ...orcamentosObrasSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), tipo: 'Obra' })),
+          ...orcamentosManutencaoSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), tipo: 'Manutenção' }))
+        ];
 
-        // Buscar as obras correspondentes
-        const obrasPromises = orcamentosAceitos.map(async (orcamento) => {
-          const obraRef = doc(db, 'ObrasPedidos', orcamento.workId);
+        // Buscar as obras correspondentes aos orçamentos
+        const obrasPromises = todosOrcamentos.map(async (orcamento) => {
+          const collectionName = orcamento.tipo === 'Obra' ? 'ObrasPedidos' : 'ManutençãoPedidos';
+          const workId = orcamento.workId;
+          
+          if (!workId) return null;
+          
+          const obraRef = doc(db, collectionName, workId);
           const obraDoc = await getDoc(obraRef);
+          
           if (obraDoc.exists()) {
-            return { id: obraDoc.id, ...obraDoc.data(), orcamentoAceito: orcamento };
+            return { 
+              id: obraDoc.id, 
+              ...obraDoc.data(), 
+              orcamento: orcamento,
+              tipoServico: orcamento.tipo 
+            };
           }
           return null;
         });
+        
         const obrasData = (await Promise.all(obrasPromises)).filter(Boolean);
-
         setObras(obrasData);
 
         // Transformar as obras em eventos de calendário
         const obrasEventos = [];
-        obrasData.forEach(obra => {
-          if (obra.date) {
+        
+        // Processar os orçamentos e criar eventos
+        todosOrcamentos.forEach(orcamento => {
+          // Verificar se tem data de disponibilidade
+          if (orcamento.availabilityDate) {
             try {
-              const obraDate = new Date(obra.date);
-              if (!isNaN(obraDate.getTime())) {
-                obrasEventos.push({
-                  id: `obra-${obra.id}`,
-                  titulo: obra.title,
-                  data: formatDateToDisplay(obraDate),
-                  tipo: 'Obra',
-                  color: '#2563eb',
-                  details: obra.description,
-                  local: obra.location ? `${obra.location.morada || ''}, ${obra.location.cidade || ''}` : '',
-                  originalDate: obraDate,
-                  orcamentoAceito: obra.orcamentoAceito
-                });
+              // Data de disponibilidade (quando o técnico pode realizar a obra)
+              const disponibilidadeDate = new Date(orcamento.availabilityDate);
+              
+              if (!isNaN(disponibilidadeDate.getTime())) {
+                // Encontrar a obra correspondente
+                const obraRelacionada = obrasData.find(obra => obra.id === orcamento.workId);
+                
+                if (obraRelacionada) {
+                  // Adicionar evento de disponibilidade
+                  obrasEventos.push({
+                    id: `orcamento-${orcamento.id}`,
+                    titulo: obraRelacionada.title,
+                    data: formatDateToDisplay(disponibilidadeDate),
+                    tipo: orcamento.tipo,
+                    color: orcamento.aceito ? '#10B981' : '#3B82F6',
+                    details: orcamento.description,
+                    local: obraRelacionada.location ? `${obraRelacionada.location.morada || ''}, ${obraRelacionada.location.cidade || ''}` : '',
+                    originalDate: disponibilidadeDate,
+                    orcamento: orcamento,
+                    aceito: orcamento.aceito || false,
+                    valor: orcamento.amount || orcamento.valor || 0,
+                    technicianId: orcamento.technicianId,
+                    technicianEmail: orcamento.technicianEmail,
+                    isOrcamento: true
+                  });
+                  
+                  // Se for múltiplos dias, criar eventos para os dias adicionais
+                  if (orcamento.isMultipleDays && orcamento.endDate) {
+                    const dataFinal = new Date(orcamento.endDate);
+                    if (!isNaN(dataFinal.getTime())) {
+                      const diasDiferenca = Math.ceil((dataFinal - disponibilidadeDate) / (1000 * 60 * 60 * 24));
+                      
+                      for (let i = 1; i <= diasDiferenca; i++) {
+                        const dataAdicional = new Date(disponibilidadeDate);
+                        dataAdicional.setDate(disponibilidadeDate.getDate() + i);
+                        
+                        obrasEventos.push({
+                          id: `orcamento-${orcamento.id}-dia-${i}`,
+                          titulo: obraRelacionada.title,
+                          data: formatDateToDisplay(dataAdicional),
+                          tipo: orcamento.tipo,
+                          color: orcamento.aceito ? '#10B981' : '#3B82F6',
+                          details: orcamento.description,
+                          local: obraRelacionada.location ? `${obraRelacionada.location.morada || ''}, ${obraRelacionada.location.cidade || ''}` : '',
+                          originalDate: dataAdicional,
+                          orcamento: orcamento,
+                          aceito: orcamento.aceito || false,
+                          valor: orcamento.amount || orcamento.valor || 0,
+                          technicianId: orcamento.technicianId,
+                          technicianEmail: orcamento.technicianEmail,
+                          isOrcamento: true,
+                          isMultiDayPart: true
+                        });
+                      }
+                    }
+                  }
+                }
               }
             } catch (error) {
-              console.error('Erro ao processar data da obra:', error);
+              console.error('Erro ao processar data do orçamento:', error);
             }
           }
         });
@@ -110,7 +175,7 @@ const Calendar = () => {
     
     // Re-run this effect whenever the component mounts
     // This ensures that any new events added elsewhere in the app will be displayed
-  }, [db]);
+  }, []);
 
   const formatDateToDisplay = (date) => {
     return `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
@@ -154,6 +219,8 @@ const Calendar = () => {
     if (evento.tipo === 'Obra' && !filters.obras) return false;
     if (evento.tipo === 'Manutenção' && !filters.manutencoes) return false;
     if (evento.tipo === 'Prazo Orçamento' && !filters.prazosOrcamentos) return false;
+    // Filtrar orçamentos não aceitos
+    if (evento.isOrcamento && !evento.aceito && !filters.orcamentosNaoAceitos) return false;
     return true;
   });
 
@@ -278,6 +345,15 @@ const Calendar = () => {
                 <span className="filter-checkbox"></span>
                 <span className="filter-label">Prazos de Orçamentos</span>
               </label>
+              <label className={`filter-option ${filters.orcamentosNaoAceitos ? 'active' : ''}`}>
+                <input 
+                  type="checkbox" 
+                  checked={filters.orcamentosNaoAceitos} 
+                  onChange={() => toggleFilter('orcamentosNaoAceitos')}
+                />
+                <span className="filter-checkbox"></span>
+                <span className="filter-label">Orçamentos Não Aceitos</span>
+              </label>
             </div>
           </div>
         )}
@@ -322,11 +398,16 @@ const Calendar = () => {
                             {dayEvents.map((evento, idx) => (
                               <div 
                                 key={idx} 
-                                className="day-event-item"
+                                className={`day-event-item ${evento.isOrcamento && !evento.aceito ? 'orcamento-nao-aceito' : ''}`}
                                 style={{ backgroundColor: evento.color || '#2563EB' }}
-                                title={evento.titulo}
+                                title={`${evento.titulo} ${evento.isOrcamento ? (evento.aceito ? '(Orçamento Aceito)' : '(Orçamento Pendente)') : ''}`}
                               >
-                                <span className="event-title">{evento.titulo}</span>
+                                <span className="event-title">
+                                  {evento.titulo}
+                                  {evento.isOrcamento && evento.aceito && (
+                                    <FiCheck className="event-check-icon" />
+                                  )}
+                                </span>
                               </div>
                             ))}
                           </div>
@@ -352,17 +433,26 @@ const Calendar = () => {
                 )
                 .sort((a, b) => a.originalDate - b.originalDate)
                 .map(evento => (
-                  <div key={evento.id} className="event-card">
+                  <div 
+                    key={evento.id} 
+                    className={`event-card ${evento.isOrcamento ? (evento.aceito ? 'orcamento-aceito' : 'orcamento-pendente') : ''}`}
+                  >
                     <div className="event-header">
                       <h3>{evento.titulo}</h3>
                       <span className="event-type" style={{ backgroundColor: evento.color }}>
-                        {evento.tipo}
+                        {evento.isOrcamento ? (evento.aceito ? 'Aceito' : 'Pendente') : evento.tipo}
                       </span>
                     </div>
                     <div className="event-details">
                       <p><strong>Data:</strong> {evento.data}</p>
                       {evento.horario && <p><strong>Horário:</strong> {evento.horario}</p>}
                       {evento.local && <p><strong>Local:</strong> {evento.local}</p>}
+                      {evento.isOrcamento && (
+                        <>
+                          <p><strong>Valor:</strong> {evento.valor}€</p>
+                          <p><strong>Técnico:</strong> {evento.technicianEmail}</p>
+                        </>
+                      )}
                       {evento.details && <p><strong>Detalhes:</strong> {evento.details}</p>}
                     </div>
                   </div>

@@ -570,4 +570,51 @@
   outline: none;
   border-color: #2563EB;
   box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
+}
+
+/* Estilo para orçamentos não aceitos no calendário */
+.day-event-item.orcamento-nao-aceito {
+  box-shadow: 0 0 8px rgba(59, 130, 246, 0.8);
+  animation: pulse 2s infinite;
+  position: relative;
+  z-index: 2;
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 8px rgba(59, 130, 246, 0.6);
+  }
+  50% {
+    box-shadow: 0 0 12px rgba(59, 130, 246, 0.9);
+  }
+  100% {
+    box-shadow: 0 0 8px rgba(59, 130, 246, 0.6);
+  }
+}
+
+/* Ícone de check para orçamentos aceitos */
+.event-check-icon {
+  margin-left: 4px;
+  vertical-align: middle;
+}
+
+/* Estilos para os cards de eventos (orçamentos) */
+.event-card.orcamento-pendente {
+  border-left: 4px solid #3B82F6;
+  background-color: rgba(59, 130, 246, 0.05);
+}
+
+.event-card.orcamento-aceito {
+  border-left: 4px solid #10B981;
+  background-color: rgba(16, 185, 129, 0.05);
+}
+
+/* Ajuste para o container de eventos no dia */
+.day-events-list {
+  margin-top: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 65px;
+  overflow-y: auto;
 } 
