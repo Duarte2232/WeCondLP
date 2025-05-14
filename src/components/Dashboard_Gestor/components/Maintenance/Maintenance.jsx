@@ -4,9 +4,10 @@ import { FiArrowLeft, FiSearch, FiRefreshCcw } from 'react-icons/fi';
 import NewMaintenanceButton from './NewMaintenanceButton';
 import WorkDetailsModal from '../WorkDetailsModal/WorkDetailsModal';
 import { db } from '../../../../services/firebase';
-import { collection, query, where, getDocs, doc, updateDoc, deleteDoc, getDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, updateDoc, deleteDoc, getDoc, writeBatch, serverTimestamp } from 'firebase/firestore';
 import { useAuth } from '../../../../contexts/auth';
 import './Maintenance.css';
+import { toast } from 'react-hot-toast';
 
 function Maintenance() {
   const navigate = useNavigate();
@@ -134,26 +135,72 @@ function Maintenance() {
   };
 
   const handleComplete = async (workId, newStatus) => {
-    if (!workId) return;
+    if (!workId) {
+      console.error('ID da manutenção não fornecido');
+      return;
+    }
 
     try {
+      console.log(`Iniciando handleComplete para manutenção ${workId}, novo status: ${newStatus}`);
+      
       const workRef = doc(db, 'ManutençãoPedidos', workId);
+      
+      // Verificar se a manutenção existe
+      const workDoc = await getDoc(workRef);
+      if (!workDoc.exists()) {
+        console.error(`Manutenção com ID ${workId} não encontrada`);
+        return;
+      }
+      
+      console.log(`Atualizando status da manutenção ${workId} para ${newStatus}`);
+      
+      // Atualizar o status
       await updateDoc(workRef, {
-        status: newStatus
+        status: newStatus,
+        completedAt: newStatus === 'concluido' ? serverTimestamp() : null
       });
+      
+      console.log(`Status da manutenção atualizado com sucesso para ${newStatus}`);
 
+      // Atualizar estado local
       setManutencoes(prevManutencoes => 
         prevManutencoes.map(manutencao => 
           manutencao.id === workId 
-            ? { ...manutencao, status: newStatus } 
+            ? { 
+                ...manutencao, 
+                status: newStatus,
+                completedAt: newStatus === 'concluido' ? new Date() : null
+              } 
             : manutencao
         )
       );
+      
+      console.log('Estado local atualizado');
 
+      // Fechar modal
       setSelectedWork(null);
+      
+      // Exibir mensagem de sucesso
+      toast.success(`Manutenção ${newStatus === 'concluido' ? 'concluída' : 'reaberta'} com sucesso!`, {
+        duration: 3000,
+        position: 'top-right',
+        style: {
+          background: '#4CAF50',
+          color: '#fff',
+          fontWeight: 'bold',
+          padding: '16px',
+          borderRadius: '8px',
+        },
+      });
+      
+      // Atualizar dados
+      fetchManutencoes();
     } catch (error) {
       console.error('Erro ao atualizar status da manutenção:', error);
-      alert('Ocorreu um erro ao atualizar o status da manutenção.');
+      toast.error('Erro ao atualizar status: ' + error.message, {
+        duration: 4000,
+        position: 'top-right',
+      });
     }
   };
 
@@ -164,32 +211,60 @@ function Maintenance() {
   const handleDelete = async (workId) => {
     if (!workId) return;
 
-    if (window.confirm('Tem certeza que deseja excluir esta manutenção?')) {
+    if (window.confirm('Tem certeza que deseja excluir esta manutenção? Todos os orçamentos associados também serão excluídos.')) {
       try {
         // First, delete all associated orçamentos
+        console.log(`Buscando orçamentos associados à manutenção ID: ${workId}`);
+        
         const orcamentosRef = collection(db, 'ManutençãoOrçamentos');
         const q = query(orcamentosRef, where('manutencaoId', '==', workId));
         const querySnapshot = await getDocs(q);
         
-        // Delete each orçamento
-        const deleteOrcamentosPromises = querySnapshot.docs.map(doc => 
-          deleteDoc(doc.ref)
-        );
-        await Promise.all(deleteOrcamentosPromises);
+        if (!querySnapshot.empty) {
+          console.log(`Encontrados ${querySnapshot.size} orçamentos para excluir`);
+          
+          // Usar batch para excluir vários documentos de uma vez
+          const batch = writeBatch(db);
+          
+          querySnapshot.forEach((orcamentoDoc) => {
+            batch.delete(orcamentoDoc.ref);
+          });
+          
+          // Executar o batch
+          await batch.commit();
+          console.log(`${querySnapshot.size} orçamentos excluídos com sucesso`);
+        } else {
+          console.log('Nenhum orçamento associado encontrado');
+        }
 
         // Then delete the maintenance itself
         const workRef = doc(db, 'ManutençãoPedidos', workId);
         await deleteDoc(workRef);
+        console.log('Manutenção excluída com sucesso');
 
         // Update local state
         setManutencoes(prevManutencoes => 
           prevManutencoes.filter(manutencao => manutencao.id !== workId)
         );
-
         setSelectedWork(null);
+        
+        toast.success('Manutenção excluída com sucesso!', {
+          duration: 3000,
+          position: 'top-right',
+          style: {
+            background: '#4CAF50',
+            color: '#fff',
+            fontWeight: 'bold',
+            padding: '16px',
+            borderRadius: '8px',
+          },
+        });
       } catch (error) {
         console.error('Erro ao deletar manutenção:', error);
-        alert('Ocorreu um erro ao deletar a manutenção.');
+        toast.error('Erro ao deletar manutenção: ' + error.message, {
+          duration: 4000,
+          position: 'top-right',
+        });
       }
     }
   };
@@ -231,21 +306,37 @@ function Maintenance() {
       const manutencaoRef = doc(db, 'ManutençãoPedidos', manutencaoId);
       const orcamentoRef = doc(db, 'ManutençãoOrçamentos', orcamentoId);
       
+      // Buscar dados do orçamento para obter o technicianId
+      const orcamentoDoc = await getDoc(orcamentoRef);
+      if (!orcamentoDoc.exists()) {
+        throw new Error('Orçamento não encontrado');
+      }
+      
+      const orcamentoData = orcamentoDoc.data();
+      
       // Update maintenance status to em-andamento
       await updateDoc(manutencaoRef, {
-        status: 'em-andamento'
+        status: 'em-andamento',
+        technicianId: orcamentoData.technicianId,
+        acceptedOrcamentoId: orcamentoId
       });
 
       // Update orcamento status to accepted
       await updateDoc(orcamentoRef, {
-        aceito: true
+        aceito: true,
+        dataAceitacao: serverTimestamp()
       });
 
       // Update local state
       setManutencoes(prevManutencoes => 
         prevManutencoes.map(manutencao => 
           manutencao.id === manutencaoId 
-            ? { ...manutencao, status: 'em-andamento' }
+            ? { 
+                ...manutencao, 
+                status: 'em-andamento',
+                technicianId: orcamentoData.technicianId,
+                acceptedOrcamentoId: orcamentoId
+              }
             : manutencao
         )
       );
@@ -254,7 +345,7 @@ function Maintenance() {
       setOrcamentos(prevOrcamentos => 
         prevOrcamentos.map(orcamento => 
           orcamento.id === orcamentoId
-            ? { ...orcamento, aceito: true }
+            ? { ...orcamento, aceito: true, dataAceitacao: new Date() }
             : orcamento
         )
       );
@@ -263,14 +354,33 @@ function Maintenance() {
       if (selectedWork && selectedWork.id === manutencaoId) {
         setSelectedWork({
           ...selectedWork,
-          status: 'em-andamento'
+          status: 'em-andamento',
+          technicianId: orcamentoData.technicianId,
+          acceptedOrcamentoId: orcamentoId
         });
       }
 
-      alert('Orçamento aceito com sucesso!');
+      toast.success('Orçamento aceito com sucesso!', {
+        duration: 3000,
+        position: 'top-right',
+        style: {
+          background: '#4CAF50',
+          color: '#fff',
+          fontWeight: 'bold',
+          padding: '16px',
+          borderRadius: '8px',
+        },
+        icon: '✅',
+      });
+      
+      // Recarregar os dados em segundo plano
+      fetchManutencoes();
     } catch (error) {
       console.error('Erro ao aceitar orçamento:', error);
-      alert('Erro ao aceitar orçamento: ' + error.message);
+      toast.error('Erro ao aceitar orçamento: ' + error.message, {
+        duration: 4000,
+        position: 'top-right',
+      });
     } finally {
       setLoading(false);
     }
@@ -278,36 +388,82 @@ function Maintenance() {
 
   const handleCancelarAceitacao = async (workId, orcamentoId, isMaintenance = false) => {
     try {
+      setLoading(true);
+      
       // Atualizar o orçamento na coleção ManutençãoOrçamentos
       const orcamentoRef = doc(db, 'ManutençãoOrçamentos', orcamentoId);
       await updateDoc(orcamentoRef, {
-        aceito: false
+        aceito: false,
+        dataAceitacao: null
       });
 
       // Atualizar o status da manutenção
       const manutencaoRef = doc(db, 'ManutençãoPedidos', workId);
       await updateDoc(manutencaoRef, {
         status: 'disponivel',
-        technicianId: null
+        technicianId: null,
+        acceptedOrcamentoId: null
       });
 
       // Atualizar o estado local
       setOrcamentos(prevOrcamentos => 
         prevOrcamentos.map(orcamento => 
           orcamento.id === orcamentoId
-            ? { ...orcamento, aceito: false }
+            ? { ...orcamento, aceito: false, dataAceitacao: null }
             : orcamento
         )
       );
+      
+      // Atualizar estado das manutenções
+      setManutencoes(prevManutencoes => 
+        prevManutencoes.map(manutencao => 
+          manutencao.id === workId 
+            ? { 
+                ...manutencao, 
+                status: 'disponivel',
+                technicianId: null,
+                acceptedOrcamentoId: null
+              }
+            : manutencao
+        )
+      );
+
+      // Update selected work if it's the current one
+      if (selectedWork && selectedWork.id === workId) {
+        setSelectedWork({
+          ...selectedWork,
+          status: 'disponivel',
+          technicianId: null,
+          acceptedOrcamentoId: null
+        });
+      }
 
       // Recarregar os dados
-      await fetchManutencoes();
+      fetchManutencoes();
       
       // Fechar o modal
       setSelectedWork(null);
+      
+      toast.success('Aceitação do orçamento cancelada com sucesso!', {
+        duration: 3000,
+        position: 'top-right',
+        style: {
+          background: '#FF9800',
+          color: '#fff',
+          fontWeight: 'bold',
+          padding: '16px',
+          borderRadius: '8px',
+        },
+        icon: '⚠️',
+      });
     } catch (error) {
       console.error('Erro ao cancelar aceitação:', error);
-      alert('Erro ao cancelar aceitação do orçamento. Por favor, tente novamente.');
+      toast.error('Erro ao cancelar aceitação do orçamento: ' + error.message, {
+        duration: 4000,
+        position: 'top-right',
+      });
+    } finally {
+      setLoading(false);
     }
   };
 

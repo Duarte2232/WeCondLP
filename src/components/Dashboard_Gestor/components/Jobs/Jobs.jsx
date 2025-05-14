@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiArrowLeft, FiSearch, FiPlus } from 'react-icons/fi';
-import { collection, query, where, getDocs, doc, updateDoc, getDoc, deleteDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, updateDoc, getDoc, deleteDoc, writeBatch, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../../../services/firebase';
 import { useAuth } from '../../../../contexts/auth';
 import { toast } from 'react-hot-toast';
@@ -195,22 +195,69 @@ function Jobs() {
 
   const handleComplete = async (workId, newStatus) => {
     try {
+      console.log(`Iniciando handleComplete para obra ${workId}, novo status: ${newStatus}`);
+      
+      if (!workId) {
+        console.error('ID da obra não fornecido');
+        return;
+      }
+      
       const workRef = doc(db, 'ObrasPedidos', workId);
+      
+      // Verificar se a obra existe
+      const workDoc = await getDoc(workRef);
+      if (!workDoc.exists()) {
+        console.error(`Obra com ID ${workId} não encontrada`);
+        return;
+      }
+      
+      console.log(`Atualizando status da obra ${workId} para ${newStatus}`);
+      
+      // Atualizar o status
       await updateDoc(workRef, {
-        status: newStatus
+        status: newStatus,
+        completedAt: newStatus === 'concluido' ? serverTimestamp() : null
       });
+      
+      console.log(`Status da obra atualizado com sucesso para ${newStatus}`);
+      
       // Update the local state
       setObras(prevObras => 
         prevObras.map(obra => 
-          obra.id === workId ? { ...obra, status: newStatus } : obra
+          obra.id === workId ? { 
+            ...obra, 
+            status: newStatus,
+            completedAt: newStatus === 'concluido' ? new Date() : null
+          } : obra
         )
       );
+      
+      console.log('Estado local atualizado');
+      
       // Close the modal
       setSelectedWork(null);
-      // Optionally refresh the data
+      
+      // Exibir mensagem de sucesso
+      toast.success(`Obra ${newStatus === 'concluido' ? 'concluída' : 'reaberta'} com sucesso!`, {
+        duration: 3000,
+        position: 'top-right',
+        style: {
+          background: '#4CAF50',
+          color: '#fff',
+          fontWeight: 'bold',
+          padding: '16px',
+          borderRadius: '8px',
+        },
+      });
+      
+      // Refresh the data
       fetchObras();
     } catch (error) {
       console.error("Erro ao atualizar status da obra:", error);
+      toast.error("Erro ao atualizar status: " + error.message, {
+        duration: 4000,
+        position: 'top-right',
+      });
     }
   };
 
@@ -242,14 +289,19 @@ function Jobs() {
         throw new Error('Orçamento não encontrado');
       }
       
+      const orcamentoData = orcamentoDoc.data();
+      
       // Atualizar status da obra
       await updateDoc(workRef, {
-        status: 'em-andamento'
+        status: 'em-andamento',
+        technicianId: orcamentoData.technicianId,
+        acceptedOrcamentoId: orcamentoId
       });
       
       // Atualizar status do orçamento
       await updateDoc(orcamentoRef, {
-        aceito: true
+        aceito: true,
+        dataAceitacao: serverTimestamp()
       });
 
       // Atualizar estado local das obras
@@ -259,13 +311,15 @@ function Jobs() {
             // Create a safe copy of the obra
             const updatedObra = {
               ...obra,
-              status: 'em-andamento'
+              status: 'em-andamento',
+              technicianId: orcamentoData.technicianId,
+              acceptedOrcamentoId: orcamentoId
             };
             
             // Update orcamentos if they exist
             if (Array.isArray(obra.orcamentos)) {
               updatedObra.orcamentos = obra.orcamentos.map(orc => 
-                orc.id === orcamentoId ? { ...orc, aceito: true } : orc
+                orc.id === orcamentoId ? { ...orc, aceito: true, dataAceitacao: new Date() } : orc
               );
             }
             
@@ -279,13 +333,15 @@ function Jobs() {
       if (selectedWork && selectedWork.id === workId) {
         const updatedWork = {
           ...selectedWork,
-          status: 'em-andamento'
+          status: 'em-andamento',
+          technicianId: orcamentoData.technicianId,
+          acceptedOrcamentoId: orcamentoId
         };
 
         // Update orcamentos in selectedWork if they exist
         if (Array.isArray(selectedWork.orcamentos)) {
           updatedWork.orcamentos = selectedWork.orcamentos.map(orc =>
-            orc.id === orcamentoId ? { ...orc, aceito: true } : orc
+            orc.id === orcamentoId ? { ...orc, aceito: true, dataAceitacao: new Date() } : orc
           );
         }
 
@@ -293,10 +349,27 @@ function Jobs() {
       }
 
       // Show success message
-      toast.success('Orçamento aceito com sucesso!');
+      toast.success('Orçamento aceito com sucesso!', {
+        duration: 3000,
+        position: 'top-right',
+        style: {
+          background: '#4CAF50',
+          color: '#fff',
+          fontWeight: 'bold',
+          padding: '16px',
+          borderRadius: '8px',
+        },
+        icon: '✅',
+      });
+      
+      // Recarregar os dados em segundo plano
+      fetchObras();
     } catch (error) {
       console.error('Erro ao aceitar orçamento:', error);
-      toast.error('Erro ao aceitar orçamento: ' + error.message);
+      toast.error('Erro ao aceitar orçamento: ' + error.message, {
+        duration: 4000,
+        position: 'top-right',
+      });
     } finally {
       setLoading(false);
     }
@@ -304,46 +377,78 @@ function Jobs() {
 
   const handleDelete = async (workId) => {
     if (!workId) return;
-    if (window.confirm('Tem certeza que deseja eliminar esta obra?')) {
+    if (window.confirm('Tem certeza que deseja eliminar esta obra? Todos os orçamentos associados também serão excluídos.')) {
       try {
         // First, delete all associated orçamentos
+        console.log(`Buscando orçamentos associados à obra ID: ${workId}`);
+        
         const orcamentosRef = collection(db, 'ObrasOrçamentos');
         const q = query(orcamentosRef, where('workId', '==', workId));
         const querySnapshot = await getDocs(q);
         
-        // Delete each orçamento
-        const deleteOrcamentosPromises = querySnapshot.docs.map(doc => 
-          deleteDoc(doc.ref)
-        );
-        await Promise.all(deleteOrcamentosPromises);
+        if (!querySnapshot.empty) {
+          console.log(`Encontrados ${querySnapshot.size} orçamentos para excluir`);
+          
+          // Usar batch para excluir vários documentos de uma vez
+          const batch = writeBatch(db);
+          
+          querySnapshot.forEach((orcamentoDoc) => {
+            batch.delete(orcamentoDoc.ref);
+          });
+          
+          // Executar o batch
+          await batch.commit();
+          console.log(`${querySnapshot.size} orçamentos excluídos com sucesso`);
+        } else {
+          console.log('Nenhum orçamento associado encontrado');
+        }
 
         // Then delete the work itself
         const workRef = doc(db, 'ObrasPedidos', workId);
         await deleteDoc(workRef);
+        console.log('Obra excluída com sucesso');
         
         // Update local state
         setObras(prevObras => prevObras.filter(obra => obra.id !== workId));
         setSelectedWork(null);
+        
+        toast.success('Obra excluída com sucesso!', {
+          duration: 3000,
+          position: 'top-right',
+          style: {
+            background: '#4CAF50',
+            color: '#fff',
+            fontWeight: 'bold',
+            padding: '16px',
+            borderRadius: '8px',
+          },
+        });
       } catch (error) {
         console.error('Erro ao eliminar obra:', error);
-        alert('Ocorreu um erro ao eliminar a obra.');
+        toast.error('Ocorreu um erro ao eliminar a obra: ' + error.message, {
+          duration: 4000,
+          position: 'top-right',
+        });
       }
     }
   };
 
   const handleCancelarAceitacao = async (workId, orcamentoId, isMaintenance = false) => {
     try {
+      setLoading(true);
       // Atualizar o orçamento na coleção ObrasOrçamentos
       const orcamentoRef = doc(db, 'ObrasOrçamentos', orcamentoId);
       await updateDoc(orcamentoRef, {
-        aceito: false
+        aceito: false,
+        dataAceitacao: null
       });
 
       // Atualizar o status da obra
       const obraRef = doc(db, 'ObrasPedidos', workId);
       await updateDoc(obraRef, {
         status: 'disponivel',
-        technicianId: null
+        technicianId: null,
+        acceptedOrcamentoId: null
       });
 
       // Atualizar o estado local
@@ -354,13 +459,14 @@ function Jobs() {
             const updatedObra = {
               ...obra,
               status: 'disponivel',
-              technicianId: null
+              technicianId: null,
+              acceptedOrcamentoId: null
             };
             
             // Only modify orcamentos if they exist and are an array
             if (Array.isArray(obra.orcamentos)) {
               updatedObra.orcamentos = obra.orcamentos.map(orc => 
-                orc.id === orcamentoId ? { ...orc, aceito: false } : orc
+                orc.id === orcamentoId ? { ...orc, aceito: false, dataAceitacao: null } : orc
               );
             }
             
@@ -375,13 +481,14 @@ function Jobs() {
         const updatedWork = {
           ...selectedWork,
           status: 'disponivel',
-          technicianId: null
+          technicianId: null,
+          acceptedOrcamentoId: null
         };
         
         // Only modify orcamentos if they exist and are an array
         if (Array.isArray(selectedWork.orcamentos)) {
           updatedWork.orcamentos = selectedWork.orcamentos.map(orc => 
-            orc.id === orcamentoId ? { ...orc, aceito: false } : orc
+            orc.id === orcamentoId ? { ...orc, aceito: false, dataAceitacao: null } : orc
           );
         }
         
@@ -389,13 +496,29 @@ function Jobs() {
       }
 
       // Success message
-      toast.success('Orçamento cancelado com sucesso!');
+      toast.success('Aceitação do orçamento cancelada com sucesso!', {
+        duration: 3000,
+        position: 'top-right',
+        style: {
+          background: '#FF9800',
+          color: '#fff',
+          fontWeight: 'bold',
+          padding: '16px',
+          borderRadius: '8px',
+        },
+        icon: '⚠️',
+      });
       
       // Recarregar os dados em segundo plano
       fetchObras();
     } catch (error) {
       console.error('Erro ao cancelar aceitação:', error);
-      toast.error('Erro ao cancelar aceitação do orçamento. Por favor, tente novamente.');
+      toast.error('Erro ao cancelar aceitação do orçamento: ' + error.message, {
+        duration: 4000,
+        position: 'top-right',
+      });
+    } finally {
+      setLoading(false);
     }
   };
 

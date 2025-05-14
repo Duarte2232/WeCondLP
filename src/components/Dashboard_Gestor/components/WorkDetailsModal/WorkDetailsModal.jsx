@@ -1,26 +1,37 @@
 import React, { useState, useEffect } from 'react';
-import { FiX, FiEdit2, FiTrash2, FiCheck, FiDownload, FiRotateCcw, FiCheckCircle, FiShare2, FiMessageSquare } from 'react-icons/fi';
-import { doc, getDoc, collection, query, where, getDocs, updateDoc } from 'firebase/firestore';
+import { FiX, FiEdit2, FiTrash2, FiCheck, FiDownload, FiRotateCcw, FiCheckCircle, FiShare2, FiMessageSquare, FiUser } from 'react-icons/fi';
+import { doc, getDoc, collection, query, where, getDocs, updateDoc, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../../../services/firebase';
 import './WorkDetailsModal.css';
 import { useNavigate } from 'react-router-dom';
 import { getAuth } from 'firebase/auth';
-import { addDoc, serverTimestamp } from 'firebase/firestore';
+import { toast } from 'react-hot-toast';
+import RatingModal from '../RatingModal/RatingModal';
 
 const WorkDetailsModal = ({ work, onClose, onEdit, onDelete, onComplete, onFileDownload, onAcceptOrcamento, workOrcamentos, onCancelarAceitacao }) => {
-  if (!work) return null;
-  
+  // Declarar todos os hooks primeiro, independentemente da condição
   const [technicianNames, setTechnicianNames] = useState({});
   const [orcamentos, setOrcamentos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
-  const [editData, setEditData] = useState({ ...work });
+  const [editData, setEditData] = useState({});
   const [saving, setSaving] = useState(false);
+  const [showRatingModal, setShowRatingModal] = useState(false);
+  const [technician, setTechnician] = useState(null);
   const navigate = useNavigate();
   const auth = getAuth();
   
+  // Atualiza editData quando work mudar
+  useEffect(() => {
+    if (work) {
+      setEditData({ ...work });
+    }
+  }, [work]);
+  
   // Fetch orcamentos and technician names when component mounts
   useEffect(() => {
+    if (!work) return; // Guarda de segurança dentro do useEffect
+    
     const fetchData = async () => {
       setLoading(true);
       try {
@@ -31,7 +42,7 @@ const WorkDetailsModal = ({ work, onClose, onEdit, onDelete, onComplete, onFileD
         }
         // Buscar da coleção 'orcamentos' se não tiver orçamentos nas props
         else {
-          if (work.isMaintenance) {
+          if (work?.isMaintenance) {
             console.log("Buscando orçamentos do Firestore para manutencaoId:", work.id);
             const orcamentosRef = collection(db, 'ManutençãoOrçamentos');
             const q = query(orcamentosRef, where('manutencaoId', '==', work.id));
@@ -63,12 +74,30 @@ const WorkDetailsModal = ({ work, onClose, onEdit, onDelete, onComplete, onFileD
     };
     
     fetchData();
-  }, [work.id, work.isMaintenance, workOrcamentos]);
+  
+    // Buscar dados do técnico associado à obra, se existir
+    const fetchTechnicianData = async () => {
+      if (work?.technicianId) {
+        try {
+          const technicianDoc = await getDoc(doc(db, 'users', work.technicianId));
+          if (technicianDoc.exists()) {
+            setTechnician(technicianDoc.data());
+          }
+        } catch (error) {
+          console.error('Erro ao buscar dados do técnico:', error);
+        }
+      }
+    };
+    
+    fetchTechnicianData();
+  }, [work, workOrcamentos]);
+  
   
   // Fetch technician names when orcamentos are loaded
   useEffect(() => {
-    const fetchTechnicianNames = async () => {
-      if (orcamentos.length > 0) {
+    if (!work) return; // Adicionar guarda de segurança para evitar erros
+    if (orcamentos.length > 0) {
+      const fetchTechnicianNames = async () => {
         const namesMap = { ...technicianNames };
         
         for (const orcamento of orcamentos) {
@@ -88,46 +117,146 @@ const WorkDetailsModal = ({ work, onClose, onEdit, onDelete, onComplete, onFileD
           }
         }
         setTechnicianNames(namesMap);
-      }
-    };
-    
-    fetchTechnicianNames();
-  }, [orcamentos]);
+      };
+      
+      fetchTechnicianNames();
+    }
+  }, [orcamentos, work]);
 
   // Log work data as a side effect, but handle it in a way that won't cause React errors
-  if (process.env.NODE_ENV === 'development') {
-    // Safe console logging without hooks
-    console.log('[DEBUG] WorkDetailsModal rendered with work:', {
-      id: work.id,
-      title: work.title,
-      hasOrcamentos: Array.isArray(work.orcamentos),
-      orcamentosCount: Array.isArray(work.orcamentos) ? work.orcamentos.length : 'N/A',
-      orcamentosType: typeof work.orcamentos,
-      orcamentosIsObject: work.orcamentos && typeof work.orcamentos === 'object',
-      orcamentosIsArray: Array.isArray(work.orcamentos),
-    });
+  useEffect(() => {
+    if (!work) return; // Guarda de segurança
     
-    console.log('[DEBUG] WorkDetailsModal using orcamentos:', orcamentos);
+    if (process.env.NODE_ENV === 'development') {
+      // Safe console logging dentro de um useEffect
+      console.log('[DEBUG] WorkDetailsModal rendered with work:', {
+        id: work.id,
+        title: work.title,
+        hasOrcamentos: Array.isArray(work.orcamentos),
+        orcamentosCount: Array.isArray(work.orcamentos) ? work.orcamentos.length : 'N/A',
+        orcamentosType: typeof work.orcamentos,
+        orcamentosIsObject: work.orcamentos && typeof work.orcamentos === 'object',
+        orcamentosIsArray: Array.isArray(work.orcamentos),
+      });
+      
+      console.log('[DEBUG] WorkDetailsModal using orcamentos:', orcamentos);
+    }
+  }, [work, orcamentos]);
+
+  // Se work for null, renderiza null após a declaração de todos os hooks e useEffects
+  if (!work) {
+    return null;
   }
 
   const handleComplete = () => {
-    const newStatus = work.status === 'concluido' ? 'disponivel' : 'concluido';
-    onComplete(work.id, newStatus);
+    // Verificar se estamos mudando de um status diferente para concluído
+    const mudandoParaConcluido = work.status !== 'concluido';
+    
+    console.log('Status atual:', work.status);
+    console.log('Técnico associado:', work.technicianId);
+    console.log('Mudando para concluído:', mudandoParaConcluido);
+    
+    // Se estamos mudando para "concluido" e temos um técnico associado, mostrar modal de avaliação
+    if (mudandoParaConcluido && work.technicianId) {
+      console.log('Abrindo modal de avaliação');
+      // Verificar dados do técnico
+      if (technician) {
+        console.log('Dados do técnico disponíveis:', technician);
+      } else {
+        console.log('Dados do técnico não disponíveis, apenas ID:', work.technicianId);
+      }
+      
+      setShowRatingModal(true);
+    } else {
+      // Caso esteja revertendo de concluído para disponível ou não tenha técnico associado
+      const newStatus = work.status === 'concluido' ? 'disponivel' : 'concluido';
+      console.log('Atualizando status diretamente para:', newStatus);
+      onComplete(work.id, newStatus);
+    }
+  };
+  
+  const handleRatingSubmit = async (ratingData) => {
+    try {
+      console.log('Iniciando o envio da avaliação:', ratingData);
+      console.log('Dados da obra:', work);
+      console.log('UID do usuário atual:', auth.currentUser?.uid);
+      
+      setShowRatingModal(false);
+      
+      // Verificações de dados críticos antes de salvar
+      if (!work.technicianId) {
+        console.error('Erro: technicianId não disponível');
+        throw new Error('ID do técnico não disponível');
+      }
+      
+      if (!auth.currentUser?.uid) {
+        console.error('Erro: usuário não autenticado');
+        throw new Error('Usuário não autenticado');
+      }
+      
+      // Criar a avaliação na coleção "avaliacoes" com dados validados
+      const avaliacaoData = {
+        technicianId: work.technicianId,
+        userId: auth.currentUser.uid,
+        workId: work.id,
+        servicoTitulo: work.title || 'Serviço sem título',
+        rating: ratingData.rating,
+        comentario: ratingData.comment || '',
+        createdAt: serverTimestamp(),
+        isMaintenance: work.isMaintenance || false
+      };
+      
+      console.log('Dados da avaliação a serem salvos:', avaliacaoData);
+      
+      // Salvar no Firestore
+      const docRef = await addDoc(collection(db, 'avaliacoes'), avaliacaoData);
+      console.log('Avaliação salva com sucesso! ID do documento:', docRef.id);
+      
+      // Atualizar o status da obra para concluído
+      onComplete(work.id, 'concluido');
+      
+      toast.success('Avaliação enviada com sucesso!', {
+        duration: 3000,
+        position: 'top-right',
+        style: {
+          background: '#4CAF50',
+          color: '#fff',
+          fontWeight: 'bold',
+          padding: '16px',
+          borderRadius: '8px',
+        },
+      });
+    } catch (error) {
+      console.error('Erro detalhado ao enviar avaliação:', error);
+      console.error('Stack trace:', error.stack);
+      toast.error('Erro ao enviar avaliação: ' + error.message, {
+        duration: 4000,
+        position: 'top-right',
+      });
+    }
   };
   
   const handleAcceptOrcamento = (orcamentoId) => {
     if (onAcceptOrcamento) {
-      // Update local state immediately
+      // Update local state immediately to improve UX
       setOrcamentos(prevOrcamentos => 
         prevOrcamentos.map(orc => 
-          orc.id === orcamentoId ? { ...orc, aceito: true } : orc
+          orc.id === orcamentoId ? { 
+            ...orc, 
+            aceito: true, 
+            dataAceitacao: new Date() 
+          } : orc
         )
       );
       
-      // Call the parent handler
-      onAcceptOrcamento(work.id, orcamentoId);
+      // Call the parent handler with the correct parameters
+      onAcceptOrcamento(work.id, orcamentoId, work.isMaintenance);
     } else {
       console.error('onAcceptOrcamento function not provided');
+      toast.error('Não foi possível aceitar o orçamento. Função de aceitação não fornecida.', {
+        duration: 4000,
+        position: 'top-right',
+      });
     }
   };
 
@@ -152,9 +281,23 @@ const WorkDetailsModal = ({ work, onClose, onEdit, onDelete, onComplete, onFileD
       const workRef = doc(db, collectionName, work.id);
       await updateDoc(workRef, editData);
       setIsEditing(false);
+      toast.success('Dados atualizados com sucesso!', {
+        duration: 3000,
+        position: 'top-right',
+        style: {
+          background: '#4CAF50',
+          color: '#fff',
+          fontWeight: 'bold',
+          padding: '16px',
+          borderRadius: '8px',
+        },
+      });
       window.location.reload(); // Força atualização dos dados (pode ser melhorado para atualizar só o estado)
     } catch (error) {
-      alert('Erro ao atualizar: ' + error.message);
+      toast.error('Erro ao atualizar: ' + error.message, {
+        duration: 4000,
+        position: 'top-right',
+      });
     } finally {
       setSaving(false);
     }
@@ -162,86 +305,29 @@ const WorkDetailsModal = ({ work, onClose, onEdit, onDelete, onComplete, onFileD
 
   // Função para iniciar conversa com o técnico do orçamento
   const handleMessageTechnician = async (orcamento) => {
+    if (!orcamento || !orcamento.technicianId) {
+      toast.error('Não foi possível identificar o técnico para iniciar a conversa.');
+      return;
+    }
+    
     try {
-      // Buscar dados do técnico
-      const technicianId = orcamento.technicianId;
-      if (!technicianId) throw new Error('ID do técnico não encontrado');
-      const techDoc = await getDoc(doc(db, 'users', technicianId));
-      if (!techDoc.exists()) throw new Error('Dados do técnico não encontrados');
-      const techData = techDoc.data();
-
-      // Buscar dados do gestor
-      const gestorId = auth.currentUser.uid;
-      const gestorDoc = await getDoc(doc(db, 'users', gestorId));
-      if (!gestorDoc.exists()) throw new Error('Dados do gestor não encontrados');
-      const gestorData = gestorDoc.data();
-
-      // Verificar se já existe conversa para esta obra e estes participantes
-      const conversationsRef = collection(db, 'conversations');
-      const q = query(
-        conversationsRef,
-        where('workId', '==', work.id),
-        where('gestorId', '==', gestorId),
-        where('technicianId', '==', technicianId)
-      );
-      const conversationSnapshot = await getDocs(q);
-      let conversationId;
-      if (conversationSnapshot.empty) {
-        // Criar nova conversa
-        const conversationData = {
-          workId: work.id,
-          workTitle: work.title,
-          gestorId: gestorId,
-          technicianId: technicianId,
-          createdAt: serverTimestamp(),
-          lastMessage: null,
-          lastMessageTimestamp: null,
-          messages: []
-        };
-        const newConversationRef = await addDoc(conversationsRef, conversationData);
-        conversationId = newConversationRef.id;
-      } else {
-        // Procurar conversa exata entre gestor, técnico e obra
-        const found = conversationSnapshot.docs.find(docSnap => {
-          const data = docSnap.data();
-          return data.gestorId === gestorId && data.technicianId === technicianId && data.workId === work.id;
-        });
-        if (found) {
-          conversationId = found.id;
-        } else {
-          // Criar nova conversa se não existir exata
-          const conversationData = {
-            workId: work.id,
-            workTitle: work.title,
-            gestorId: gestorId,
-            technicianId: technicianId,
-            createdAt: serverTimestamp(),
-            lastMessage: null,
-            lastMessageTimestamp: null,
-            messages: []
-          };
-          const newConversationRef = await addDoc(conversationsRef, conversationData);
-          conversationId = newConversationRef.id;
-        }
-      }
-      // Redirecionar para a página de mensagens do gestor
-      navigate('/dashgestor/mensagens', {
-        state: {
-          conversationId,
-          technicianId,
-          technicianName: techData.empresaNome || techData.name || 'Técnico',
-          obraId: work.id,
-          obraTitle: work.title
-        }
-      });
+      // Redirecionar para a página de mensagens com o técnico selecionado
+      navigate(`/dashgestor/mensagens?tecnico=${orcamento.technicianId}`);
     } catch (error) {
-      alert('Erro ao iniciar conversa: ' + error.message);
       console.error('Erro ao iniciar conversa:', error);
+      toast.error('Erro ao iniciar conversa. Por favor, tente novamente.');
     }
   };
 
-  // Antes do return, obter o orçamento aceite:
-  const orcamentoAceite = orcamentos.find(o => o.aceito);
+  const handleViewTechnicianProfile = (technicianId) => {
+    if (!technicianId) {
+      toast.error('ID do técnico não disponível');
+      return;
+    }
+    
+    // Navegar para a página de perfil do técnico
+    navigate(`/dashgestor/tecnicos/${technicianId}`);
+  };
 
   return (
     <div className="work-details-modal-overlay" onClick={(e) => {
@@ -308,11 +394,11 @@ const WorkDetailsModal = ({ work, onClose, onEdit, onDelete, onComplete, onFileD
           ) : (
             <div className="work-details-status-row">
               <div className="status-badges">
-                <span className={`status-badge ${work.status.toLowerCase()}`}>
-                  {work.status}
+                <span className={`status-badge ${work?.status ? work.status.toLowerCase() : 'disponivel'}`}>
+                  {work?.status || 'Disponível'}
                 </span>
                 <span className="category-badge">
-                  {work.category}
+                  {work?.category || 'Não categorizado'}
                 </span>
               </div>
               <div className="action-buttons">
@@ -323,10 +409,10 @@ const WorkDetailsModal = ({ work, onClose, onEdit, onDelete, onComplete, onFileD
                   <FiTrash2 /> Eliminar
                 </button>
                 <button 
-                  className={`action-btn ${work.status === 'concluido' ? 'undo' : 'complete'}`}
+                  className={`action-btn ${work?.status === 'concluido' ? 'undo' : 'complete'}`}
                   onClick={handleComplete}
                 >
-                  {work.status === 'concluido' ? (
+                  {work?.status === 'concluido' ? (
                     <>
                       <FiRotateCcw />
                       Anular
@@ -444,10 +530,14 @@ const WorkDetailsModal = ({ work, onClose, onEdit, onDelete, onComplete, onFileD
                               onClick={(e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
-                                // Update local state immediately
+                                // Update local state immediately para melhorar a UX
                                 setOrcamentos(prevOrcamentos => 
                                   prevOrcamentos.map(orc => 
-                                    orc.id === orcamento.id ? { ...orc, aceito: false } : orc
+                                    orc.id === orcamento.id ? { 
+                                      ...orc, 
+                                      aceito: false,
+                                      dataAceitacao: null
+                                    } : orc
                                   )
                                 );
                                 onCancelarAceitacao(work.id, orcamento.id, work.isMaintenance);
@@ -477,6 +567,16 @@ const WorkDetailsModal = ({ work, onClose, onEdit, onDelete, onComplete, onFileD
                           >
                             <FiMessageSquare /> Mensagens
                           </button>
+                          <button
+                            className="action-btn ver-perfil"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleViewTechnicianProfile(orcamento.technicianId);
+                            }}
+                          >
+                            <FiUser /> Ver Perfil
+                          </button>
                         </div>
                       </div>
                     );
@@ -491,6 +591,14 @@ const WorkDetailsModal = ({ work, onClose, onEdit, onDelete, onComplete, onFileD
           </div>
         </div>
       </div>
+      
+      {showRatingModal && (
+        <RatingModal 
+          onClose={() => setShowRatingModal(false)} 
+          onSubmit={handleRatingSubmit}
+          technician={technician}
+        />
+      )}
     </div>
   );
 };

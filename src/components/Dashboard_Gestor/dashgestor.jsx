@@ -29,7 +29,7 @@ import JobsComponent from './components/Jobs/Jobs';
 import MaintenanceComponent from './components/Maintenance/Maintenance';
 import WorkDetailsModal from './components/WorkDetailsModal/WorkDetailsModal';
 import MaintenanceForm from './components/Maintenance/MaintenanceForm';
-
+import TechnicianProfile from './components/TechnicianProfile/TechnicianProfile';
 
 function DashGestor() {
   const { user } = useAuth();
@@ -182,7 +182,7 @@ function DashGestor() {
         if (newSet.has(workId)) {
           console.log('Collapsing work details');
           newSet.delete(workId);
-        } else {
+      } else {
           console.log('Expanding work details');
           newSet.add(workId);
         }
@@ -345,7 +345,7 @@ function DashGestor() {
 
   const handleSubmit = async (e) => {
     if (e && e.preventDefault) {
-      e.preventDefault();
+    e.preventDefault();
     }
     
     setIsSubmitting(true);
@@ -384,7 +384,7 @@ function DashGestor() {
               }
               
               processedFiles.push(fileData);
-            } catch (error) {
+      } catch (error) {
               console.error(`Todos os métodos de upload falharam para ${file.name}:`, error);
               // Continue com os outros arquivos mesmo se um falhar
             }
@@ -416,7 +416,7 @@ function DashGestor() {
         alert('Obra criada com sucesso!');
         setShowNewWorkForm(false);
         navigate('/dashgestor/obras');
-      } else {
+    } else {
         // Lógica para atualizar obra existente
         const collectionName = editingWork.isMaintenance ? 'ManutençãoPedidos' : 'ObrasPedidos';
         const workRef = doc(db, collectionName, editingWork.id);
@@ -443,12 +443,12 @@ function DashGestor() {
       }
 
       // Resetar o formulário
-      setNewWork({
-        title: '',
-        description: '',
+        setNewWork({
+          title: '',
+          description: '',
         status: 'Pendente',
-        category: '',
-        priority: '',
+          category: '',
+          priority: '',
         location: {
           morada: '',
           codigoPostal: '',
@@ -456,7 +456,7 @@ function DashGestor() {
           andar: ''
         },
         files: [],
-        date: new Date().toISOString().split('T')[0],
+          date: new Date().toISOString().split('T')[0],
         isMaintenance: false,
         orcamentos: {
           minimo: '',
@@ -465,7 +465,7 @@ function DashGestor() {
         prazoOrcamentos: ''
       });
       
-    } catch (error) {
+      } catch (error) {
       console.error('Erro ao salvar:', error);
       alert(error.message || 'Erro ao salvar');
     } finally {
@@ -477,21 +477,72 @@ function DashGestor() {
   const handleDelete = async (workId, isMaintenance) => {
     try {
       let collectionName = isMaintenance ? 'ManutençãoPedidos' : 'ObrasPedidos';
+      let orcamentosCollectionName = isMaintenance ? 'ManutençãoOrçamentos' : 'ObrasOrçamentos';
+      
       const workRef = doc(db, collectionName, workId);
       const workDoc = await getDoc(workRef);
+      
       if (!workDoc.exists()) {
         console.error('Obra/Manutenção não encontrada no Firestore. ID:', workId);
         return;
       }
-      if (window.confirm('Tem certeza que deseja excluir este item?')) {
+      
+      if (window.confirm('Tem certeza que deseja excluir este item? Todos os orçamentos associados também serão excluídos.')) {
+        // 1. Primeiro, buscar e excluir todos os orçamentos associados
+        console.log(`Buscando orçamentos associados à ${isMaintenance ? 'manutenção' : 'obra'} ID: ${workId}`);
+        
+        const orcamentosRef = collection(db, orcamentosCollectionName);
+        const orcamentosQuery = query(orcamentosRef, 
+          where(isMaintenance ? 'manutencaoId' : 'workId', '==', workId)
+        );
+        
+        const orcamentosSnapshot = await getDocs(orcamentosQuery);
+        
+        if (!orcamentosSnapshot.empty) {
+          console.log(`Encontrados ${orcamentosSnapshot.size} orçamentos para excluir`);
+          
+          // Usar batch para excluir vários documentos de uma vez
+          const batch = writeBatch(db);
+          
+          orcamentosSnapshot.forEach((orcamentoDoc) => {
+            batch.delete(orcamentoDoc.ref);
+          });
+          
+          // Executar o batch
+          await batch.commit();
+          console.log(`${orcamentosSnapshot.size} orçamentos excluídos com sucesso`);
+        } else {
+          console.log('Nenhum orçamento associado encontrado');
+        }
+        
+        // 2. Agora excluir a obra/manutenção
         await deleteDoc(workRef);
+        console.log(`${isMaintenance ? 'Manutenção' : 'Obra'} excluída com sucesso`);
+        
+        // 3. Atualizar o estado local
         setWorks(prevWorks => prevWorks.filter(w => w.id !== workId));
         setMaintenances(prev => prev.filter(m => m.id !== workId));
         setSelectedWork(null);
+        
+        // 4. Mostrar mensagem de sucesso
+        toast.success(`${isMaintenance ? 'Manutenção' : 'Obra'} excluída com sucesso!`, {
+          duration: 3000,
+          position: 'top-right',
+          style: {
+            background: '#4CAF50',
+            color: '#fff',
+            fontWeight: 'bold',
+            padding: '16px',
+            borderRadius: '8px',
+          },
+        });
       }
     } catch (error) {
       console.error('Erro ao deletar obra/manutenção:', error);
-      alert('Erro ao deletar: ' + error.message);
+      toast.error('Erro ao deletar: ' + error.message, {
+        duration: 4000,
+        position: 'top-right',
+      });
     }
   };
 
@@ -617,10 +668,28 @@ function DashGestor() {
         };
       });
 
-      // Fechar o modal
-      setSelectedWork(null);
+      // Atualizar o selectedWork se estiver aberto
+      if (selectedWork && selectedWork.id === workId) {
+        setSelectedWork(prev => ({
+          ...prev,
+          status: 'em-andamento',
+          technicianId: orcamentoData.technicianId,
+          acceptedOrcamentoId: orcamentoId
+        }));
+      }
       
-      alert('Orçamento aceito com sucesso!');
+      toast.success('Orçamento aceito com sucesso!', {
+        duration: 3000,
+        position: 'top-right',
+        style: {
+          background: '#4CAF50',
+          color: '#fff',
+          fontWeight: 'bold',
+          padding: '16px',
+          borderRadius: '8px',
+        },
+        icon: '✅',
+      });
     } catch (error) {
       console.error('Error accepting orçamento:', {
         workId,
@@ -629,7 +698,10 @@ function DashGestor() {
         errorMessage: error.message,
         errorStack: error.stack
       });
-      alert('Erro ao aceitar orçamento: ' + error.message);
+      toast.error('Erro ao aceitar orçamento: ' + error.message, {
+        duration: 4000,
+        position: 'top-right',
+      });
     }
   };
 
@@ -658,9 +730,9 @@ function DashGestor() {
       // Atualizar o estado local
       setWorks(prevWorks => 
         prevWorks.map(work => 
-          work.id === workId
+        work.id === workId 
             ? { ...work, orcamentos: updatedOrcamentos }
-            : work
+          : work
         )
       );
 
@@ -721,7 +793,7 @@ function DashGestor() {
     try {
       // Navigate directly to messages page
       navigate('/gestor/messages');
-    } catch (error) {
+      } catch (error) {
       console.error('Error starting conversation:', error);
       alert('Erro ao iniciar conversa. Tente novamente.');
     }
@@ -823,8 +895,8 @@ function DashGestor() {
     
     const isMaintenance = expandedItem.isMaintenance;
     const groupedFiles = groupFilesByType(expandedItem.files || []);
-    
-    return (
+
+  return (
       <div className="item-details-overlay">
         <div className="item-details-modal">
           <div className="item-details-header">
@@ -880,12 +952,12 @@ function DashGestor() {
                   {expandedItem.files.map((file, index) => (
                     <div key={index} className="file-item">
                       <span className="file-name">{file.name}</span>
-                      <button 
+          <button 
                         className="file-download-btn" 
                         onClick={() => handleFileDownload(file, file.name)}
-                      >
+          >
                         <FiDownload />
-                      </button>
+          </button>
                     </div>
                   ))}
                 </div>
@@ -897,11 +969,11 @@ function DashGestor() {
                 <h3>Detalhes da Manutenção</h3>
                 <p>Frequência: {expandedItem.frequency || 'Única'}</p>
                 {expandedItem.nextDate && <p>Próxima Data: {new Date(expandedItem.nextDate).toLocaleDateString()}</p>}
-              </div>
+        </div>
             )}
             
             <div className="item-details-actions">
-              <button 
+            <button 
                 className="edit-button"
                 onClick={() => {
                   closeItemDetails();
@@ -909,18 +981,18 @@ function DashGestor() {
                 }}
               >
                 <FiEdit2 /> Editar
-              </button>
-              <button 
+            </button>
+                  <button 
                 className="delete-button"
                 onClick={() => {
-                  if (window.confirm(`Tem certeza que deseja excluir ${expandedItem.isMaintenance ? 'esta manutenção' : 'esta obra'}?`)) {
+                  if (window.confirm(`Tem certeza que deseja excluir ${expandedItem.isMaintenance ? 'esta manutenção' : 'esta obra'}? Todos os orçamentos associados também serão excluídos.`)) {
                     closeItemDetails();
                     handleDelete(expandedItem.id, expandedItem.isMaintenance);
                   }
                 }}
               >
                 <FiX /> Excluir
-              </button>
+                  </button>
               {isMaintenance ? (
                 <button 
                   className="view-button"
@@ -941,11 +1013,11 @@ function DashGestor() {
                 >
                   <FiEye /> Ver Todas Obras
                 </button>
-              )}
-            </div>
+                  )}
+                </div>
+              </div>
           </div>
         </div>
-      </div>
     );
   };
 
@@ -1009,13 +1081,33 @@ function DashGestor() {
         };
       });
 
-      // Fechar o modal
-      setSelectedWork(null);
+      // Atualizar o selectedWork se estiver aberto
+      if (selectedWork && selectedWork.id === workId) {
+        setSelectedWork(prev => ({
+          ...prev,
+          status: 'disponivel',
+          technicianId: null
+        }));
+      }
       
-      alert('Aceitação do orçamento cancelada com sucesso!');
+      toast.success('Aceitação do orçamento cancelada com sucesso!', {
+        duration: 3000,
+        position: 'top-right',
+        style: {
+          background: '#FF9800',
+          color: '#fff',
+          fontWeight: 'bold',
+          padding: '16px',
+          borderRadius: '8px',
+        },
+        icon: '⚠️',
+      });
     } catch (error) {
       console.error('Erro ao cancelar aceitação:', error);
-      alert('Erro ao cancelar aceitação do orçamento. Por favor, tente novamente.');
+      toast.error('Erro ao cancelar aceitação do orçamento: ' + error.message, {
+        duration: 4000,
+        position: 'top-right',
+      });
     }
   };
 
@@ -1025,53 +1117,53 @@ function DashGestor() {
         <h2>Gestão de Obras e Manutenções</h2>
         
         <div className="metrics">
-          <div className="metric-card">
+        <div className="metric-card">
             <h3>Total de Serviços</h3>
             <div className="metric-value">{works.length + maintenances.length}</div>
-          </div>
-          <div className="metric-card">
+        </div>
+        <div className="metric-card">
             <h3>Serviços Pendentes</h3>
             <div className="metric-value">{works.filter(w => w.status === 'disponivel').length + maintenances.filter(m => m.status === 'disponivel').length}</div>
-          </div>
-          <div className="metric-card">
-            <h3>Em Andamento</h3>
+        </div>
+        <div className="metric-card">
+          <h3>Em Andamento</h3>
             <div className="metric-value">{works.filter(w => w.status === 'em-andamento').length + maintenances.filter(m => m.status === 'em-andamento').length}</div>
-          </div>
-          <div className="metric-card">
-            <h3>Concluídas</h3>
+        </div>
+        <div className="metric-card">
+          <h3>Concluídas</h3>
             <div className="metric-value">{works.filter(w => w.status === 'concluido').length + maintenances.filter(m => m.status === 'concluido').length}</div>
-          </div>
+        </div>
         </div>
 
         <div className="filters-row">
           <div className="search-filter">
-            <FiSearch className="search-icon" />
-            <input 
-              type="text" 
-              placeholder="Pesquisar obras..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
+          <FiSearch className="search-icon" />
+          <input
+            type="text"
+            placeholder="Pesquisar obras..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
           
           <div className="filter-dropdown">
-            <select 
-              value={selectedFilters.status}
+          <select
+            value={selectedFilters.status}
               onChange={(e) => setSelectedFilters(prev => ({...prev, status: e.target.value}))}
-            >
-              <option value="">Status</option>
+          >
+            <option value="">Status</option>
               <option value="disponivel">Disponível</option>
               <option value="em-andamento">Em andamento</option>
               <option value="concluido">Concluído</option>
-            </select>
+          </select>
           </div>
           
           <div className="filter-dropdown">
-            <select 
-              value={selectedFilters.category}
+          <select
+            value={selectedFilters.category}
               onChange={(e) => setSelectedFilters(prev => ({...prev, category: e.target.value}))}
-            >
-              <option value="">Categoria</option>
+          >
+            <option value="">Categoria</option>
               <option value="eletricidade">Eletricidade</option>
               <option value="hidraulica">Hidráulica</option>
               <option value="pintura">Pintura</option>
@@ -1081,21 +1173,21 @@ function DashGestor() {
               <option value="reabilitacao de fachadas">Reabilitação de fachadas</option>
               <option value="canalizacao">Canalização</option>
               <option value="ficalização">Fiscalização</option>
-            </select>
+          </select>
           </div>
           
           <div className="filter-dropdown">
-            <select 
-              value={selectedFilters.priority}
+          <select
+            value={selectedFilters.priority}
               onChange={(e) => setSelectedFilters(prev => ({...prev, priority: e.target.value}))}
-            >
-              <option value="">Prioridade</option>
+          >
+            <option value="">Prioridade</option>
               <option value="alta">Alta</option>
               <option value="media">Média</option>
               <option value="baixa">Baixa</option>
               <option value="urgente">URGENTE (24h-48h)</option>
-            </select>
-          </div>
+          </select>
+        </div>
 
           <div className="filter-dropdown">
             <input 
@@ -1105,21 +1197,21 @@ function DashGestor() {
               onChange={(e) => setSelectedFilters(prev => ({...prev, location: e.target.value}))}
               className="location-filter"
             />
+                  </div>
           </div>
-        </div>
 
         <div className="obras-table">
           <table>
-            <thead>
-              <tr>
-                <th>Título</th>
-                <th>Data</th>
-                <th>Categoria</th>
-                <th>Prioridade</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
+          <thead>
+            <tr>
+              <th>Título</th>
+              <th>Data</th>
+              <th>Categoria</th>
+              <th>Prioridade</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
               {isLoading ? (
                 <tr>
                   <td colSpan="5" className="loading">Carregando...</td>
@@ -1137,51 +1229,53 @@ function DashGestor() {
                       {servico.location?.morada && (
                         <div className="work-subtitle">{servico.location.morada}</div>
                       )}
-                    </td>
+                  </td>
                     <td>{servico.date ? new Date(servico.date).toLocaleDateString() : ''}</td>
                     <td>{servico.category || 'Não especificada'}</td>
-                    <td>
+                  <td>
                       <span className={`priority-badge ${servico.priority?.toLowerCase() || 'baixa'}`}>
                         {servico.priority || 'Baixa'}
-                      </span>
-                    </td>
-                    <td>
+                    </span>
+                  </td>
+                  <td>
                       <span className={`status-badge ${servico.status?.toLowerCase() || 'disponivel'}`}>
                         {servico.status === 'concluido' ? 'Concluída' :
                          servico.status === 'em-andamento' ? 'Em andamento' :
                          servico.status === 'disponivel' ? 'Disponível' :
                          servico.status || 'Disponível'}
-                      </span>
-                    </td>
-                  </tr>
+                    </span>
+                  </td>
+                </tr>
                 ))
               ) : (
                 <tr>
                   <td colSpan="5" className="no-obras">
                     <p>Nenhuma obra ou manutenção encontrada</p>
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+                    </td>
+                  </tr>
+                )}
+          </tbody>
+        </table>
+            </div>
 
         <WorkDetailsModal
           work={selectedWork}
           onClose={handleCloseModal}
           onEdit={handleEdit}
-          onDelete={() => handleDelete(selectedWork.id, selectedWork.isMaintenance)}
+          onDelete={(id) => selectedWork && handleDelete(id, selectedWork.isMaintenance)}
           onComplete={(id, newStatus) => {
-            if (selectedWork.status === 'concluido' && selectedWork.previousStatus) {
-              handleComplete(id, selectedWork.previousStatus, selectedWork.isMaintenance, selectedWork.status, selectedWork.previousStatus);
-            } else {
-              handleComplete(id, 'concluido', selectedWork.isMaintenance, selectedWork.status, selectedWork.previousStatus);
+            if (selectedWork) {
+              if (selectedWork.status === 'concluido' && selectedWork.previousStatus) {
+                handleComplete(id, selectedWork.previousStatus, selectedWork.isMaintenance, selectedWork.status, selectedWork.previousStatus);
+              } else {
+                handleComplete(id, 'concluido', selectedWork.isMaintenance, selectedWork.status, selectedWork.previousStatus);
+              }
             }
           }}
           onFileDownload={handleFileDownload}
           onCancelarAceitacao={handleCancelarAceitacao}
           onAcceptOrcamento={handleAceitarOrcamento}
-          workOrcamentos={workOrcamentos[selectedWork?.id] || []}
+          workOrcamentos={selectedWork ? (workOrcamentos[selectedWork.id] || []) : []}
         />
       </>
     );
@@ -1193,7 +1287,8 @@ function DashGestor() {
       location.pathname.includes('/dashgestor/mensagens') || 
       location.pathname.includes('/dashgestor/perfil') || 
       location.pathname.includes('/dashgestor/manutencoes') ||
-      location.pathname.includes('/dashgestor/workform')) {
+      location.pathname.includes('/dashgestor/workform')||
+      location.pathname.includes('/dashgestor/tecnico')) {
     content = (
       <>
         <TopBar />
@@ -1231,6 +1326,7 @@ function DashGestor() {
           <Route path="/calendario" element={<CalendarComponent />} />
           <Route path="/mensagens" element={<Messages />} />
           <Route path="/perfil" element={<ProfileComponent />} />
+          <Route path="/tecnico/:technicianId" element={<TechnicianProfile />} />
           <Route path="/manutencoes" element={
             <MaintenanceComponent 
               maintenances={maintenances}
@@ -1255,8 +1351,8 @@ function DashGestor() {
           <div className="dashboard-content">
             {renderRecentActions()}
             {renderItemDetails()}
-          </div>
-        </div>
+                </div>
+              </div>
       </>
     );
   }
@@ -1388,18 +1484,33 @@ function DashGestor() {
   }, [works]);
 
   useEffect(() => {
-    // Esta função será chamada apenas uma vez quando o componente for montado
+    // Esta função será chamada apenas uma vez quando o componente for montado e quando o usuário for autenticado
     const normalizarObrasExistentes = async () => {
+      if (!user?.uid) {
+        console.log("Usuário não autenticado, ignorando normalização de obras");
+        return;
+      }
+
       try {
-        console.log("Iniciando normalização de obras existentes...");
-        const obrasRef = collection(db, 'works');
-        const q = query(obrasRef);
+        console.log("Iniciando normalização de obras existentes para o usuário:", user.uid);
+        
+        // Consultar apenas obras que pertencem ao usuário atual
+        const obrasRef = collection(db, 'ObrasPedidos');
+        const q = query(obrasRef, where("userId", "==", user.uid));
         const querySnapshot = await getDocs(q);
         
-        const batch = writeBatch(db);
+        console.log(`Encontradas ${querySnapshot.size} obras para normalizar`);
+        
+        // Se não houver obras, não precisa continuar
+        if (querySnapshot.empty) {
+          console.log("Nenhuma obra encontrada para este usuário");
+          return;
+        }
+        
+        // Em vez de usar batch, vamos atualizar cada documento individualmente
         let contadorAtualizacoes = 0;
         
-        querySnapshot.forEach((docSnapshot) => {
+        for (const docSnapshot of querySnapshot.docs) {
           const obraData = docSnapshot.data();
           let precisaAtualizar = false;
           const atualizacoes = {};
@@ -1410,26 +1521,34 @@ function DashGestor() {
             if (categoriaLower.includes("eletr") && obraData.category !== "Eletricidade") {
               atualizacoes.category = "Eletricidade";
               precisaAtualizar = true;
-              console.log(`Categoria normalizada para 'Eletricidade'`);
+              console.log(`Categoria normalizada para 'Eletricidade' para obra ${docSnapshot.id}`);
             }
           }
           
           if (precisaAtualizar) {
             atualizacoes.updatedAt = serverTimestamp();
-            batch.update(docSnapshot.ref, atualizacoes);
-            contadorAtualizacoes++;
+            try {
+              // Atualizar documento individualmente
+              await updateDoc(docSnapshot.ref, atualizacoes);
+              contadorAtualizacoes++;
+              console.log(`Obra ${docSnapshot.id} atualizada com sucesso`);
+            } catch (error) {
+              console.error(`Erro ao atualizar obra ${docSnapshot.id}:`, error);
+            }
           }
-        });
+        }
         
-        await batch.commit();
-        console.log(`${contadorAtualizacoes} obras atualizadas`);
+        console.log(`${contadorAtualizacoes} obras atualizadas com sucesso!`);
       } catch (error) {
         console.error('Erro ao normalizar obras existentes:', error);
       }
     };
 
-    normalizarObrasExistentes();
-  }, []);
+    // Executar apenas quando o usuário estiver autenticado
+    if (user?.uid) {
+      normalizarObrasExistentes();
+    }
+  }, [user]);
 
   const handleWorkClick = (servico) => {
     setSelectedWork(servico);

@@ -76,17 +76,32 @@ export const uploadToCloudinary = async (file, resourceType = 'auto') => {
 /**
  * Delete a file from Cloudinary
  * @param {string} publicId - The public ID of the file to delete
+ * @param {string} resourceType - Resource type (image, raw, video, auto)
  * @returns {Promise<boolean>} - Whether the deletion was successful
  */
-export const deleteFromCloudinary = async (publicId) => {
+export const deleteFromCloudinary = async (publicId, resourceType = 'auto') => {
   if (!publicId) {
     console.error('Tentativa de deletar arquivo sem publicId');
     return false;
   }
 
+  console.log(`Tentando deletar arquivo do Cloudinary. PublicId: ${publicId}, ResourceType: ${resourceType}`);
+
   try {
-    const timestamp = Math.floor(Date.now() / 1000);
-    const signature = await generateSignature(`public_id=${publicId}&timestamp=${timestamp}`);
+    const timestamp = Math.floor(Date.now() / 1000).toString();
+    
+    // Cloudinary signing - The signature is created by combining public_id and timestamp,
+    // then appending the API secret, and hashing with SHA-1
+    // Reference: https://cloudinary.com/documentation/upload_images#generating_authentication_signatures
+    const stringToSign = `public_id=${publicId}&timestamp=${timestamp}${CLOUDINARY_CONFIG.apiSecret}`;
+    const signature = await generateSHA1(stringToSign);
+    
+    console.log('Parâmetros para assinatura:', {
+      publicId,
+      timestamp,
+      signatureBase: `public_id=${publicId}&timestamp=${timestamp}[secret]`,
+      signatureHash: signature.substring(0, 10) + '...'
+    });
     
     const formData = new FormData();
     formData.append('public_id', publicId);
@@ -94,21 +109,78 @@ export const deleteFromCloudinary = async (publicId) => {
     formData.append('timestamp', timestamp);
     formData.append('signature', signature);
     
-    const response = await fetch(
-      `https://api.cloudinary.com/v1_1/${CLOUDINARY_CONFIG.cloudName}/image/destroy`,
-      {
-        method: 'POST',
-        body: formData
+    // List of all resource types to try
+    let allTypes = ['image', 'raw', 'video'];
+    let types = resourceType === 'auto' ? allTypes : [resourceType, ...allTypes.filter(t => t !== resourceType)];
+    
+    // Possible cloud names to try (from error message and config)
+    const cloudNames = [
+      CLOUDINARY_CONFIG.cloudName,  // Primary configured cloud name
+      'wecondteste', // From error message
+      'damsavssq'    // From error message
+    ];
+    
+    let success = false;
+    
+    // Try all cloud names
+    for (const cloudName of cloudNames) {
+      if (success) break;
+      console.log(`Tentando com cloud name: ${cloudName}`);
+      
+      // Try all resource types for this cloud name
+      for (const type of types) {
+        try {
+          const deleteUrl = `https://api.cloudinary.com/v1_1/${cloudName}/${type}/destroy`;
+          console.log(`Tentando deletar ${publicId} com tipo ${type}. URL:`, deleteUrl);
+          
+          const response = await fetch(deleteUrl, {
+            method: 'POST',
+            body: formData
+          });
+          
+          if (!response.ok) {
+            console.warn(`Resposta não-OK (${response.status}) ao deletar como ${type}`);
+            continue;
+          }
+          
+          const result = await response.json();
+          console.log(`Resultado da deleção (${type}):`, result);
+          
+          if (result.result === 'ok') {
+            console.log(`SUCESSO ao deletar ${publicId} usando cloud ${cloudName} e tipo ${type}`);
+            success = true;
+            break;
+          }
+        } catch (typeError) {
+          console.log(`Erro ao tentar deletar com tipo ${type}:`, typeError);
+        }
       }
-    );
+    }
     
-    const result = await response.json();
-    console.log('Resultado da deleção:', result);
-    
-    return result.result === 'ok';
+    return success;
   } catch (error) {
     console.error('Erro ao deletar arquivo do Cloudinary:', error);
     return false;
+  }
+};
+
+/**
+ * Generate a SHA-1 hash for Cloudinary authentication
+ * @param {string} message - The message to hash
+ * @returns {Promise<string>} - The SHA-1 hash as a hex string
+ */
+const generateSHA1 = async (message) => {
+  try {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(message);
+    const hashBuffer = await crypto.subtle.digest('SHA-1', data);
+    
+    // Convert to hex string
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  } catch (error) {
+    console.error('Erro ao gerar hash SHA-1:', error);
+    throw error;
   }
 };
 
@@ -123,15 +195,17 @@ const generateSignature = async (paramsToSign) => {
   // In a production environment, this should be done server-side
   console.warn('Signature generation should be done server-side for security');
   
-  // Note: This is not secure for production use
-  // A proper backend endpoint should be used to generate signatures
-  const encoder = new TextEncoder();
-  const data = encoder.encode(paramsToSign + CLOUDINARY_CONFIG.apiSecret);
-  const hashBuffer = await crypto.subtle.digest('SHA-1', data);
-  
-  // Convert to hex string
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  try {
+    // Append API secret to the params string
+    const stringToSign = paramsToSign + CLOUDINARY_CONFIG.apiSecret;
+    console.log('Gerando assinatura para:', paramsToSign + '[secret]');
+    
+    // Use our SHA-1 generation function
+    return await generateSHA1(stringToSign);
+  } catch (error) {
+    console.error('Erro ao gerar assinatura:', error);
+    throw error;
+  }
 };
 
 /**
