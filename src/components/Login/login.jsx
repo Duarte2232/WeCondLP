@@ -220,6 +220,10 @@ function Login() {
           </button>
         </div>
 
+        <div className="forgot-password-link">
+          <Link to="/forgot-password">Recuperar Password</Link>
+        </div>
+
         <button type="submit" className="submit-btn" disabled={isLoading}>
           {isLoading ? <LoadingAnimation /> : 'Registrar'}
         </button>
@@ -252,6 +256,10 @@ function Login() {
             onChange={handleChange}
             required
           />
+        </div>
+
+        <div className="forgot-password-link">
+          <Link to="/forgot-password">Recuperar Password</Link>
         </div>
 
         <button type="submit" className="submit-btn" disabled={isLoading}>
