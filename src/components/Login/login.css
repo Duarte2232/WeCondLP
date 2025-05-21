@@ -417,3 +417,19 @@ button:hover, .button:hover {
     font-size: 0.8rem;
   }
 }
+
+.error-message {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background-color: #fee2e2;
+  border: 1px solid #ef4444;
+  color: #b91c1c;
+  padding: 8px 15px;
+  border-radius: 6px;
+  font-size: 14px;
+  text-align: center;
+  z-index: 1000;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  max-width: 300px;
+}

@@ -15,6 +15,7 @@ const Profile = () => {
     email: '',
     telefone: '',
     cargo: '',
+    nif: '',
     photoURL: null
   });
   const [loading, setLoading] = useState(true);
@@ -36,6 +37,7 @@ const Profile = () => {
             email: auth.currentUser.email || '',
             telefone: data.telefone || '',
             cargo: data.cargo || '',
+            nif: data.nif || '',
             photoURL: auth.currentUser.photoURL || null
           });
         }
@@ -72,7 +74,8 @@ const Profile = () => {
         nome: userData.nome,
         sobrenome: userData.sobrenome,
         telefone: userData.telefone,
-        cargo: userData.cargo
+        cargo: userData.cargo,
+        nif: userData.nif
       });
       
       setEditing(false);
@@ -206,7 +209,21 @@ const Profile = () => {
             </div>
             
             <div className="form-row">
-              <div className="form-group full-width">
+              <div className="form-group">
+                <label htmlFor="nif">NIF da Empresa</label>
+                <input
+                  type="text"
+                  id="nif"
+                  name="nif"
+                  value={userData.nif}
+                  onChange={handleInputChange}
+                  placeholder="000000000"
+                  pattern="[0-9]{9}"
+                  title="O NIF deve conter 9 dígitos"
+                  disabled={!editing}
+                />
+              </div>
+              <div className="form-group">
                 <label htmlFor="cargo">Cargo</label>
                 <input
                   type="text"

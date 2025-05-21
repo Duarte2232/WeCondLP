@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../../services/firebase.jsx';
 import { useNavigate, Link } from 'react-router-dom';
 import './login.css';
@@ -13,12 +13,23 @@ function Login() {
     email: '',
     name: '',
     password: '',
-    role: ''
+    role: '',
+    nif: ''
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const navigate = useNavigate();
   const auth = getAuth();
+
+  useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => {
+        setError('');
+      }, 6000);
+      return () => clearTimeout(timer);
+    }
+  }, [error]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -26,6 +37,7 @@ function Login() {
       ...prevState,
       [name]: value
     }));
+    setError('');
   };
 
   const handleRoleSelect = (role) => {
@@ -36,53 +48,67 @@ function Login() {
     }));
   };
 
+  const checkNIFExists = async (nif) => {
+    try {
+      const usersRef = collection(db, 'users');
+      const q = query(usersRef, where('nif', '==', nif));
+      const querySnapshot = await getDocs(q);
+      return !querySnapshot.empty;
+    } catch (error) {
+      console.error('Erro ao verificar NIF:', error);
+      throw error;
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
+    setError('');
     
     try {
       if (!isLogin) {
-        // Register new user
+        const nifExists = await checkNIFExists(formData.nif);
+        if (nifExists) {
+          setError('Este NIF já está registrado no sistema. Por favor, use outro NIF ou faça login com a conta existente.');
+          setIsLoading(false);
+          return;
+        }
+
         const userCredential = await createUserWithEmailAndPassword(
           auth,
           formData.email,
           formData.password
         );
 
-        // Save additional user data in Firestore
         await setDoc(doc(db, 'users', userCredential.user.uid), {
           name: formData.name,
           email: formData.email,
           role: formData.role,
+          nif: formData.nif,
           createdAt: new Date().toISOString()
         });
 
         alert('Registro realizado com sucesso!');
-        // Redirect based on role after registration
         navigate(formData.role === 'tecnico' ? '/dashtecnico' : '/dashgestor');
       } else {
-        // Login existing user
         const userCredential = await signInWithEmailAndPassword(
           auth,
           formData.email,
           formData.password
         );
         
-        // Verificar se é admin
         if (formData.email === "wecondlda@gmail.com") {
           navigate('/dashadmin');
         } else {
-          // Get user role from Firestore
           const userDoc = await getDoc(doc(db, 'users', userCredential.user.uid));
           const userRole = userDoc.data().role;
           
-          // Redirect based on role
           navigate(userRole === 'tecnico' ? '/dashtecnico' : '/dashgestor');
         }
       }
     } catch (error) {
       console.error('Error:', error);
-      alert(error.message);
+      setError(error.message);
     } finally {
       setIsLoading(false);
     }
@@ -95,8 +121,10 @@ function Login() {
       email: '',
       name: '',
       password: '',
-      role: ''
+      role: '',
+      nif: ''
     });
+    setError('');
   };
 
   const renderRoleSelection = () => {
@@ -148,6 +176,20 @@ function Login() {
             name="name"
             value={formData.name}
             onChange={handleChange}
+            required
+          />
+        </div>
+
+        <div className="form-group">
+          <label htmlFor="nif">NIF da Empresa:</label>
+          <input
+            type="text"
+            id="nif"
+            name="nif"
+            value={formData.nif}
+            onChange={handleChange}
+            pattern="[0-9]{9}"
+            title="O NIF deve conter 9 dígitos"
             required
           />
         </div>
@@ -221,6 +263,7 @@ function Login() {
 
   return (
     <div className="login-container">
+      {error && <div className="error-message">{error}</div>}
       <Link to="/" className="back-arrow">
         <span>←</span>
       </Link>
