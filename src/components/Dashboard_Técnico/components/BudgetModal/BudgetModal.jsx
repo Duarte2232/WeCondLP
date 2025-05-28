@@ -6,7 +6,8 @@ import { db } from '../../../../services/firebase.jsx';
 import { 
   uploadToCloudinary, 
   uploadToCloudinaryWithSignature,
-  uploadToCloudinaryDirectSigned 
+  uploadToCloudinaryDirectSigned,
+  deleteFromCloudinary 
 } from '../../../../services/cloudinary.service.js';
 import { v4 as uuidv4 } from 'uuid';
 import './BudgetModal.css';
@@ -14,25 +15,16 @@ import { CLOUDINARY_CONFIG } from '../../../../config/cloudinary';
 
 // Constants for validation
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
-const ALLOWED_FILE_TYPES = [
-  'image/jpeg',
-  'image/png',
-  'image/gif',
-  'application/pdf',
-  'application/msword',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-];
+const ALLOWED_FILE_TYPES = ['application/pdf'];
 const MAX_FILES = 5;
 
-const BudgetModal = ({ job, onClose, onSuccess }) => {
+const BudgetModal = ({ job, onClose, onSuccess, existingBudget = null, isEditMode = false }) => {
   const auth = getAuth();
   const [budgetData, setBudgetData] = useState({
-    amount: '',
-    description: '',
-    files: [],
-    availabilityDate: new Date().toISOString().split('T')[0], // Default to today
+    availabilityDate: '',
+    endDate: '',
     isMultipleDays: false,
-    endDate: ''
+    files: []
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
@@ -41,16 +33,35 @@ const BudgetModal = ({ job, onClose, onSuccess }) => {
   const fileInputRef = useRef(null);
   const modalRef = useRef(null);
 
+  // Initialize form with existing budget data if in edit mode
+  useEffect(() => {
+    if (isEditMode && existingBudget) {
+      setBudgetData({
+        availabilityDate: existingBudget.availabilityDate || '',
+        endDate: existingBudget.endDate || '',
+        isMultipleDays: existingBudget.isMultipleDays || false,
+        files: existingBudget.files ? existingBudget.files.map(file => ({
+          ...file,
+          file: null, // We don't have the original file object, just the metadata
+          preview: null,
+          isExisting: true // Flag to identify existing files
+        })) : []
+      });
+    }
+  }, [isEditMode, existingBudget]);
+
   // Initialize endDate when isMultipleDays is enabled
   useEffect(() => {
-    if (budgetData.isMultipleDays && !budgetData.endDate) {
+    if (budgetData.isMultipleDays && budgetData.availabilityDate && !budgetData.endDate) {
       // Set endDate to day after availabilityDate
       const nextDay = new Date(budgetData.availabilityDate);
-      nextDay.setDate(nextDay.getDate() + 1);
-      setBudgetData(prev => ({
-        ...prev,
-        endDate: nextDay.toISOString().split('T')[0]
-      }));
+      if (!isNaN(nextDay.getTime())) { // Check if date is valid
+        nextDay.setDate(nextDay.getDate() + 1);
+        setBudgetData(prev => ({
+          ...prev,
+          endDate: nextDay.toISOString().split('T')[0]
+        }));
+      }
     }
   }, [budgetData.isMultipleDays, budgetData.availabilityDate]);
 
@@ -77,17 +88,29 @@ const BudgetModal = ({ job, onClose, onSuccess }) => {
     return () => window.removeEventListener('keydown', handleEscape);
   }, [isSubmitting, onClose]);
 
-  // Validate amount format
-  const validateAmount = (value) => {
-    const amount = value.replace(/[^\d.,]/g, '');
+  // Validate form data
+  const validateForm = () => {
     const errors = {};
-    
-    if (!amount) {
-      errors.amount = 'O valor é obrigatório';
-    } else if (isNaN(parseFloat(amount.replace(',', '.')))) {
-      errors.amount = 'Valor inválido';
+
+    // Validate availability date
+    if (!budgetData.availabilityDate) {
+      errors.availabilityDate = 'Data de disponibilidade é obrigatória';
     }
-    
+
+    // Validate end date for multiple days
+    if (budgetData.isMultipleDays) {
+      if (!budgetData.endDate) {
+        errors.endDate = 'Data final é obrigatória para obras de múltiplos dias';
+      } else if (budgetData.availabilityDate && new Date(budgetData.endDate) <= new Date(budgetData.availabilityDate)) {
+        errors.endDate = 'A data final deve ser posterior à data de disponibilidade';
+      }
+    }
+
+    // Validate files
+    if (!budgetData.files || budgetData.files.length === 0) {
+      errors.files = 'Pelo menos um arquivo PDF deve ser anexado';
+    }
+
     return errors;
   };
 
@@ -114,15 +137,6 @@ const BudgetModal = ({ job, onClose, onSuccess }) => {
       ...prev,
       [name]: undefined
     }));
-
-    // Validate on change
-    if (name === 'amount') {
-      const errors = validateAmount(value);
-      setValidationErrors(prev => ({
-        ...prev,
-        amount: errors.amount
-      }));
-    }
   };
 
   // Validate file
@@ -131,7 +145,7 @@ const BudgetModal = ({ job, onClose, onSuccess }) => {
       return `${file.name} excede o tamanho máximo permitido (5MB)`;
     }
     if (!ALLOWED_FILE_TYPES.includes(file.type)) {
-      return `${file.name} tem um formato não permitido`;
+      return `${file.name} deve ser um arquivo PDF`;
     }
     return null;
   };
@@ -174,20 +188,78 @@ const BudgetModal = ({ job, onClose, onSuccess }) => {
     }));
   };
 
+  // Extract publicId from Cloudinary URL
+  const extractPublicIdFromUrl = useCallback((url) => {
+    try {
+      if (!url) return null;
+      
+      // URL format: https://res.cloudinary.com/cloudname/resource_type/upload/v123456/publicId.ext
+      // or: https://res.cloudinary.com/cloudname/resource_type/upload/publicId.ext
+      const parts = url.split('/');
+      const uploadIndex = parts.findIndex(part => part === 'upload');
+      
+      if (uploadIndex !== -1 && uploadIndex + 1 < parts.length) {
+        let publicIdPart = parts[uploadIndex + 1];
+        
+        // Skip version if present (starts with 'v' followed by numbers)
+        if (publicIdPart.startsWith('v') && /^v\d+$/.test(publicIdPart)) {
+          publicIdPart = parts[uploadIndex + 2];
+        }
+        
+        if (publicIdPart) {
+          // Remove file extension
+          const publicId = publicIdPart.split('.')[0];
+          console.log(`Extracted publicId: ${publicId} from URL: ${url}`);
+          return publicId;
+        }
+      }
+      
+      console.warn(`Could not extract publicId from URL: ${url}`);
+      return null;
+    } catch (error) {
+      console.error('Error extracting publicId from URL:', error);
+      return null;
+    }
+  }, []);
+
   // Remove file
-  const removeFile = useCallback((index) => {
+  const removeFile = useCallback(async (index) => {
     setBudgetData(prev => {
       const newFiles = [...prev.files];
-      if (newFiles[index].preview) {
-        URL.revokeObjectURL(newFiles[index].preview);
+      const fileToRemove = newFiles[index];
+      
+      // Handle cleanup for different file types
+      if (fileToRemove.isExisting && fileToRemove.url) {
+        // For existing files, delete from Cloudinary asynchronously
+        (async () => {
+          try {
+            const publicId = extractPublicIdFromUrl(fileToRemove.url);
+            if (publicId) {
+              console.log(`Removendo arquivo existente do Cloudinary: ${publicId}`);
+              const deleteResult = await deleteFromCloudinary(publicId, 'raw');
+              
+              if (deleteResult) {
+                console.log(`✅ Arquivo existente removido com sucesso do Cloudinary: ${publicId}`);
+              } else {
+                console.warn(`⚠️ Possível falha ao deletar arquivo existente do Cloudinary: ${publicId}`);
+              }
+            }
+          } catch (error) {
+            console.error(`❌ Erro ao deletar arquivo existente do Cloudinary:`, error);
+          }
+        })();
+      } else if (fileToRemove.preview && !fileToRemove.isExisting) {
+        // Only revoke URL for new files with preview
+        URL.revokeObjectURL(fileToRemove.preview);
       }
+      
       newFiles.splice(index, 1);
       return {
         ...prev,
         files: newFiles
       };
     });
-  }, []);
+  }, [extractPublicIdFromUrl]);
 
   // Format file size
   const formatFileSize = useCallback((bytes) => {
@@ -236,81 +308,129 @@ const BudgetModal = ({ job, onClose, onSuccess }) => {
 
     try {
       // Validate form
-      const errors = {};
-      if (!budgetData.amount || budgetData.amount <= 0) {
-        errors.amount = 'Por favor, insira um valor válido para o orçamento';
-      }
-      if (!budgetData.description) {
-        errors.description = 'Por favor, insira uma descrição do orçamento';
-      }
-      if (!budgetData.availabilityDate) {
-        errors.availabilityDate = 'Por favor, selecione uma data de disponibilidade';
-      }
-      if (budgetData.isMultipleDays && !budgetData.endDate) {
-        errors.endDate = 'Por favor, selecione uma data final para o intervalo';
-      }
-      if (budgetData.isMultipleDays && new Date(budgetData.endDate) <= new Date(budgetData.availabilityDate)) {
-        errors.endDate = 'A data final deve ser posterior à data inicial';
-      }
-
+      const errors = validateForm();
       if (Object.keys(errors).length > 0) {
         setValidationErrors(errors);
         setIsSubmitting(false);
         return;
       }
 
-      // Process files if any
+      // Clean up orphaned files from Cloudinary when editing
+      if (isEditMode && existingBudget?.files) {
+        console.log('Verificando arquivos órfãos para limpeza...');
+        
+        // Get current file URLs (both existing and new files)
+        const currentFileUrls = budgetData.files
+          .map(f => f.url)
+          .filter(Boolean);
+        
+        // Find files that were removed (exist in original but not in current)
+        const removedFiles = existingBudget.files.filter(
+          existingFile => existingFile.url && !currentFileUrls.includes(existingFile.url)
+        );
+        
+        console.log(`Encontrados ${removedFiles.length} arquivos para remover do Cloudinary`);
+        
+        // Delete removed files from Cloudinary
+        for (const removedFile of removedFiles) {
+          try {
+            const publicId = extractPublicIdFromUrl(removedFile.url);
+            if (publicId) {
+              console.log(`Tentando deletar arquivo do Cloudinary: ${publicId}`);
+              const deleteResult = await deleteFromCloudinary(publicId, 'raw'); // PDFs são 'raw'
+              
+              if (deleteResult) {
+                console.log(`✅ Arquivo removido com sucesso do Cloudinary: ${publicId}`);
+              } else {
+                console.warn(`⚠️ Possível falha ao deletar arquivo do Cloudinary: ${publicId}`);
+              }
+            } else {
+              console.warn(`⚠️ Não foi possível extrair publicId da URL: ${removedFile.url}`);
+            }
+          } catch (error) {
+            console.error(`❌ Erro ao deletar arquivo do Cloudinary:`, error);
+            // Continue mesmo se falhar a deleção - não deve interromper o processo
+          }
+        }
+      }
+
+      // Process files - separate existing files from new files
       let processedFiles = [];
+      
       if (budgetData.files && budgetData.files.length > 0) {
-        console.log('Iniciando upload de', budgetData.files.length, 'arquivos...');
-        processedFiles = await Promise.all(
-          budgetData.files.map(async (fileData) => {
+        console.log('Processando', budgetData.files.length, 'arquivos...');
+        
+        for (const fileData of budgetData.files) {
+          if (fileData.isExisting) {
+            // Keep existing files as they are
+            processedFiles.push({
+              name: fileData.name,
+              url: fileData.url,
+              type: fileData.type,
+              size: fileData.size
+            });
+          } else if (fileData.file) {
+            // Upload new files
             try {
-              console.log('Processando arquivo:', fileData.name);
+              console.log('Fazendo upload do novo arquivo:', fileData.name);
               const response = await uploadSingleFileWithRetry(fileData.file);
               console.log('Upload concluído para:', fileData.name, response);
-              return {
+              processedFiles.push({
                 name: fileData.name,
                 url: response.url,
                 type: fileData.type,
                 size: fileData.size
-              };
+              });
             } catch (error) {
               console.error('Erro ao fazer upload do arquivo:', fileData.name, error);
               throw new Error(`Falha ao fazer upload do arquivo ${fileData.name}: ${error.message}`);
             }
-          })
-        );
+          }
+        }
+        
         console.log('Todos os arquivos foram processados:', processedFiles);
       }
 
-      // Create budget document
-      const budgetDoc = {
+      // Create/Update budget object
+      const budgetObject = {
         workId: job.id,
         technicianId: auth.currentUser.uid,
         technicianEmail: auth.currentUser.email,
-        amount: budgetData.amount,
-        description: budgetData.description,
-        files: processedFiles,
-        createdAt: serverTimestamp(),
-        status: 'pendente',
-        isMaintenance: job.isMaintenance || false,
         availabilityDate: budgetData.availabilityDate,
         isMultipleDays: budgetData.isMultipleDays,
-        endDate: budgetData.isMultipleDays ? budgetData.endDate : null
+        endDate: budgetData.isMultipleDays ? budgetData.endDate : null,
+        files: processedFiles,
+        aceito: false,
+        tipo: job.isMaintenance ? 'manutencao' : 'obra'
       };
 
-      // Adiciona o campo manutencaoId se for manutenção
-      if (job.isMaintenance) {
-        budgetDoc.manutencaoId = job.id;
+      // Add creation timestamp only for new budgets
+      if (!isEditMode) {
+        budgetObject.createdAt = serverTimestamp();
+      } else {
+        budgetObject.updatedAt = serverTimestamp();
       }
 
-      // Store in appropriate collection based on whether it's a maintenance or work
-      const collectionName = job.isMaintenance ? 'ManutençãoOrçamentos' : 'ObrasOrçamentos';
-      const docRef = await addDoc(collection(db, collectionName), budgetDoc);
-      console.log('Orçamento salvo com sucesso. ID:', docRef.id);
+      // Add manutencaoId if it's maintenance
+      if (job.isMaintenance) {
+        budgetObject.manutencaoId = job.id;
+      }
 
-      setSuccessMessage('Orçamento enviado com sucesso!');
+      const collectionName = job.isMaintenance ? 'ManutençãoOrçamentos' : 'ObrasOrçamentos';
+
+      if (isEditMode && existingBudget?.id) {
+        // Update existing budget
+        const budgetRef = doc(db, collectionName, existingBudget.id);
+        await updateDoc(budgetRef, budgetObject);
+        console.log('Orçamento atualizado com sucesso. ID:', existingBudget.id);
+        setSuccessMessage('Orçamento atualizado com sucesso!');
+      } else {
+        // Create new budget
+        const docRef = await addDoc(collection(db, collectionName), budgetObject);
+        console.log('Orçamento salvo com sucesso. ID:', docRef.id);
+        setSuccessMessage('Orçamento enviado com sucesso!');
+      }
+
       setTimeout(() => {
         onSuccess();
         onClose();
@@ -318,7 +438,7 @@ const BudgetModal = ({ job, onClose, onSuccess }) => {
 
     } catch (error) {
       console.error('Error submitting budget:', error);
-      setErrorMessage('Erro ao enviar orçamento: ' + error.message);
+      setErrorMessage('Erro ao ' + (isEditMode ? 'atualizar' : 'enviar') + ' orçamento: ' + error.message);
     } finally {
       setIsSubmitting(false);
     }
@@ -334,11 +454,24 @@ const BudgetModal = ({ job, onClose, onSuccess }) => {
   // Determinar classe do botão de enviar
   const submitButtonClass = isSubmitting ? 'submit-btn loading' : 'submit-btn';
 
+  // Reset form function
+  const resetForm = () => {
+    setBudgetData({
+      availabilityDate: '',
+      endDate: '',
+      isMultipleDays: false,
+      files: []
+    });
+    setValidationErrors({});
+    setErrorMessage('');
+    setSuccessMessage('');
+  };
+
   return (
     <div className="modal-overlay" onClick={handleOutsideClick}>
       <div className="budget-modal" ref={modalRef}>
         <div className="modal-header">
-          <h2>Enviar Orçamento</h2>
+          <h2>{isEditMode ? 'Editar Orçamento' : 'Enviar Orçamento'}</h2>
           <button className="close-btn" onClick={onClose} disabled={isSubmitting}>
             <FiX />
           </button>
@@ -363,43 +496,6 @@ const BudgetModal = ({ job, onClose, onSuccess }) => {
           )}
           
           <form onSubmit={handleSubmit}>
-            <div className="form-group">
-              <label htmlFor="amount">
-                <FiDollarSign /> Valor do Orçamento 
-              </label>
-              <input
-                type="text"
-                id="amount"
-                name="amount"
-                placeholder="Digite o valor"
-                value={budgetData.amount}
-                onChange={handleBudgetChange}
-                required
-                disabled={isSubmitting}
-              />
-              {validationErrors.amount && (
-                <span className="error-text">{validationErrors.amount}</span>
-              )}
-            </div>
-            
-            <div className="form-group">
-              <label htmlFor="description">
-                <FiFileText /> Descrição do Orçamento
-              </label>
-              <textarea
-                id="description"
-                name="description"
-                placeholder="Detalhes sobre o que está incluído no orçamento..."
-                value={budgetData.description}
-                onChange={handleBudgetChange}
-                rows={5}
-                disabled={isSubmitting}
-              />
-              {validationErrors.description && (
-                <span className="error-text">{validationErrors.description}</span>
-              )}
-            </div>
-            
             <div className="form-group">
               <label htmlFor="availabilityDate">
                 <FiCalendar /> Data de Disponibilidade
@@ -456,31 +552,35 @@ const BudgetModal = ({ job, onClose, onSuccess }) => {
             )}
             
             <div className="form-group">
-              <label>
-                <FiPaperclip /> Arquivos Anexos
+              <label htmlFor="file-upload">
+                <FiUpload /> Anexar Orçamento (PDF)
               </label>
-              
               <div className="file-upload-container">
                 <div className="file-upload-btn">
                   <input
                     type="file"
                     id="file-upload"
                     multiple
+                    accept=".pdf"
                     onChange={handleFileUpload}
                     disabled={isSubmitting}
                     ref={fileInputRef}
                   />
                   <label htmlFor="file-upload" className="custom-file-upload">
-                    <FiUpload /> Selecionar Arquivos
+                    <FiUpload /> Selecionar Arquivos PDF
                   </label>
                 </div>
                 
                 {budgetData.files.length > 0 && (
                   <div className="file-list">
                     {budgetData.files.map((file, index) => (
-                      <div key={index} className="file-item">
+                      <div key={index} className={`file-item ${file.isExisting ? 'existing-file' : 'new-file'}`}>
                         <div className="file-info">
-                          <span className="file-name">{file.name}</span>
+                          <span className="file-name">
+                            {file.isExisting && <span className="file-badge existing">Existente</span>}
+                            {!file.isExisting && <span className="file-badge new">Novo</span>}
+                            {file.name}
+                          </span>
                           <span className="file-size">{formatFileSize(file.size)}</span>
                         </div>
                         <button
@@ -488,12 +588,17 @@ const BudgetModal = ({ job, onClose, onSuccess }) => {
                           className="remove-file-btn"
                           onClick={() => removeFile(index)}
                           disabled={isSubmitting}
+                          title={file.isExisting ? "Remover arquivo existente" : "Remover arquivo novo"}
                         >
                           <FiTrash2 />
                         </button>
                       </div>
                     ))}
                   </div>
+                )}
+                
+                {validationErrors.files && (
+                  <span className="error-text">{validationErrors.files}</span>
                 )}
               </div>
             </div>
@@ -504,7 +609,7 @@ const BudgetModal = ({ job, onClose, onSuccess }) => {
               </button>
               <button type="submit" className={submitButtonClass} disabled={isSubmitting}>
                 {isSubmitting && <span className="loading-spinner"></span>}
-                {isSubmitting ? 'Enviando...' : 'Enviar Orçamento'}
+                {isSubmitting ? (isEditMode ? 'Atualizando...' : 'Enviando...') : (isEditMode ? 'Atualizar Orçamento' : 'Enviar Orçamento')}
               </button>
             </div>
           </form>
