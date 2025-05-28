@@ -570,9 +570,6 @@ const WorkDetailsModal = ({ work, onClose, onEdit, onDelete, onComplete, onFileD
                         <div className="orcamento-info" style={{flexDirection: 'column', alignItems: 'center', textAlign: 'center'}}>
                           <h4>{displayName}</h4>
                         </div>
-                        <div className="orcamento-value">
-                          {orcamento.valor || orcamento.amount || 0}€
-                        </div>
                         
                         <div className="orcamento-actions" onClick={(e) => e.stopPropagation()}>
                           <button

@@ -221,8 +221,6 @@ const Messages = () => {
         read: false
       };
       
-      console.log('Messages - Sending message in conversation:', currentConversationId);
-      
       await updateDoc(conversationRef, {
         messages: [...currentMessages, messageData],
         lastMessage: messageData.text,
@@ -357,6 +355,13 @@ const Messages = () => {
                       <div
                         key={index}
                         className={`message ${message.senderId === auth.currentUser.uid ? 'sent' : 'received'}`}
+                        style={{
+                          backgroundColor: message.senderId === auth.currentUser.uid ? '#2563eb' : '#f3f4f6',
+                          color: message.senderId === auth.currentUser.uid ? '#ffffff' : '#111827',
+                          padding: '12px 16px',
+                          borderRadius: '12px',
+                          alignSelf: message.senderId === auth.currentUser.uid ? 'flex-end' : 'flex-start'
+                        }}
                       >
                         <div className="message-content">
                           <span className="message-sender">

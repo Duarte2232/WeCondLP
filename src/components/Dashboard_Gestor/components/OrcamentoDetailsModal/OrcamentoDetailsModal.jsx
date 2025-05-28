@@ -73,40 +73,26 @@ const OrcamentoDetailsModal = ({ orcamento, technicianName, workId, workTitle, o
             <p>{technicianName || 'Técnico'}</p>
           </div>
 
-          <div className="orcamento-details-section">
-            <h3>Valor</h3>
-            <p className="orcamento-value-large">{orcamento.valor || orcamento.amount || 0}€</p>
-          </div>
-
-          {/* Seção de disponibilidade com título alterado */}
+          {/* Seção de disponibilidade */}
           {orcamento.availabilityDate && (
             <div className="orcamento-details-section">
-              <h3>Dia de Realização da Obra</h3>
+              <h3>Disponibilidade</h3>
               <p>
-                <strong>Data:</strong> {formatDate(orcamento.availabilityDate)}
+                <strong>Data de Disponibilidade:</strong> {formatDate(orcamento.availabilityDate)}
                 {orcamento.isMultipleDays && orcamento.endDate && (
                   <>
                     <br />
-                    <strong>Duração Múltiplos Dias</strong><br />
+                    <strong>Obra de Múltiplos Dias</strong><br />
                     <strong>Data Final:</strong> {formatDate(orcamento.endDate)}
                   </>
                 )}
               </p>
             </div>
           )}
-
-          {orcamento.description && (
-            <div className="orcamento-details-section">
-              <h3>Descrição</h3>
-              <div className="orcamento-description-full">
-                {orcamento.description}
-              </div>
-            </div>
-          )}
           
           {orcamento.files && orcamento.files.length > 0 && (
             <div className="orcamento-details-section">
-              <h3>Ficheiros anexados</h3>
+              <h3>Orçamento (PDF)</h3>
               <div className="files-list">
                 {orcamento.files.map((file, idx) => (
                   <div key={idx} className="file-item">

@@ -20,7 +20,9 @@ const initialState = {
   jobsWithBudgetStatus: [],
   isLoadingBudgetStatus: false,
   error: null,
-  dismissedNotifications: []
+  dismissedNotifications: [],
+  isEditMode: false,
+  existingBudget: null
 };
 
 // Action types
@@ -33,7 +35,9 @@ const ACTIONS = {
   SET_ERROR: 'SET_ERROR',
   CLEAR_ERROR: 'CLEAR_ERROR',
   DISMISS_NOTIFICATION: 'DISMISS_NOTIFICATION',
-  SET_DISMISSED_NOTIFICATIONS: 'SET_DISMISSED_NOTIFICATIONS'
+  SET_DISMISSED_NOTIFICATIONS: 'SET_DISMISSED_NOTIFICATIONS',
+  SET_EDIT_MODE: 'SET_EDIT_MODE',
+  SET_EXISTING_BUDGET: 'SET_EXISTING_BUDGET'
 };
 
 // Reducer function
@@ -63,6 +67,10 @@ function jobsReducer(state, action) {
         ...state,
         dismissedNotifications: [...state.dismissedNotifications, action.payload]
       };
+    case ACTIONS.SET_EDIT_MODE:
+      return { ...state, isEditMode: action.payload };
+    case ACTIONS.SET_EXISTING_BUDGET:
+      return { ...state, existingBudget: action.payload };
     default:
       return state;
   }
@@ -190,8 +198,36 @@ const Jobs = ({ jobs, loading }) => {
     dispatch({ type: ACTIONS.TOGGLE_DETAILS_MODAL, payload: false });
   };
 
-  const openBudgetModal = (job) => {
+  const openBudgetModal = async (job, isEdit = false) => {
     dispatch({ type: ACTIONS.SET_SELECTED_JOB, payload: job });
+    dispatch({ type: ACTIONS.SET_EDIT_MODE, payload: isEdit });
+    
+    if (isEdit) {
+      try {
+        // Buscar o orçamento existente do técnico para esta obra
+        const collectionName = job.isMaintenance ? 'ManutençãoOrçamentos' : 'ObrasOrçamentos';
+        const orcamentosRef = collection(db, collectionName);
+        const workIdField = job.isMaintenance ? 'manutencaoId' : 'workId';
+        const q = query(
+          orcamentosRef, 
+          where(workIdField, '==', job.id),
+          where('technicianId', '==', auth.currentUser.uid)
+        );
+        
+        const querySnapshot = await getDocs(q);
+        
+        if (!querySnapshot.empty) {
+          const existingBudget = querySnapshot.docs[0].data();
+          existingBudget.id = querySnapshot.docs[0].id;
+          dispatch({ type: ACTIONS.SET_EXISTING_BUDGET, payload: existingBudget });
+        }
+      } catch (error) {
+        console.error('Erro ao buscar orçamento existente:', error);
+      }
+    } else {
+      dispatch({ type: ACTIONS.SET_EXISTING_BUDGET, payload: null });
+    }
+    
     dispatch({ type: ACTIONS.TOGGLE_BUDGET_MODAL, payload: true });
   };
 
@@ -215,7 +251,12 @@ const Jobs = ({ jobs, loading }) => {
 
       // Check if a conversation already exists for this work
       const conversationsRef = collection(db, 'conversations');
-      const q = query(conversationsRef, where('workId', '==', job.id));
+      const q = query(
+        conversationsRef, 
+        where('workId', '==', job.id),
+        where('gestorId', '==', job.userId),
+        where('technicianId', '==', auth.currentUser.uid)
+      );
       const conversationSnapshot = await getDocs(q);
 
       let conversationId;
@@ -432,9 +473,13 @@ const Jobs = ({ jobs, loading }) => {
                 </div>
 
                 <div className="job-actions">
-                  {!job.hasSubmittedBudget && (
+                  {!job.hasSubmittedBudget ? (
                     <button className="budget-btn" onClick={() => openBudgetModal(job)}>
                       Enviar Orçamento
+                    </button>
+                  ) : (
+                    <button className="budget-btn edit" onClick={() => openBudgetModal(job, true)}>
+                      Editar Orçamento
                     </button>
                   )}
                   <button className="view-details-btn" onClick={() => showJobDetails(job)}>
@@ -492,6 +537,8 @@ const Jobs = ({ jobs, loading }) => {
           job={state.selectedJob}
           onClose={closeBudgetModal}
           onSuccess={handleBudgetSuccess}
+          existingBudget={state.existingBudget}
+          isEditMode={state.isEditMode}
         />
       )}
     </div>

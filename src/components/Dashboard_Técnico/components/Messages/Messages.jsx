@@ -21,6 +21,8 @@ const Messages = () => {
   const messagesEndRef = useRef(null);
   // Keep track of the selected conversation ID to prevent losing it on reloads
   const selectedConversationIdRef = useRef(null);
+  // Flag to prevent duplicate conversation creation
+  const creatingConversationRef = useRef(false);
   
   // When selectedConversation changes, update the ref
   useEffect(() => {
@@ -67,6 +69,9 @@ const Messages = () => {
   useEffect(() => {
     if (!auth.currentUser) return;
 
+    // Reset the creating conversation flag when URL parameters change
+    creatingConversationRef.current = false;
+
     const loadConversations = async () => {
       try {
         // Buscar conversas onde o técnico está associado
@@ -90,7 +95,7 @@ const Messages = () => {
             conversationsData.push({
               id: conversationDoc.id,
               gestorId: conversationData.gestorId,
-              gestorName: gestorData?.name || gestorData?.email || 'Gestor',
+              gestorName: gestorData?.empresaNome || gestorData?.name || gestorData?.email || 'Gestor',
               obraId: conversationData.workId,
               obraTitle: conversationData.workTitle,
               lastMessage: conversationData.lastMessage || '',
@@ -153,6 +158,107 @@ const Messages = () => {
                 obraId: c.obraId,
                 gestorName: c.gestorName 
               })));
+              
+              // If no conversation exists and we have both gestorId and workId, create a new one
+              if (gestorIdFromUrl && workIdFromUrl && !creatingConversationRef.current) {
+                console.log('Messages - Creating new conversation for gestor:', gestorIdFromUrl, 'and work:', workIdFromUrl);
+                
+                // Set flag to prevent duplicate creation
+                creatingConversationRef.current = true;
+                
+                try {
+                  // Double-check if conversation already exists in database
+                  const existingConversationQuery = query(
+                    collection(db, 'conversations'),
+                    where('gestorId', '==', gestorIdFromUrl),
+                    where('workId', '==', workIdFromUrl),
+                    where('technicianId', '==', auth.currentUser.uid)
+                  );
+                  
+                  const existingConversationSnapshot = await getDocs(existingConversationQuery);
+                  
+                  if (!existingConversationSnapshot.empty) {
+                    console.log('Messages - Conversation already exists in database, selecting it');
+                    const existingConversation = existingConversationSnapshot.docs[0];
+                    const existingData = existingConversation.data();
+                    
+                    // Get gestor data for display
+                    const gestorDoc = await getDoc(doc(db, 'users', existingData.gestorId));
+                    const gestorData = gestorDoc.data();
+                    
+                    const conversationToSelect = {
+                      id: existingConversation.id,
+                      gestorId: existingData.gestorId,
+                      gestorName: gestorData?.empresaNome || gestorData?.name || gestorData?.email || 'Gestor',
+                      obraId: existingData.workId,
+                      obraTitle: existingData.workTitle,
+                      lastMessage: existingData.lastMessage || '',
+                      timestamp: existingData.lastMessageTimestamp,
+                      unreadCount: existingData.messages?.filter(msg => 
+                        msg.senderId !== auth.currentUser.uid && !msg.read
+                      ).length || 0
+                    };
+                    
+                    setSelectedConversation(conversationToSelect);
+                    navigate('/dashtecnico/mensagens', { replace: true });
+                    creatingConversationRef.current = false;
+                    setLoading(false);
+                    return;
+                  }
+                  
+                  // Get gestor data
+                  const gestorDoc = await getDoc(doc(db, 'users', gestorIdFromUrl));
+                  if (!gestorDoc.exists()) {
+                    console.error('Gestor not found:', gestorIdFromUrl);
+                    creatingConversationRef.current = false;
+                    setLoading(false);
+                    return;
+                  }
+                  
+                  // Get work data
+                  const workDoc = await getDoc(doc(db, 'ObrasPedidos', workIdFromUrl));
+                  if (!workDoc.exists()) {
+                    console.error('Work not found:', workIdFromUrl);
+                    creatingConversationRef.current = false;
+                    setLoading(false);
+                    return;
+                  }
+                  
+                  const gestorData = gestorDoc.data();
+                  const workData = workDoc.data();
+                  
+                  // Create new conversation
+                  const conversationData = {
+                    workId: workIdFromUrl,
+                    workTitle: workData.title || 'Obra',
+                    gestorId: gestorIdFromUrl,
+                    technicianId: auth.currentUser.uid,
+                    createdAt: serverTimestamp(),
+                    lastMessage: null,
+                    lastMessageTimestamp: null,
+                    messages: []
+                  };
+                  
+                  const conversationsRef = collection(db, 'conversations');
+                  const newConversationRef = await addDoc(conversationsRef, conversationData);
+                  
+                  console.log('Messages - New conversation created:', newConversationRef.id);
+                  
+                  // Clear URL parameters and reset flag
+                  navigate('/dashtecnico/mensagens', { replace: true });
+                  creatingConversationRef.current = false;
+                  
+                  // The onSnapshot listener will automatically pick up the new conversation
+                  // and select it, so we don't need to do anything else here
+                  return;
+                } catch (error) {
+                  console.error('Error creating conversation:', error);
+                  setError('Erro ao criar conversa. Por favor, tente novamente.');
+                  creatingConversationRef.current = false;
+                  setLoading(false);
+                  return;
+                }
+              }
             }
           }
           
@@ -190,6 +296,13 @@ const Messages = () => {
 
     loadConversations();
   }, [auth.currentUser, location.state?.conversationId, gestorIdFromUrl, workIdFromUrl, navigate]);
+
+  // Cleanup effect
+  useEffect(() => {
+    return () => {
+      creatingConversationRef.current = false;
+    };
+  }, []);
 
   // Carregar e ouvir mensagens da conversa selecionada
   useEffect(() => {
