@@ -101,13 +101,16 @@ function CallToAction() {
         <h1 className="brev">Simplifique a Gestão do seu Condomínio com a WeCond</h1>
         <div className="features">
           <div className="feature slide-in-left delay-200">
-            <span className="checkmark">✔</span> Interface Intuitiva
+            <span className="checkmark">✓</span> Interface Intuitiva
           </div>
           <div className="feature slide-in-left delay-300">
-            <span className="checkmark">✔</span> Automático
+            <span className="checkmark">✓</span> Automático
           </div>
           <div className="feature slide-in-left delay-400">
-            <span className="checkmark">✔</span> Rápido
+            <span className="checkmark">✓</span> Rápido
+          </div>
+          <div className="feature slide-in-left delay-500">
+            <span className="checkmark">✓</span> Seguro
           </div>
         </div>
         <button className="cta-button scale-in delay-500" onClick={handleButtonClick}>

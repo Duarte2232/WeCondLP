@@ -1,0 +1,196 @@
+.orcamento-details-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.6);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1200; /* Higher than the WorkDetailsModal */
+}
+
+.orcamento-details-modal-content {
+  background: white;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 500px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+.orcamento-details-modal-header {
+  padding: 20px 24px;
+  border-bottom: 1px solid #E5E7EB;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: sticky;
+  top: 0;
+  background: white;
+  z-index: 10;
+}
+
+.orcamento-details-modal-header h2 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.orcamento-details-modal-body {
+  padding: 24px;
+}
+
+.orcamento-details-section {
+  margin-bottom: 24px;
+}
+
+.orcamento-details-section h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #4B5563;
+  margin-top: 0;
+  margin-bottom: 8px;
+}
+
+.orcamento-details-section p {
+  margin: 0;
+  line-height: 1.5;
+  color: #374151;
+}
+
+.orcamento-details-section p strong {
+  font-weight: 600;
+  color: #111827;
+}
+
+.orcamento-value-large {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+.orcamento-description-full {
+  color: #4B5563;
+  line-height: 1.5;
+  background-color: #F9FAFB;
+  padding: 16px;
+  border-radius: 8px;
+  max-height: 300px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+}
+
+.files-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.file-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: #F3F4F6;
+  border-radius: 6px;
+}
+
+.file-name {
+  font-size: 0.875rem;
+  color: #374151;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 80%;
+}
+
+.file-actions button {
+  background: transparent;
+  border: none;
+  padding: 4px;
+  cursor: pointer;
+  color: #4B5563;
+  border-radius: 4px;
+}
+
+.file-actions button:hover {
+  background: #E5E7EB;
+  color: #111827;
+}
+
+.orcamento-details-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.action-btn {
+  padding: 10px 16px;
+  border: none;
+  border-radius: 6px;
+  font-weight: 500;
+  font-size: 0.875rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: background-color 0.2s, transform 0.1s;
+  flex: 1;
+}
+
+.action-btn.mensagens {
+  background-color: #3B82F6;
+  color: white;
+}
+
+.action-btn.mensagens:hover {
+  background-color: #2563EB;
+}
+
+.action-btn.ver-perfil {
+  background-color: #F3F4F6;
+  color: #4B5563;
+}
+
+.action-btn.ver-perfil:hover {
+  background-color: #E5E7EB;
+  color: #111827;
+}
+
+.action-btn:active {
+  transform: translateY(1px);
+}
+
+.close-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #6B7280;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+}
+
+.close-button:hover {
+  background-color: #F3F4F6;
+  color: #111827;
+}
+
+@media (max-width: 640px) {
+  .orcamento-details-modal-content {
+    width: 95%;
+    max-height: 85vh;
+  }
+  
+  .orcamento-details-actions {
+    flex-direction: column;
+  }
+} 

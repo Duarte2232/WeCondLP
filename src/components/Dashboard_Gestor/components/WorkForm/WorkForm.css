@@ -113,11 +113,18 @@
   text-align: center;
   cursor: pointer;
   transition: all 0.2s ease;
+  background-color: #f8f9fa;
 }
 
-.file-input-container:hover {
+.file-input-container:hover,
+.file-input-container.dragging {
   border-color: var(--primary-color);
   background-color: rgba(37, 99, 235, 0.05);
+}
+
+.file-input-container.dragging {
+  border-style: solid;
+  background-color: rgba(37, 99, 235, 0.1);
 }
 
 .file-input {
@@ -128,6 +135,7 @@
   height: 100%;
   opacity: 0;
   cursor: pointer;
+  z-index: 2;
 }
 
 .file-input-text {
@@ -136,21 +144,25 @@
   display: flex;
   flex-direction: column;
   align-items: center;
+  pointer-events: none;
 }
 
 .file-input-text svg {
   width: 24px;
   height: 24px;
   margin-bottom: 0.5rem;
+  color: var(--primary-color);
 }
 
 .file-input-text p {
   margin: 0.5rem 0;
   font-weight: 500;
+  color: var(--text-primary);
 }
 
 .file-input-text span {
   font-size: 0.75rem;
+  color: var(--text-secondary);
 }
 
 .selected-files {
@@ -212,12 +224,12 @@
 .form-actions {
   display: flex;
   gap: 1rem;
-  margin-top: 1.5rem;
+  margin-top: 2rem;
+  justify-content: flex-end;
 }
 
 .submit-btn,
 .cancel-btn {
-  flex: 1;
   padding: 0.75rem 1.5rem;
   border-radius: 8px;
   font-weight: 500;
@@ -229,13 +241,14 @@
 }
 
 .submit-btn {
-  background-color: var(--primary-color);
+  background-color: #2563eb;
   color: white;
   border: none;
+  min-width: 150px;
 }
 
 .submit-btn:hover {
-  background-color: var(--primary-hover);
+  background-color: #1d4ed8;
 }
 
 .submit-btn:disabled {
@@ -244,13 +257,14 @@
 }
 
 .cancel-btn {
-  background-color: #f1f5f9;
-  color: var(--text-secondary);
-  border: 1px solid var(--border-color);
+  background-color: #f3f4f6;
+  color: #6b7280;
+  border: 1px solid #e5e7eb;
 }
 
 .cancel-btn:hover {
-  background-color: #e2e8f0;
+  background-color: #e5e7eb;
+  color: #374151;
 }
 
 .close-btn {
@@ -278,4 +292,59 @@
 
 .orcamento-range .form-group {
   flex: 1;
+}
+
+/* Add new type toggle styles */
+.type-toggle {
+  display: flex;
+  gap: 16px;
+  margin-top: 8px;
+}
+
+.type-option {
+  display: flex;
+  align-items: center;
+  padding: 8px 16px;
+  border: 1px solid #D1D5DB;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 14px;
+  position: relative;
+  background-color: #F9FAFB;
+}
+
+.type-option input {
+  position: absolute;
+  opacity: 0;
+  cursor: pointer;
+  height: 0;
+  width: 0;
+}
+
+.type-option.active {
+  background-color: #EBF5FF;
+  border-color: #2563EB;
+  color: #2563EB;
+}
+
+/* Update the existing submit button class to be save-btn */
+.save-btn {
+  background-color: #2563EB;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 10px 24px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.save-btn:hover {
+  background-color: #1D4ED8;
+}
+
+.save-btn:disabled {
+  background-color: #93C5FD;
+  cursor: not-allowed;
 } 

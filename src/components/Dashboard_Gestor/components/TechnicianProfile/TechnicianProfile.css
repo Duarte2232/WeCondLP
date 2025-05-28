@@ -1,0 +1,687 @@
+.technician-profile-container {
+  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.technician-profile-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 20px;
+  gap: 20px;
+}
+
+.technician-profile-header h1 {
+  margin: 0;
+  font-size: 1.8rem;
+  color: #333;
+}
+
+.back-button {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: #f5f5f5;
+  border: none;
+  padding: 8px 15px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.back-button:hover {
+  background: #e0e0e0;
+}
+
+.technician-profile-content {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.technician-profile-card {
+  background: white;
+  border-radius: 10px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  padding: 20px;
+}
+
+.technician-profile-info {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.technician-profile-avatar {
+  width: 120px;
+  height: 120px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #f0f0f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #e0e0e0;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.technician-profile-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background-color: white;
+  padding: 4px;
+}
+
+.avatar-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #999;
+  width: 100%;
+  height: 100%;
+}
+
+.technician-profile-details {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.technician-profile-details h2 {
+  margin: 0;
+  font-size: 1.5rem;
+  color: #333;
+}
+
+.technician-rating {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 5px;
+  background-color: #f9f9f9;
+  padding: 8px 12px;
+  border-radius: 20px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+  align-self: flex-start;
+}
+
+.stars-container {
+  display: flex;
+  align-items: center;
+}
+
+.rating-value {
+  font-weight: bold;
+  color: #333;
+  font-size: 18px;
+}
+
+.total-ratings {
+  color: #777;
+  font-size: 0.9rem;
+}
+
+.technician-contact {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.contact-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #555;
+}
+
+/* Estilos para a informação da empresa */
+.company-info-section {
+  border-top: 1px solid #eee;
+  padding-top: 20px;
+  margin-top: 20px;
+}
+
+.company-info-section h3 {
+  font-size: 1.1rem;
+  margin: 0 0 16px 0;
+  color: #333;
+  font-weight: 600;
+}
+
+.company-info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 20px;
+}
+
+.company-info-item {
+  background-color: #f9f9f9;
+  padding: 15px;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.info-label {
+  font-size: 0.85rem;
+  color: #666;
+  margin-bottom: 5px;
+}
+
+.info-value {
+  font-size: 1rem;
+  font-weight: 500;
+  color: #333;
+  word-break: break-word;
+}
+
+.technician-stats {
+  display: flex;
+  justify-content: space-around;
+  text-align: center;
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid #eee;
+}
+
+.stat-item h3 {
+  margin: 0 0 5px 0;
+  font-size: 0.9rem;
+  color: #777;
+  font-weight: normal;
+}
+
+.stat-item p {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #333;
+}
+
+.technician-profile-sections {
+  background: white;
+  border-radius: 10px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  padding: 20px;
+}
+
+.section {
+  margin-bottom: 25px;
+}
+
+.section:last-child {
+  margin-bottom: 0;
+}
+
+.section h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1.2rem;
+  margin: 0 0 15px 0;
+  color: #333;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #eee;
+}
+
+.specialties-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.specialty-tag {
+  background: #f0f7ff;
+  color: #0066cc;
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 0.9rem;
+}
+
+.avaliacoes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.avaliacao-card {
+  border: 1px solid #eee;
+  border-radius: 8px;
+  padding: 15px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.03);
+  transition: transform 0.2s ease;
+}
+
+.avaliacao-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+}
+
+.avaliacao-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  align-items: center;
+}
+
+.avaliacao-stars {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.avaliacao-date {
+  font-size: 0.8rem;
+  color: #777;
+}
+
+.avaliacao-content {
+  margin-bottom: 10px;
+  line-height: 1.5;
+}
+
+.avaliacao-content p {
+  margin: 0;
+  color: #333;
+}
+
+.avaliacao-servico {
+  font-size: 0.9rem;
+  color: #555;
+  background-color: #f5f5f5;
+  padding: 6px 10px;
+  border-radius: 4px;
+  display: inline-block;
+}
+
+.servicos-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.servico-card {
+  border: 1px solid #eee;
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.servico-title {
+  font-weight: bold;
+  margin-bottom: 8px;
+  color: #333;
+}
+
+.servico-details {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 5px;
+}
+
+.servico-category {
+  color: #555;
+  font-size: 0.9rem;
+}
+
+.servico-status {
+  font-size: 0.8rem;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.servico-status.concluido {
+  background-color: #e6f7e6;
+  color: #2e7d32;
+}
+
+.servico-status.em-andamento {
+  background-color: #fff8e1;
+  color: #ff8f00;
+}
+
+.servico-status.disponivel {
+  background-color: #e3f2fd;
+  color: #0288d1;
+}
+
+.servico-date {
+  font-size: 0.8rem;
+  color: #777;
+  text-align: right;
+}
+
+.loading-indicator {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 200px;
+  font-size: 1.2rem;
+  color: #777;
+}
+
+.error-message {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 200px;
+  font-size: 1.2rem;
+  color: #e53935;
+}
+
+/* Estilos para a seção de documentos */
+.documentos-status-summary {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.status-card {
+  background-color: #fff;
+  border-radius: 10px;
+  padding: 15px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  width: 120px;
+  transition: transform 0.2s;
+}
+
+.status-card:hover {
+  transform: translateY(-3px);
+}
+
+.status-enviados {
+  border-left: 4px solid #10B981;
+}
+
+.status-enviados svg {
+  color: #10B981;
+}
+
+.status-pendentes {
+  border-left: 4px solid #F59E0B;
+}
+
+.status-pendentes svg {
+  color: #F59E0B;
+}
+
+.status-count {
+  font-size: 1.8rem;
+  font-weight: bold;
+  margin: 5px 0;
+}
+
+.status-label {
+  font-size: 0.9rem;
+  color: #6B7280;
+}
+
+.documento-tabs {
+  margin-bottom: 20px;
+}
+
+.documento-tab-buttons {
+  display: flex;
+  gap: 10px;
+  border-bottom: 1px solid #E5E7EB;
+  padding-bottom: 10px;
+}
+
+.documento-tab-button {
+  background: none;
+  border: none;
+  padding: 8px 16px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #6B7280;
+  cursor: pointer;
+  border-radius: 5px;
+  transition: all 0.2s;
+}
+
+.documento-tab-button:hover {
+  background-color: #F3F4F6;
+  color: #111827;
+}
+
+.documento-tab-button.active {
+  background-color: #EEF2FF;
+  color: #4F46E5;
+  font-weight: 600;
+}
+
+.documentos-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+  margin-top: 10px;
+}
+
+.documento-card {
+  background-color: #FFFFFF;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
+}
+
+.documento-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.documento-header {
+  padding: 12px 16px;
+  background-color: #F9FAFB;
+  border-bottom: 1px solid #E5E7EB;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.documento-tipo {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: #374151;
+}
+
+.status-badge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.status-badge svg {
+  flex-shrink: 0;
+}
+
+.status-presente {
+  background-color: #D1FAE5;
+  color: #065F46;
+}
+
+.status-ausente {
+  background-color: #FEF3C7;
+  color: #92400E;
+}
+
+.documento-content {
+  padding: 16px;
+}
+
+.documento-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.documento-nome {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  color: #4B5563;
+}
+
+.file-icon {
+  color: #6366F1;
+}
+
+.documento-data {
+  font-size: 0.8rem;
+  color: #6B7280;
+  background-color: #F3F4F6;
+  padding: 4px 8px;
+  border-radius: 20px;
+}
+
+.documento-vazio {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100px;
+}
+
+.documento-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  color: #9CA3AF;
+}
+
+.placeholder-icon {
+  opacity: 0.6;
+}
+
+.documento-placeholder p {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.documento-acoes {
+  margin-top: 12px;
+}
+
+.btn-visualizar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 16px;
+  width: 100%;
+  background-color: #EEF2FF;
+  color: #4F46E5;
+  border: none;
+  border-radius: 6px;
+  font-weight: 500;
+  font-size: 0.9rem;
+  text-decoration: none;
+  transition: all 0.2s;
+}
+
+.btn-visualizar:hover {
+  background-color: #E0E7FF;
+}
+
+.documento-card.documento-presente {
+  border-top: 3px solid #10B981;
+}
+
+.documento-card.documento-ausente {
+  border-top: 3px solid #F59E0B;
+}
+
+@media (max-width: 768px) {
+  .technician-profile-info {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+  
+  .technician-contact {
+    align-items: center;
+  }
+  
+  .company-info-grid {
+    grid-template-columns: 1fr;
+    gap: 15px;
+  }
+  
+  .company-info-section h3 {
+    text-align: center;
+  }
+  
+  .technician-stats {
+    flex-direction: column;
+    gap: 15px;
+  }
+  
+  .technician-rating {
+    justify-content: center;
+  }
+  
+  .documentos-status-summary {
+    justify-content: center;
+  }
+  
+  .documento-tab-buttons {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .technician-profile-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .specialties-list {
+    justify-content: center;
+  }
+  
+  .avaliacao-header {
+    flex-direction: column;
+    gap: 5px;
+  }
+  
+  .avaliacao-stars {
+    justify-content: center;
+  }
+  
+  .avaliacao-date {
+    text-align: center;
+  }
+  
+  .servico-details {
+    flex-direction: column;
+    gap: 5px;
+  }
+  
+  .servico-status, .servico-date {
+    text-align: left;
+  }
+  
+  .documento-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  .status-badge {
+    align-self: flex-start;
+  }
+}

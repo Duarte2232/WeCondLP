@@ -1,0 +1,28 @@
+.new-maintenance-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background-color: #1890ff;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.new-maintenance-btn:hover {
+  background-color: #096dd9;
+  transform: translateY(-2px);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+.new-maintenance-btn:active {
+  transform: translateY(0);
+}
+
+.new-maintenance-btn svg {
+  font-size: 1.2rem;
+} 

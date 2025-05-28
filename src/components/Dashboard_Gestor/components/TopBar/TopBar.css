@@ -1,0 +1,267 @@
+.topbar-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: #FFFFFF;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  z-index: 1000;
+  border-bottom: 1px solid #E5E7EB;
+  margin: 0;
+  padding: 0;
+  height: auto;
+}
+
+.topbar {
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+.topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.back-button-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: #6B7280;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 4px;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.back-button-topbar:hover {
+  background-color: #F3F4F6;
+  color: #111827;
+}
+
+.topbar-logo {
+  display: flex;
+  align-items: center;
+}
+
+.topbar-logo a {
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.logo-icon {
+  color: #2563EB;
+  font-size: 22px;
+}
+
+.topbar-logo h1 {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #333;
+  margin: 0;
+  padding-top: 1px;
+  line-height: 2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 250px;
+}
+
+.search-bar {
+  position: relative;
+  flex: 1;
+  max-width: 400px;
+}
+
+.search-bar input {
+  width: 100%;
+  padding: 8px 16px 8px 36px;
+  border: 1px solid #E5E7EB;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #374151;
+}
+
+.search-bar input::placeholder {
+  color: #9CA3AF;
+}
+
+.search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #9CA3AF;
+}
+
+.topbar-nav {
+  display: flex;
+  gap: 32px;
+  align-items: center;
+}
+
+.topbar-nav a {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #6B7280;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s;
+  padding: 8px 0;
+  position: relative;
+}
+
+.topbar-nav a svg {
+  width: 18px;
+  height: 18px;
+}
+
+.topbar-nav a:hover {
+  color: #111827;
+}
+
+.topbar-nav a.active {
+  color: #2563EB;
+}
+
+.topbar-nav a.active::after {
+  content: '';
+  position: absolute;
+  bottom: -18px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background-color: #2563EB;
+  border-radius: 2px 2px 0 0;
+}
+
+.topbar-filters {
+  padding: 12px 24px;
+  border-bottom: 1px solid #E5E7EB;
+  background: white;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.filter-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border: 1px solid #E5E7EB;
+  border-radius: 8px;
+  background: white;
+  color: #374151;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.filter-button:hover {
+  border-color: #D1D5DB;
+  background: #F9FAFB;
+}
+
+.status-filters {
+  display: flex;
+  gap: 8px;
+}
+
+.status-filters button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 8px;
+  background: #F3F4F6;
+  color: #374151;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.status-filters button:hover {
+  background: #E5E7EB;
+}
+
+.status-filters button.active {
+  background: #2563EB;
+  color: white;
+}
+
+.messages-badge {
+  background: #e11d48;
+  color: #fff;
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 12px;
+  margin-left: 4px;
+  font-weight: bold;
+  vertical-align: top;
+  display: inline-block;
+  min-width: 20px;
+  text-align: center;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1024px) {
+  .topbar {
+    padding: 0 16px;
+  }
+
+  .topbar-logo {
+    min-width: auto;
+  }
+
+  .topbar-nav {
+    gap: 24px;
+  }
+}
+
+@media (max-width: 768px) {
+  .topbar {
+    height: 48px;
+  }
+
+  .topbar-logo h1 {
+    font-size: 14px;
+  }
+
+  .topbar-nav {
+    gap: 16px;
+  }
+
+  .topbar-nav a span {
+    display: none;
+  }
+
+  .topbar-nav a svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .topbar-nav a.active::after {
+    bottom: -15px;
+  }
+
+  .topbar-filters {
+    padding: 12px 16px;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .status-filters {
+    overflow-x: auto;
+    padding-bottom: 8px;
+  }
+} 

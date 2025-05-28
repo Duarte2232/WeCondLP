@@ -45,6 +45,16 @@ function SearchFilters({
           <option value="Construção">Construção</option>
           <option value="Pintura">Pintura</option>
         </select>
+        <select
+          value={selectedFilters.priority}
+          onChange={(e) => setSelectedFilters({...selectedFilters, priority: e.target.value})}
+        >
+          <option value="">Prioridade</option>
+          <option value="Baixa">Baixa</option>
+          <option value="Média">Média</option>
+          <option value="Alta">Alta</option>
+          <option value="Urgente (24h-48h)">Urgente</option>
+        </select>
       </div>
     </div>
   );

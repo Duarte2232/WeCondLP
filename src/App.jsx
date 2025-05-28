@@ -6,11 +6,13 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './contexts/auth';
 import DashAdmin from './components/Dashboard_Admin/dashadmin';
 import DashTecnico from './components/Dashboard_Técnico/dashtecnico';
+import { Toaster } from 'react-hot-toast';
 
 function App() {
   return (
     <AuthProvider>
       <Router>
+        <Toaster position="top-right" />
         <Routes>
           <Route path="/" element={
             <div className='container'>
@@ -21,7 +23,7 @@ function App() {
             </div>
           } />
           <Route path="/login" element={<Login />} />
-          <Route path="/dashgestor" element={<DashGestor />} />
+          <Route path="/dashgestor/*" element={<DashGestor />} />
           <Route path="/dashtecnico/*" element={<DashTecnico />} />
           <Route path="/dashadmin" element={<DashAdmin />} />
         </Routes>

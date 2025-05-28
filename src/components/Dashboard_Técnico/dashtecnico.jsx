@@ -17,9 +17,14 @@ const DashTecnico = () => {
   const [perfilCompleto, setPerfilCompleto] = useState(true);
   const [userData, setUserData] = useState(null);
   const [secoesPendentes, setSecoesPendentes] = useState([]);
+  const [profileUpdateTrigger, setProfileUpdateTrigger] = useState(0);
   const auth = getAuth();
   const navigate = useNavigate();
   const location = useLocation();
+
+  const triggerProfileUpdate = () => {
+    setProfileUpdateTrigger(prev => prev + 1);
+  };
 
   useEffect(() => {
     const verificarPerfil = async () => {
@@ -124,73 +129,115 @@ const DashTecnico = () => {
         
         console.log("Especialidades normalizadas:", especialidadesNormalizadas);
 
-        // Buscar todas as obras, mesmo que não tenham status explicitamente definido
-        const obrasRef = collection(db, 'works');
+        // Buscar todas as obras da coleção ObrasPedidos
+        const obrasRef = collection(db, 'ObrasPedidos');
+        const obrasQuerySnapshot = await getDocs(obrasRef);
         
-        // Não vamos mais filtrar apenas por status "disponivel" para garantir que
-        // vemos todas as obras potencialmente relevantes
-        const querySnapshot = await getDocs(obrasRef);
+        // Buscar todas as manutenções da coleção ManutençãoPedidos
+        const manutencoesRef = collection(db, 'ManutençãoPedidos');
+        const manutencoesQuerySnapshot = await getDocs(manutencoesRef);
         
-        console.log("Total de obras encontradas:", querySnapshot.size);
+        console.log("Total de obras encontradas:", obrasQuerySnapshot.size);
+        console.log("Total de manutenções encontradas:", manutencoesQuerySnapshot.size);
         
-        // Filtrar obras com base nas especialidades do técnico
-        const obrasData = [];
-        querySnapshot.forEach((doc) => {
-          const obraData = { id: doc.id, ...doc.data() };
-          console.log("Obra encontrada:", obraData.title, "Categoria:", obraData.category, "Status:", obraData.status);
-          
+        // Função para filtrar trabalhos com base nas especialidades
+        const filterBySpecialties = (trabalho) => {
           // Se a obra já tiver um técnico atribuído que não seja o usuário atual, pular
-          if (obraData.technicianId && obraData.technicianId !== auth.currentUser.uid) {
-            console.log("Obra já atribuída a outro técnico:", obraData.title);
-            return;
+          if (trabalho.technicianId && trabalho.technicianId !== auth.currentUser.uid) {
+            console.log("Trabalho já atribuído a outro técnico:", trabalho.title);
+            return false;
           }
           
-          // Se a obra não tiver status ou não for "disponivel", mas tiver técnico atribuído igual ao usuário atual, mostrar
-          const statusCompativel = !obraData.status || 
-                                  obraData.status === "disponivel" || 
-                                  (obraData.technicianId === auth.currentUser.uid);
+          // Se o trabalho não tiver status ou não for "disponivel", mas tiver técnico atribuído igual ao usuário atual, mostrar
+          const statusCompativel = !trabalho.status || 
+                                  trabalho.status === "disponivel" || 
+                                  trabalho.status === "em-andamento" ||
+                                  (trabalho.technicianId === auth.currentUser.uid);
           
           if (!statusCompativel) {
-            console.log("Status incompatível:", obraData.status);
-            return;
+            console.log("Status incompatível:", trabalho.status);
+            return false;
           }
           
-          // Normalizar categoria da obra
-          const categoriaNormalizada = obraData.category 
-            ? obraData.category.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+          // Normalizar categoria do trabalho
+          const categoriaNormalizada = trabalho.category 
+            ? trabalho.category.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
             : "";
           
-          // Verificações especiais para categorias importantes
-          if (categoriaNormalizada.includes("eletr")) {
-            // Caso especial para Eletricidade/Eletrecidade
-            if (especialidadesNormalizadas.some(esp => esp.includes("eletr"))) {
-              console.log("Correspondência encontrada para Eletricidade:", obraData.title);
-              obrasData.push(obraData);
-            }
-          } else {
-            // Para outras categorias, verificação normal
-            const correspondeEspecialidade = especialidadesNormalizadas.some(esp => 
-              categoriaNormalizada.includes(esp) || esp.includes(categoriaNormalizada)
+          // Mapeamento de categorias para palavras-chave de especialidades
+          const categoriaKeywords = {
+            "eletricidade": ["eletr", "eletric", "eletron"],
+            "hidraulica": ["hidraul", "agua", "encanamento", "canos", "tubos"],
+            "pintura": ["pintura", "pintor", "tintas"],
+            "carpintaria": ["carpintaria", "madeira", "marcenaria"],
+            "alvenaria": ["alvenaria", "construcao", "pedreiro", "tijolos", "cimento"],
+            "limpeza": ["limpeza", "faxineiro", "limpar"],
+            "jardim": ["jardim", "jardinagem", "paisagismo", "plantas"],
+            "vidros": ["vidros", "vidraceiro", "janelas"],
+            "metal": ["metal", "ferro", "aluminio", "serralheiro"],
+            "ceramica": ["ceramica", "azulejos", "pisos", "revestimentos"],
+            "gesso": ["gesso", "gessos", "forro", "sancas"],
+            "isolamento": ["isolamento", "isolamento termico", "isolamento acustico"],
+            "impermeabilizacao": ["impermeabilizacao", "impermeabilizante", "infiltracao"],
+            "desentupimento": ["desentupimento", "desentupir", "entupimento"],
+            "desratizacao": ["desratizacao", "pragas", "ratos", "insetos"],
+            "outros": ["outros", "diversos", "geral"]
+          };
+
+          // Verificar se a categoria do trabalho corresponde a alguma especialidade do técnico
+          let correspondeEspecialidade = false;
+          
+          // Primeiro, verificar correspondência direta
+          correspondeEspecialidade = especialidadesNormalizadas.some(esp => 
+            categoriaNormalizada.includes(esp) || esp.includes(categoriaNormalizada)
+          );
+
+          // Se não houver correspondência direta, verificar palavras-chave
+          if (!correspondeEspecialidade && categoriaKeywords[categoriaNormalizada]) {
+            const keywords = categoriaKeywords[categoriaNormalizada];
+            correspondeEspecialidade = especialidadesNormalizadas.some(esp =>
+              keywords.some(keyword => esp.includes(keyword) || keyword.includes(esp))
             );
-            
-            if (correspondeEspecialidade) {
-              console.log("Obra corresponde à especialidade:", obraData.title);
-              obrasData.push(obraData);
-            }
+          }
+
+          return correspondeEspecialidade;
+        };
+
+        // Processar obras
+        const obrasData = [];
+        obrasQuerySnapshot.forEach((doc) => {
+          const obraData = { id: doc.id, ...doc.data(), isMaintenance: false };
+          if (filterBySpecialties(obraData)) {
+            obrasData.push(obraData);
           }
         });
 
-        console.log("Obras filtradas para exibição:", obrasData.length);
-        setObras(obrasData);
+        // Processar manutenções
+        const manutencoesData = [];
+        manutencoesQuerySnapshot.forEach((doc) => {
+          const manutencaoData = { id: doc.id, ...doc.data(), isMaintenance: true };
+          if (filterBySpecialties(manutencaoData)) {
+            manutencoesData.push(manutencaoData);
+          }
+        });
+
+        // Combinar obras e manutenções
+        const allTrabalhos = [...obrasData, ...manutencoesData];
+        
+        console.log("Obras filtradas:", obrasData.length);
+        console.log("Manutenções filtradas:", manutencoesData.length);
+        console.log("Total de trabalhos:", allTrabalhos.length);
+        
+        setObras(allTrabalhos);
       } catch (error) {
-        console.error("Erro ao buscar obras:", error);
+        console.error("Erro ao buscar trabalhos:", error);
       } finally {
         setLoading(false);
       }
     };
 
     fetchObras();
-  }, [auth.currentUser, userData]);
+  }, [auth.currentUser, profileUpdateTrigger]);
 
   // Executar uma vez para corrigir categorias de obras (isso não afeta a interface do usuário)
   useEffect(() => {
@@ -302,7 +349,7 @@ const DashTecnico = () => {
           <Route path="/obras" element={<Jobs jobs={obras} loading={loading} />} />
           <Route path="/calendario" element={<Calendar obras={obras} loading={loading} />} />
           <Route path="/mensagens" element={<Messages />} />
-          <Route path="/perfil" element={<PerfilTecnico />} />
+          <Route path="/perfil" element={<PerfilTecnico onProfileUpdate={triggerProfileUpdate} />} />
         </Routes>
       </div>
     </div>
