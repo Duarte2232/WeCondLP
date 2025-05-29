@@ -1,5 +1,5 @@
 import React from 'react';
-import { FiX, FiMapPin, FiClock, FiPhone, FiTag, FiCalendar, FiFileText, FiCheckCircle, FiAward, FiPaperclip, FiDownload, FiFile } from 'react-icons/fi';
+import { FiX, FiMapPin, FiClock, FiPhone, FiTag, FiCalendar, FiFileText, FiCheckCircle, FiAward, FiPaperclip, FiDownload, FiFile, FiRefreshCw } from 'react-icons/fi';
 import './JobDetailsModal.css';
 
 const JobDetailsModal = ({ job, onClose }) => {
@@ -96,6 +96,16 @@ const JobDetailsModal = ({ job, onClose }) => {
                      job.priority === 'MEDIA' ? 'Média' : 
                      job.priority === 'BAIXA' ? 'Baixa' : job.priority}
                   </span>
+                </div>
+              </div>
+            )}
+
+            {job.frequency && (
+              <div className="detail-row">
+                <div className="detail-item full-width">
+                  <FiRefreshCw />
+                  <span className="detail-label">Frequência:</span>
+                  <span className="detail-value">{job.frequency}</span>
                 </div>
               </div>
             )}

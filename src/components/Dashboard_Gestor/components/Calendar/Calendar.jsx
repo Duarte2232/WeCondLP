@@ -3,10 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { FiArrowLeft, FiPlus, FiChevronLeft, FiChevronRight, FiFilter, FiCheck } from 'react-icons/fi';
 import { collection, getDocs, query, doc, getDoc, where } from 'firebase/firestore';
 import { db } from '../../../../services/firebase';
+import { useAuth } from '../../../../contexts/auth';
 import './Calendar.css';
 
 const Calendar = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [showNewEventForm, setShowNewEventForm] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
@@ -26,6 +28,84 @@ const Calendar = () => {
     const fetchData = async () => {
       try {
         setIsLoading(true);
+
+        // Function to calculate recurring dates based on frequency
+        const calculateRecurringDates = (startDate, frequency, maxMonthsAhead = 12) => {
+          const dates = [];
+          const start = new Date(startDate);
+          const maxDate = new Date();
+          maxDate.setMonth(maxDate.getMonth() + maxMonthsAhead);
+
+          if (!frequency || frequency === 'Única') {
+            return [start];
+          }
+
+          let currentDate = new Date(start);
+          while (currentDate <= maxDate) {
+            dates.push(new Date(currentDate));
+
+            switch (frequency) {
+              case 'Diária':
+                currentDate.setDate(currentDate.getDate() + 1);
+                break;
+              case 'Semanal':
+                currentDate.setDate(currentDate.getDate() + 7);
+                break;
+              case 'Quinzenal':
+                currentDate.setDate(currentDate.getDate() + 14);
+                break;
+              case 'Mensal':
+                currentDate.setMonth(currentDate.getMonth() + 1);
+                break;
+              case 'Trimestral':
+                currentDate.setMonth(currentDate.getMonth() + 3);
+                break;
+              case 'Semestral':
+                currentDate.setMonth(currentDate.getMonth() + 6);
+                break;
+              case 'Anual':
+                currentDate.setFullYear(currentDate.getFullYear() + 1);
+                break;
+              default:
+                // Se não reconhecer a frequência, tratar como única
+                return [start];
+            }
+          }
+
+          return dates;
+        };
+
+        // Buscar manutenções do usuário atual
+        let manutencoesData = [];
+        if (user?.email) {
+          const manutencoesEmailQuery = query(
+            collection(db, 'ManutençãoPedidos'),
+            where('userEmail', '==', user.email)
+          );
+          
+          const manutencoesUserIdQuery = query(
+            collection(db, 'ManutençãoPedidos'),
+            where('userId', '==', user.uid)
+          );
+          
+          const [manutencoesEmailSnapshot, manutencoesUserIdSnapshot] = await Promise.all([
+            getDocs(manutencoesEmailQuery),
+            getDocs(manutencoesUserIdQuery)
+          ]);
+          
+          // Criar um mapa para evitar duplicações
+          const manutencoesMap = new Map();
+          [...manutencoesEmailSnapshot.docs, ...manutencoesUserIdSnapshot.docs].forEach(doc => {
+            if (!manutencoesMap.has(doc.id)) {
+              manutencoesMap.set(doc.id, {
+                id: doc.id,
+                ...doc.data()
+              });
+            }
+          });
+          
+          manutencoesData = Array.from(manutencoesMap.values());
+        }
 
         // Buscar todos os orçamentos (aceitos e não aceitos)
         const orcamentosRefObras = collection(db, 'ObrasOrçamentos');
@@ -137,6 +217,61 @@ const Calendar = () => {
           }
         });
 
+        // Criar eventos das manutenções
+        const manutencoesEventos = [];
+        manutencoesData.forEach(manutencao => {
+          if (manutencao.date) {
+            try {
+              const startDate = new Date(manutencao.date);
+              
+              if (!isNaN(startDate.getTime())) {
+                // Calcular todas as datas baseadas na frequência
+                const recurringDates = calculateRecurringDates(startDate, manutencao.frequency);
+                
+                recurringDates.forEach((date, index) => {
+                  const isFirstOccurrence = index === 0;
+                  
+                  manutencoesEventos.push({
+                    id: `manutencao-${manutencao.id}-${index}`,
+                    titulo: manutencao.title,
+                    data: formatDateToDisplay(date),
+                    tipo: 'Manutenção',
+                    color: getMaintenanceColor(manutencao.status),
+                    details: manutencao.description,
+                    local: manutencao.location ? `${manutencao.location.morada || ''}, ${manutencao.location.cidade || ''}` : '',
+                    originalDate: date,
+                    manutencao: manutencao,
+                    status: manutencao.status,
+                    priority: manutencao.priority,
+                    category: manutencao.category,
+                    frequency: manutencao.frequency,
+                    isFirstOccurrence: isFirstOccurrence,
+                    isMaintenance: true
+                  });
+                });
+              }
+            } catch (error) {
+              console.error('Erro ao processar data da manutenção:', error);
+            }
+          }
+        });
+
+        // Função para definir cor baseada no status da manutenção
+        function getMaintenanceColor(status) {
+          switch (status) {
+            case 'disponivel':
+              return '#6366f1'; // Azul
+            case 'em-andamento':
+              return '#f59e0b'; // Amarelo
+            case 'concluido':
+              return '#10b981'; // Verde
+            case 'cancelado':
+              return '#ef4444'; // Vermelho
+            default:
+              return '#6b7280'; // Cinza
+          }
+        }
+
         // Eventos padrão - apenas eventos futuros
         const eventosPadrao = [
           {
@@ -161,7 +296,8 @@ const Calendar = () => {
 
         const todosEventos = [
           ...eventosPadrao,
-          ...obrasEventos
+          ...obrasEventos,
+          ...manutencoesEventos
         ];
         setEventos(todosEventos);
       } catch (error) {
@@ -175,7 +311,7 @@ const Calendar = () => {
     
     // Re-run this effect whenever the component mounts
     // This ensures that any new events added elsewhere in the app will be displayed
-  }, []);
+  }, [user]);
 
   const formatDateToDisplay = (date) => {
     return `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
@@ -435,12 +571,13 @@ const Calendar = () => {
                 .map(evento => (
                   <div 
                     key={evento.id} 
-                    className={`event-card ${evento.isOrcamento ? (evento.aceito ? 'orcamento-aceito' : 'orcamento-pendente') : ''}`}
+                    className={`event-card ${evento.isOrcamento ? (evento.aceito ? 'orcamento-aceito' : 'orcamento-pendente') : ''} ${evento.isMaintenance ? 'maintenance-event' : ''}`}
                   >
                     <div className="event-header">
                       <h3>{evento.titulo}</h3>
                       <span className="event-type" style={{ backgroundColor: evento.color }}>
                         {evento.isOrcamento ? (evento.aceito ? 'Aceito' : 'Pendente') : evento.tipo}
+                        {evento.isMaintenance && evento.frequency && evento.frequency !== 'Única' && ` (${evento.frequency})`}
                       </span>
                     </div>
                     <div className="event-details">
@@ -451,6 +588,19 @@ const Calendar = () => {
                         <>
                           <p><strong>Valor:</strong> {evento.valor}€</p>
                           <p><strong>Técnico:</strong> {evento.technicianEmail}</p>
+                        </>
+                      )}
+                      {evento.isMaintenance && (
+                        <>
+                          {evento.priority && <p><strong>Prioridade:</strong> {evento.priority}</p>}
+                          {evento.category && <p><strong>Categoria:</strong> {evento.category}</p>}
+                          {evento.status && <p><strong>Status:</strong> {evento.status}</p>}
+                          {evento.frequency && evento.frequency !== 'Única' && (
+                            <p><strong>Frequência:</strong> {evento.frequency}</p>
+                          )}
+                          {!evento.isFirstOccurrence && (
+                            <p><em>Ocorrência recorrente</em></p>
+                          )}
                         </>
                       )}
                       {evento.details && <p><strong>Detalhes:</strong> {evento.details}</p>}

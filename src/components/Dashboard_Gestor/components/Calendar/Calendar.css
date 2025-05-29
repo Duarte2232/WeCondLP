@@ -605,8 +605,26 @@
 }
 
 .event-card.orcamento-aceito {
-  border-left: 4px solid #10B981;
-  background-color: rgba(16, 185, 129, 0.05);
+  border-left: 4px solid #10b981;
+  background-color: #f0fdf4;
+}
+
+/* Estilos para eventos de manutenção */
+.event-card.maintenance-event {
+  border-left: 4px solid #6366f1;
+  background-color: #f8fafc;
+}
+
+.event-card.maintenance-event .event-type {
+  background-color: #6366f1;
+}
+
+.day-event-item.maintenance {
+  background-color: #6366f1;
+}
+
+.day-event-item.maintenance:hover {
+  background-color: #5145c7;
 }
 
 /* Ajuste para o container de eventos no dia */

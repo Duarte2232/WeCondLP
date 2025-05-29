@@ -116,7 +116,7 @@ function MaintenanceForm({
 }) {
   const [newMaintenance, setNewMaintenance] = useState({
     ...initialData,
-    date: '',
+    date: initialData?.date || '',
     title: initialData?.title || '',
     description: initialData?.description || '',
     category: initialData?.category || '',
@@ -137,23 +137,6 @@ function MaintenanceForm({
     prazoOrcamentos: initialData?.prazoOrcamentos || ''
   });
   const [availableSubcategories, setAvailableSubcategories] = useState([]);
-
-  // Function to format date to dd/mm/yyyy
-  const formatDate = (dateString) => {
-    if (!dateString) return '';
-    const date = new Date(dateString);
-    const day = String(date.getDate()).padStart(2, '0');
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const year = date.getFullYear();
-    return `${day}/${month}/${year}`;
-  };
-
-  // Function to parse dd/mm/yyyy to yyyy-mm-dd for the input
-  const parseDate = (dateString) => {
-    if (!dateString) return '';
-    const [day, month, year] = dateString.split('/');
-    return `${year}-${month}-${day}`;
-  };
 
   const handleLocalFileUpload = async (e) => {
     const newFiles = await handleFileUploadProp(e);
@@ -294,26 +277,12 @@ function MaintenanceForm({
           
           <div className="form-row two-columns">
             <div className="form-group">
-              <label>Data</label>
+              <label>Data de Começo</label>
               <input
-                type="text"
+                type="date"
                 required
-                value={formatDate(newMaintenance.date)}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  // Allow only numbers and forward slashes
-                  if (/^[0-9/]*$/.test(value)) {
-                    // Format the input as user types
-                    let formatted = value.replace(/\D/g, '');
-                    if (formatted.length > 0) {
-                      formatted = formatted.match(new RegExp('.{1,2}', 'g')).join('/');
-                      if (formatted.length > 10) formatted = formatted.substr(0, 10);
-                    }
-                    setNewMaintenance({...newMaintenance, date: parseDate(formatted)});
-                  }
-                }}
-                placeholder="dd/mm/aaaa"
-                maxLength="10"
+                value={newMaintenance.date}
+                onChange={(e) => setNewMaintenance({...newMaintenance, date: e.target.value})}
               />
             </div>
             <div className="form-group">

@@ -191,6 +191,11 @@
   font-weight: 600;
 }
 
+.frequency-value {
+  color: #111827;
+  font-weight: 500;
+}
+
 .job-description, 
 .job-requirements {
   color: #4B5563;
