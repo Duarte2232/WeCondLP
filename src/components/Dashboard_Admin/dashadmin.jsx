@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/auth';
 import { db } from '../../services/firebase';
 import { collection, query, where, getDocs, doc, updateDoc, getDoc, addDoc, serverTimestamp, deleteDoc, arrayUnion } from 'firebase/firestore';
-import { FiEdit2, FiEye, FiSearch, FiFilter, FiX, FiCheck, FiArrowLeft, FiFile, FiUpload, FiDownload, FiFileText, FiTrash2, FiFolder, FiCalendar, FiUser } from 'react-icons/fi';
+import { FiEdit2, FiEye, FiSearch, FiFilter, FiX, FiCheck, FiArrowLeft, FiFile, FiUpload, FiDownload, FiFileText, FiTrash2, FiFolder, FiCalendar, FiUser, FiDollarSign } from 'react-icons/fi';
 import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { CLOUDINARY_CONFIG } from '../../config/cloudinary';
 import { uploadToCloudinary, uploadToCloudinaryWithSignature, uploadToCloudinaryDirectSigned } from '../../services/cloudinary.service.js';
@@ -52,6 +52,9 @@ function DashAdmin() {
   });
   const [showDocumentsModal, setShowDocumentsModal] = useState(false);
   const [selectedWorkForDocuments, setSelectedWorkForDocuments] = useState(null);
+  // Novos estados para o modal de visualização de orçamentos
+  const [showViewOrcamentosModal, setShowViewOrcamentosModal] = useState(false);
+  const [selectedWorkForViewOrcamentos, setSelectedWorkForViewOrcamentos] = useState(null);
 
   // Verificar se é o admin autorizado
   useEffect(() => {
@@ -367,6 +370,53 @@ function DashAdmin() {
     }
   };
 
+  // Função para buscar orçamentos da base de dados
+  const fetchOrcamentosForWork = async (work) => {
+    try {
+      console.log('Buscando orçamentos para obra:', work.id, work.isMaintenance ? '(Manutenção)' : '(Obra)');
+      
+      // Determinar qual coleção usar
+      const collectionName = work.isMaintenance ? 'ManutençãoOrçamentos' : 'ObrasOrçamentos';
+      const workIdField = work.isMaintenance ? 'manutencaoId' : 'workId';
+      
+      const orcamentosRef = collection(db, collectionName);
+      const q = query(orcamentosRef, where(workIdField, '==', work.id));
+      const querySnapshot = await getDocs(q);
+      
+      const orcamentosData = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      
+      console.log(`Encontrados ${orcamentosData.length} orçamentos na coleção ${collectionName}:`, orcamentosData);
+      
+      return orcamentosData;
+    } catch (error) {
+      console.error('Erro ao buscar orçamentos:', error);
+      return [];
+    }
+  };
+
+  // Função para abrir modal de visualização de orçamentos
+  const handleViewOrcamentos = async (work) => {
+    try {
+      // Buscar orçamentos da base de dados
+      const orcamentos = await fetchOrcamentosForWork(work);
+      
+      // Criar objeto da obra com orçamentos atualizados
+      const workWithOrcamentos = {
+        ...work,
+        orcamentos: orcamentos
+      };
+      
+      setSelectedWorkForViewOrcamentos(workWithOrcamentos);
+      setShowViewOrcamentosModal(true);
+    } catch (error) {
+      console.error('Erro ao carregar orçamentos:', error);
+      alert('Erro ao carregar orçamentos');
+    }
+  };
+
   // Upload de um único arquivo com retry nos três métodos (mesmo método do dashboard técnico)
   const uploadSingleFileWithRetry = async (file) => {
     console.log(`Iniciando upload de ${file.name} com múltiplos métodos...`);
@@ -507,34 +557,42 @@ function DashAdmin() {
       if (!workToUpdate) {
         throw new Error('Obra não encontrada');
       }
-      
-      // Determinar qual coleção usar
-      const collectionName = workToUpdate.isMaintenance ? 'ManutençãoPedidos' : 'ObrasPedidos';
-      const workRef = doc(db, collectionName, workId);
-      const workDoc = await getDoc(workRef);
-      const workData = workDoc.data();
-      
-      if (!workData.orcamentos) return;
 
-      // Remove o orçamento do array
-      const newOrcamentos = workData.orcamentos.filter((_, index) => index !== orcamentoIndex);
+      // Se temos orçamentos carregados no modal, remover da coleção correta
+      if (selectedWorkForViewOrcamentos && selectedWorkForViewOrcamentos.orcamentos) {
+        const orcamentoToRemove = selectedWorkForViewOrcamentos.orcamentos[orcamentoIndex];
+        
+        if (orcamentoToRemove && orcamentoToRemove.id) {
+          // Determinar qual coleção usar
+          const collectionName = workToUpdate.isMaintenance ? 'ManutençãoOrçamentos' : 'ObrasOrçamentos';
+          const orcamentoRef = doc(db, collectionName, orcamentoToRemove.id);
+          
+          // Remover da coleção de orçamentos
+          await deleteDoc(orcamentoRef);
+          
+          console.log(`Orçamento ${orcamentoToRemove.id} removido da coleção ${collectionName}`);
+        }
+      } else {
+        // Fallback para o método antigo (remover do array na obra)
+        const collectionName = workToUpdate.isMaintenance ? 'ManutençãoPedidos' : 'ObrasPedidos';
+        const workRef = doc(db, collectionName, workId);
+        const workDoc = await getDoc(workRef);
+        const workData = workDoc.data();
+        
+        if (workData.orcamentos && Array.isArray(workData.orcamentos)) {
+          const newOrcamentos = workData.orcamentos.filter((_, index) => index !== orcamentoIndex);
+          await updateDoc(workRef, { orcamentos: newOrcamentos });
+        }
+      }
 
-      // Atualiza no Firestore
-      await updateDoc(workRef, {
-        orcamentos: newOrcamentos
-      });
-
-      // Atualiza o estado local
-      setUsers(prevUsers => 
-        prevUsers.map(user => ({
-          ...user,
-          works: user.works?.map(work => 
-            work.id === workId
-              ? { ...work, orcamentos: newOrcamentos }
-              : work
-          )
-        }))
-      );
+      // Atualizar o estado local do modal
+      if (selectedWorkForViewOrcamentos) {
+        const updatedWork = {
+          ...selectedWorkForViewOrcamentos,
+          orcamentos: selectedWorkForViewOrcamentos.orcamentos.filter((_, i) => i !== orcamentoIndex)
+        };
+        setSelectedWorkForViewOrcamentos(updatedWork);
+      }
 
       alert('Orçamento removido com sucesso!');
     } catch (error) {
@@ -805,29 +863,20 @@ function DashAdmin() {
                                     className="action-button"
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      handleUpdateWork(work.id, { status: 'em-andamento' }, user.email);
-                                    }}
-                                  >
-                                    <FiCheck /> Em Andamento
-                                  </button>
-                                  <button
-                                    className="action-button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleUpdateWork(work.id, { status: 'concluido' }, user.email);
-                                    }}
-                                  >
-                                    <FiCheck /> Concluído
-                                  </button>
-                                  <button
-                                    className="action-button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
                                       setSelectedWorkForOrcamento(work);
                                       setShowOrcamentoModal(true);
                                     }}
                                   >
                                     <FiFileText /> Orçamento
+                                  </button>
+                                  <button
+                                    className="action-button view-orcamentos-button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleViewOrcamentos(work);
+                                    }}
+                                  >
+                                    <FiDollarSign /> Ver Orçamentos
                                   </button>
                                   <button
                                     className="action-button documents-button"
@@ -1273,6 +1322,87 @@ function DashAdmin() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal para Visualizar Orçamentos */}
+      {showViewOrcamentosModal && selectedWorkForViewOrcamentos && (
+        <div className="modal-overlay">
+          <div className="modal-content orcamentos-modal">
+            <div className="modal-header">
+              <h2>Orçamentos - {selectedWorkForViewOrcamentos.title}</h2>
+              <button 
+                className="close-btn"
+                onClick={() => {
+                  setShowViewOrcamentosModal(false);
+                  setSelectedWorkForViewOrcamentos(null);
+                }}
+              >
+                <FiX />
+              </button>
+            </div>
+            
+            <div className="orcamentos-content">
+              {selectedWorkForViewOrcamentos.orcamentos && selectedWorkForViewOrcamentos.orcamentos.length > 0 ? (
+                <div className="orcamentos-grid">
+                  {selectedWorkForViewOrcamentos.orcamentos.map((orcamento, index) => (
+                    <div key={index} className={`orcamento-card-detailed ${orcamento.aceito ? 'orcamento-aceito-highlighted' : ''}`}>
+                      <div className="orcamento-header-detailed">
+                        <div className="orcamento-info-detailed">
+                          <h3>{orcamento.technicianName || orcamento.empresa || 'Técnico'}</h3>
+                          {orcamento.aceito && (
+                            <div className="aceito-badge">
+                              <FiCheck /> ACEITO
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      
+                      <div className="orcamento-actions-detailed">
+                        {(orcamento.files && orcamento.files.length > 0) ? (
+                          orcamento.files.map((file, fileIndex) => (
+                            <button 
+                              key={fileIndex}
+                              className="download-btn-detailed"
+                              onClick={() => handleFileDownload(file, file.name)}
+                            >
+                              <FiDownload /> Download PDF {fileIndex + 1}
+                            </button>
+                          ))
+                        ) : orcamento.documento ? (
+                          <button 
+                            className="download-btn-detailed"
+                            onClick={() => handleFileDownload(orcamento.documento, orcamento.documento.nome)}
+                          >
+                            <FiDownload /> Download Orçamento
+                          </button>
+                        ) : (
+                          <span className="no-file-message">Nenhum arquivo anexado</span>
+                        )}
+                        
+                        <button
+                          className="remove-orcamento-btn-detailed"
+                          onClick={() => {
+                            if (window.confirm('Tem certeza que deseja remover este orçamento?')) {
+                              handleRemoveOrcamento(selectedWorkForViewOrcamentos.id, index);
+                            }
+                          }}
+                        >
+                          <FiTrash2 /> Remover
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="no-orcamentos-message">
+                  <FiDollarSign size={48} />
+                  <h3>Nenhum orçamento disponível</h3>
+                  <p>Esta obra ainda não possui orçamentos enviados.</p>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
