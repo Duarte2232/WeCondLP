@@ -55,6 +55,8 @@ function DashAdmin() {
   // Novos estados para o modal de visualização de orçamentos
   const [showViewOrcamentosModal, setShowViewOrcamentosModal] = useState(false);
   const [selectedWorkForViewOrcamentos, setSelectedWorkForViewOrcamentos] = useState(null);
+  // Estado para controlar a exibição do botão de migração
+  const [oldWorksCount, setOldWorksCount] = useState(0);
 
   // Verificar se é o admin autorizado
   useEffect(() => {
@@ -63,6 +65,146 @@ function DashAdmin() {
       navigate('/login');
     }
   }, [user, navigate]);
+
+  // Função para verificar se existem obras antigas
+  const checkForOldWorks = async () => {
+    try {
+      const oldWorksRef = collection(db, 'works');
+      const oldWorksSnapshot = await getDocs(oldWorksRef);
+      return oldWorksSnapshot.size;
+    } catch (error) {
+      console.error('Erro ao verificar obras antigas:', error);
+      return 0;
+    }
+  };
+
+  // Verificar obras antigas quando o componente carrega
+  useEffect(() => {
+    const checkOldWorks = async () => {
+      if (user?.email) {
+        const count = await checkForOldWorks();
+        setOldWorksCount(count);
+      }
+    };
+    
+    checkOldWorks();
+  }, [user]);
+
+  // Função para migrar obras antigas (versão melhorada)
+  const migrateOldWorks = async () => {
+    try {
+      setIsLoading(true);
+      console.log('Iniciando migração de obras antigas...');
+      
+      // 1. Buscar todas as obras na coleção antiga 'works'
+      const oldWorksRef = collection(db, 'works');
+      const oldWorksSnapshot = await getDocs(oldWorksRef);
+      
+      if (oldWorksSnapshot.empty) {
+        alert('Nenhuma obra encontrada na coleção antiga para migrar.');
+        setIsLoading(false);
+        return;
+      }
+      
+      console.log(`Encontradas ${oldWorksSnapshot.size} obras para migrar`);
+      
+      let migratedCount = 0;
+      let removedCount = 0;
+      const errors = [];
+      
+      // 2. Migrar cada obra
+      for (const oldWorkDoc of oldWorksSnapshot.docs) {
+        try {
+          const workData = oldWorkDoc.data();
+          const workId = oldWorkDoc.id;
+          
+          // Determinar se é manutenção ou obra normal
+          const isMaintenance = workData.isMaintenance || false;
+          const newCollectionName = isMaintenance ? 'ManutençãoPedidos' : 'ObrasPedidos';
+          
+          // Verificar se já foi migrada (evitar duplicação)
+          const existingWorkQuery = query(
+            collection(db, newCollectionName),
+            where('migratedFromId', '==', workId)
+          );
+          const existingWorkSnapshot = await getDocs(existingWorkQuery);
+          
+          if (!existingWorkSnapshot.empty) {
+            console.log(`Obra ${workId} já foi migrada, removendo da coleção antiga...`);
+            // Remover da coleção antiga se já foi migrada
+            await deleteDoc(oldWorkDoc.ref);
+            removedCount++;
+            continue;
+          }
+          
+          // 3. Criar na nova coleção
+          const newWorkData = {
+            ...workData,
+            migratedFrom: 'works',
+            migratedFromId: workId,
+            migratedAt: serverTimestamp()
+          };
+          
+          // Remover orçamentos do documento principal (serão migrados separadamente)
+          const { orcamentos, ...workDataWithoutOrcamentos } = newWorkData;
+          
+          const newWorkRef = await addDoc(collection(db, newCollectionName), workDataWithoutOrcamentos);
+          console.log(`Obra ${workId} migrada para ${newCollectionName} com novo ID: ${newWorkRef.id}`);
+          
+          // 4. Migrar orçamentos se existirem
+          if (orcamentos && Array.isArray(orcamentos) && orcamentos.length > 0) {
+            const orcamentosCollectionName = isMaintenance ? 'ManutençãoOrçamentos' : 'ObrasOrçamentos';
+            const workIdField = isMaintenance ? 'manutencaoId' : 'workId';
+            
+            for (const orcamento of orcamentos) {
+              const orcamentoData = {
+                ...orcamento,
+                [workIdField]: newWorkRef.id,
+                migratedFrom: 'works',
+                migratedFromWorkId: workId,
+                migratedAt: serverTimestamp()
+              };
+              
+              await addDoc(collection(db, orcamentosCollectionName), orcamentoData);
+            }
+            
+            console.log(`${orcamentos.length} orçamentos migrados para ${orcamentosCollectionName}`);
+          }
+          
+          // 5. REMOVER da coleção antiga após migração bem-sucedida
+          await deleteDoc(oldWorkDoc.ref);
+          console.log(`Obra ${workId} removida da coleção antiga 'works'`);
+          
+          migratedCount++;
+          removedCount++;
+          
+        } catch (error) {
+          console.error(`Erro ao migrar obra ${oldWorkDoc.id}:`, error);
+          errors.push(`Obra ${oldWorkDoc.id}: ${error.message}`);
+        }
+      }
+      
+      // 6. Mostrar resultado
+      let message = `Migração concluída!\n${migratedCount} obras migradas com sucesso.\n${removedCount} obras removidas da coleção antiga.`;
+      
+      if (errors.length > 0) {
+        message += `\n\nErros encontrados:\n${errors.join('\n')}`;
+      }
+      
+      message += '\n\nIMPORTANTE: A migração remove as obras da coleção antiga para evitar duplicação.';
+      
+      alert(message);
+      
+      // Recarregar dados
+      window.location.reload();
+      
+    } catch (error) {
+      console.error('Erro na migração:', error);
+      alert('Erro na migração: ' + error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // Carregar todos os usuários e suas obras
   useEffect(() => {
@@ -492,7 +634,7 @@ function DashAdmin() {
         technicianId: "admin-generated", // ID único para admin
         technicianEmail: user.email,
         technicianName: newOrcamento.technicianName,
-        availabilityDate: newOrcamento.availabilityDate,
+        availabilityDate: newOrcamento.availabilityDate || null,
         isMultipleDays: newOrcamento.isMultipleDays,
         endDate: newOrcamento.isMultipleDays ? newOrcamento.endDate : null,
         files: processedFiles,
@@ -785,6 +927,62 @@ function DashAdmin() {
           <option value="concluido">Concluído</option>
         </select>
       </section>
+
+      {/* Alerta de Migração */}
+      {oldWorksCount > 0 && (
+        <div className="migration-alert" style={{
+          background: '#fff3cd',
+          border: '1px solid #ffeaa7',
+          borderRadius: '8px',
+          padding: '16px',
+          margin: '20px 0',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+        }}>
+          <div>
+            <strong style={{ color: '#856404', fontSize: '16px' }}>⚠️ Obras Antigas Detectadas</strong>
+            <p style={{ margin: '4px 0 0 0', color: '#856404', fontSize: '14px' }}>
+              Encontradas <strong>{oldWorksCount}</strong> obras na estrutura antiga que podem ser migradas para o novo formato.
+              <br />
+              <small>
+                <strong>⚠️ ATENÇÃO:</strong> A migração irá mover as obras da coleção "works" para "ObrasPedidos"/"ManutençãoPedidos" 
+                e <strong>remover as obras antigas</strong> para evitar duplicação.
+              </small>
+            </p>
+          </div>
+          <button
+            onClick={migrateOldWorks}
+            disabled={isLoading}
+            style={{
+              background: '#dc3545',
+              color: 'white',
+              border: 'none',
+              padding: '10px 20px',
+              borderRadius: '6px',
+              cursor: isLoading ? 'not-allowed' : 'pointer',
+              opacity: isLoading ? 0.6 : 1,
+              fontSize: '14px',
+              fontWeight: '500',
+              transition: 'all 0.2s',
+              minWidth: '120px'
+            }}
+            onMouseOver={(e) => {
+              if (!isLoading) {
+                e.target.style.background = '#c82333';
+              }
+            }}
+            onMouseOut={(e) => {
+              if (!isLoading) {
+                e.target.style.background = '#dc3545';
+              }
+            }}
+          >
+            {isLoading ? 'Migrando...' : 'Migrar Obras'}
+          </button>
+        </div>
+      )}
 
       <section className="admin-section">
         {isLoading ? (
@@ -1223,7 +1421,7 @@ function DashAdmin() {
 
               <div className="form-group">
                 <label htmlFor="availabilityDate">
-                  <FiCalendar /> Data de Disponibilidade
+                  <FiCalendar /> Data de Disponibilidade (Opcional)
                 </label>
                 <input
                   type="date"
@@ -1233,8 +1431,11 @@ function DashAdmin() {
                     ...newOrcamento,
                     availabilityDate: e.target.value
                   })}
-                  required
+                  placeholder="Deixe em branco se não souber"
                 />
+                <small style={{ color: '#666', fontSize: '12px', marginTop: '4px', display: 'block' }}>
+                  Se não preenchida, será exibida como "Não fornecida" no dashboard do gestor
+                </small>
               </div>
 
               <div className="form-group checkbox-group">

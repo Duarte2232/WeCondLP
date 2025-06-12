@@ -36,7 +36,7 @@ const OrcamentoDetailsModal = ({ orcamento, technicianName, workId, workTitle, o
 
   // Função para formatar a data no formato dd/mm/yyyy
   const formatDate = (dateString) => {
-    if (!dateString) return 'Data não disponível';
+    if (!dateString) return 'Não fornecida';
     
     try {
       const date = new Date(dateString);
@@ -74,21 +74,19 @@ const OrcamentoDetailsModal = ({ orcamento, technicianName, workId, workTitle, o
           </div>
 
           {/* Seção de disponibilidade */}
-          {orcamento.availabilityDate && (
-            <div className="orcamento-details-section">
-              <h3>Disponibilidade</h3>
-              <p>
-                <strong>Data de Disponibilidade:</strong> {formatDate(orcamento.availabilityDate)}
-                {orcamento.isMultipleDays && orcamento.endDate && (
-                  <>
-                    <br />
-                    <strong>Obra de Múltiplos Dias</strong><br />
-                    <strong>Data Final:</strong> {formatDate(orcamento.endDate)}
-                  </>
-                )}
-              </p>
-            </div>
-          )}
+          <div className="orcamento-details-section">
+            <h3>Disponibilidade</h3>
+            <p>
+              <strong>Data de Disponibilidade:</strong> {formatDate(orcamento.availabilityDate)}
+              {orcamento.isMultipleDays && orcamento.endDate && (
+                <>
+                  <br />
+                  <strong>Obra de Múltiplos Dias</strong><br />
+                  <strong>Data Final:</strong> {formatDate(orcamento.endDate)}
+                </>
+              )}
+            </p>
+          </div>
           
           {orcamento.files && orcamento.files.length > 0 && (
             <div className="orcamento-details-section">
