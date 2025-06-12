@@ -104,6 +104,12 @@ const WorkDetailsModal = ({ work, onClose, onEdit, onDelete, onComplete, onFileD
         
         for (const orcamento of orcamentos) {
           if (orcamento.technicianId && !namesMap[orcamento.technicianId]) {
+            // Se for admin-generated, usar o technicianName do próprio orçamento
+            if (orcamento.technicianId === "admin-generated") {
+              namesMap[orcamento.technicianId] = orcamento.technicianName || "Admin";
+              continue;
+            }
+            
             try {
               const techDoc = await getDoc(doc(db, 'users', orcamento.technicianId));
               if (techDoc.exists()) {
@@ -112,9 +118,14 @@ const WorkDetailsModal = ({ work, onClose, onEdit, onDelete, onComplete, onFileD
                   techData.empresaNome || 
                   techData.name || 
                   'Técnico';
+              } else {
+                // Se não existir na coleção users, usar o technicianName se disponível
+                namesMap[orcamento.technicianId] = orcamento.technicianName || 'Técnico';
               }
             } catch (error) {
               console.error('Error fetching technician data:', error);
+              // Fallback para technicianName em caso de erro
+              namesMap[orcamento.technicianId] = orcamento.technicianName || 'Técnico';
             }
           }
         }
@@ -562,13 +573,20 @@ const WorkDetailsModal = ({ work, onClose, onEdit, onDelete, onComplete, onFileD
               ) : orcamentos.length > 0 ? (
                 <div className="orcamentos-list">
                   {orcamentos.map((orcamento, index) => {
-                    const displayName = technicianNames[orcamento.technicianId] || 'Técnico';
+                    const displayName = orcamento.technicianName || 
+                                       technicianNames[orcamento.technicianId] || 
+                                       'Técnico';
                     return (
                       <div key={orcamento.id || index} 
                            className={`orcamento-card ${orcamento.aceito ? 'orcamento-aceito' : ''}`}
                            onClick={(e) => e.stopPropagation()}>
                         <div className="orcamento-info" style={{flexDirection: 'column', alignItems: 'center', textAlign: 'center'}}>
-                          <h4>{displayName}</h4>
+                          <h4>
+                            {displayName}
+                            {orcamento.technicianId === "admin-generated" && (
+                              <span className="admin-badge">Admin</span>
+                            )}
+                          </h4>
                         </div>
                         
                         <div className="orcamento-actions" onClick={(e) => e.stopPropagation()}>

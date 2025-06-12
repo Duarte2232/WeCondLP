@@ -53,19 +53,9 @@ function WorksTable({
     }
   };
 
-  if (!works) {
-    return (
-      <section className="works-table-container">
-        <div className="loading-container">
-          <LoadingAnimation />
-        </div>
-      </section>
-    );
-  }
-
   return (
     <section className="works-table-container">
-      {!works ? (
+      {!works || isLoading ? (
         <div className="loading-container">
           <LoadingAnimation />
         </div>

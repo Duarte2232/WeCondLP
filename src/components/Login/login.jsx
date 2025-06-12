@@ -179,7 +179,7 @@ function Login() {
         </div>
 
         <button type="submit" className="submit-btn" disabled={isLoading}>
-          {isLoading ? <LoadingAnimation /> : 'Registrar'}
+          {isLoading ? <LoadingAnimation inline={true} size="normal" /> : 'Registrar'}
         </button>
       </form>
     );
@@ -213,7 +213,7 @@ function Login() {
         </div>
 
         <button type="submit" className="submit-btn" disabled={isLoading}>
-          {isLoading ? <LoadingAnimation /> : 'Entrar'}
+          {isLoading ? <LoadingAnimation inline={true} size="normal" /> : 'Entrar'}
         </button>
       </form>
     );

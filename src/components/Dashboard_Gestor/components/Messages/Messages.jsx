@@ -2,8 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { FiSend, FiPaperclip, FiPlus, FiUser } from 'react-icons/fi';
 import { getAuth } from 'firebase/auth';
-import { ref, onValue, push, set, serverTimestamp, get, update } from 'firebase/database';
-import { collection, query, where, getDocs, getDoc, doc, onSnapshot, updateDoc } from 'firebase/firestore';
+import { ref, onValue, push, set, get, update } from 'firebase/database';
+import { collection, query, where, getDocs, getDoc, doc, onSnapshot, updateDoc, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db, database } from '../../../../services/firebase.jsx';
 import './Messages.css';
 
@@ -19,10 +19,44 @@ const Messages = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [userData, setUserData] = useState(null);
+  const [connectionError, setConnectionError] = useState(false);
   const messagesEndRef = useRef(null);
   // Keep track of the selected conversation ID to prevent losing it on reloads
   const selectedConversationIdRef = useRef(null);
+  // Flag to prevent duplicate conversation creation
+  const creatingConversationRef = useRef(false);
   
+  // Helper function to format message timestamps consistently
+  const formatMessageTime = (timestamp) => {
+    if (!timestamp) return '';
+    
+    try {
+      let date;
+      if (timestamp.toDate) {
+        // Firestore timestamp
+        date = timestamp.toDate();
+      } else if (timestamp.seconds) {
+        // Firestore timestamp object
+        date = new Date(timestamp.seconds * 1000);
+      } else if (timestamp instanceof Date) {
+        // JavaScript Date object
+        date = timestamp;
+      } else {
+        // String or number
+        date = new Date(timestamp);
+      }
+      
+      return date.toLocaleTimeString('pt-PT', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      });
+    } catch (error) {
+      console.error('Error formatting timestamp:', error);
+      return '';
+    }
+  };
+
   // When selectedConversation changes, update the ref
   useEffect(() => {
     if (selectedConversation) {
@@ -67,107 +101,284 @@ const Messages = () => {
   // Carregar todas as conversas do gestor
   useEffect(() => {
     if (!auth.currentUser) return;
-    setLoading(true);
-    const conversationsRef = collection(db, 'conversations');
-    const q = query(conversationsRef, where('gestorId', '==', auth.currentUser.uid));
-    const unsubscribe = onSnapshot(q, async (snapshot) => {
-      const conversationsData = [];
-      for (const conversationDoc of snapshot.docs) {
-        const conversationData = conversationDoc.data();
-        // Buscar dados do técnico
-        const technicianDoc = await getDoc(doc(db, 'users', conversationData.technicianId));
-        const technicianData = technicianDoc.data();
-        conversationsData.push({
-          id: conversationDoc.id,
-          technicianId: conversationData.technicianId,
-          technicianName: technicianData?.empresaNome || technicianData?.name || 'Técnico',
-          obraId: conversationData.workId,
-          obraTitle: conversationData.workTitle,
-          lastMessage: conversationData.lastMessage || '',
-          timestamp: conversationData.lastMessageTimestamp,
-          unreadCount: conversationData.messages?.filter(msg =>
-            msg.senderId !== auth.currentUser.uid && !msg.read
-          ).length || 0
-        });
-      }
-      // Ordenar conversas pelo timestamp da última mensagem
-      conversationsData.sort((a, b) => {
-        const getMillis = (ts) => {
-          if (!ts) return 0;
-          if (typeof ts.toDate === 'function') return ts.toDate().getTime();
-          if (ts instanceof Date) return ts.getTime();
-          return 0;
-        };
-        return getMillis(b.timestamp) - getMillis(a.timestamp);
-      });
-      setConversations(conversationsData);
-
-      // First check for tecnico parameter in URL
-      if (tecnicoIdFromUrl) {
-        console.log('Messages - Checking for technician in URL parameter:', tecnicoIdFromUrl);
-        let conversationToSelect;
-        
-        // If both tecnico and workId are provided, find the specific conversation
-        if (workIdFromUrl) {
-          console.log('Messages - Also checking for workId:', workIdFromUrl);
-          conversationToSelect = conversationsData.find(conv => 
-            conv.technicianId === tecnicoIdFromUrl && conv.obraId === workIdFromUrl
-          );
-          
-          if (conversationToSelect) {
-            console.log('Messages - Found conversation matching both technicianId and workId:', conversationToSelect);
-          } else {
-            console.log('Messages - No conversation found matching both technicianId and workId');
-            // If no conversation exists with both matches, just find by technician ID
-            conversationToSelect = conversationsData.find(conv => conv.technicianId === tecnicoIdFromUrl);
+    
+    // Reset the creating conversation flag when URL parameters change
+    creatingConversationRef.current = false;
+    
+    const loadConversations = async () => {
+      try {
+        setLoading(true);
+        const conversationsRef = collection(db, 'conversations');
+        const q = query(conversationsRef, where('gestorId', '==', auth.currentUser.uid));
+        const unsubscribe = onSnapshot(q, async (snapshot) => {
+          const conversationsData = [];
+          for (const conversationDoc of snapshot.docs) {
+            const conversationData = conversationDoc.data();
+            // Buscar dados do técnico
+            const technicianDoc = await getDoc(doc(db, 'users', conversationData.technicianId));
+            const technicianData = technicianDoc.data();
+            conversationsData.push({
+              id: conversationDoc.id,
+              technicianId: conversationData.technicianId,
+              technicianName: technicianData?.empresaNome || technicianData?.name || 'Técnico',
+              obraId: conversationData.workId,
+              obraTitle: conversationData.workTitle,
+              lastMessage: conversationData.lastMessage || '',
+              timestamp: conversationData.lastMessageTimestamp,
+              unreadCount: conversationData.messages?.filter(msg =>
+                msg.senderId !== auth.currentUser.uid && !msg.read
+              ).length || 0
+            });
           }
-        } else {
-          // If only tecnico ID is provided, find by technician ID only
-          conversationToSelect = conversationsData.find(conv => conv.technicianId === tecnicoIdFromUrl);
-        }
-        
-        if (conversationToSelect) {
-          console.log('Messages - Selected conversation:', conversationToSelect);
-          setSelectedConversation(conversationToSelect);
-          // Clear URL parameter after selecting the conversation
-          navigate('/dashgestor/mensagens', { replace: true });
+          // Ordenar conversas pelo timestamp da última mensagem
+          conversationsData.sort((a, b) => {
+            const getMillis = (ts) => {
+              if (!ts) return 0;
+              if (typeof ts.toDate === 'function') return ts.toDate().getTime();
+              if (ts instanceof Date) return ts.getTime();
+              return 0;
+            };
+            return getMillis(b.timestamp) - getMillis(a.timestamp);
+          });
+          setConversations(conversationsData);
+
+          // First check for tecnico parameter in URL
+          if (tecnicoIdFromUrl) {
+            console.log('Messages - Checking for technician in URL parameter:', tecnicoIdFromUrl);
+            let conversationToSelect;
+            
+            // If both tecnico and workId are provided, find the specific conversation
+            if (workIdFromUrl) {
+              console.log('Messages - Also checking for workId:', workIdFromUrl);
+              conversationToSelect = conversationsData.find(conv => 
+                conv.technicianId === tecnicoIdFromUrl && conv.obraId === workIdFromUrl
+              );
+              
+              if (conversationToSelect) {
+                console.log('Messages - Found conversation matching both technicianId and workId:', conversationToSelect);
+                setSelectedConversation(conversationToSelect);
+                // Clear URL parameter after selecting the conversation
+                navigate('/dashgestor/mensagens', { replace: true });
+                setLoading(false);
+                return;
+              } else {
+                console.log('Messages - No conversation found matching both technicianId and workId');
+                // Do NOT fallback to any conversation - proceed to create new one
+                conversationToSelect = null;
+              }
+            } else {
+              // If only tecnico ID is provided, find by technician ID only
+              conversationToSelect = conversationsData.find(conv => conv.technicianId === tecnicoIdFromUrl);
+              if (conversationToSelect) {
+                console.log('Messages - Selected conversation by technician ID only:', conversationToSelect);
+                setSelectedConversation(conversationToSelect);
+                navigate('/dashgestor/mensagens', { replace: true });
+                setLoading(false);
+                return;
+              }
+            }
+            
+            if (!conversationToSelect && tecnicoIdFromUrl && workIdFromUrl) {
+              console.log('Messages - Creating new conversation for technician:', tecnicoIdFromUrl, 'and work:', workIdFromUrl);
+              console.log('Messages - Available conversations for debug:', conversationsData.map(c => ({ 
+                id: c.id, 
+                technicianId: c.technicianId,
+                obraId: c.obraId,
+                technicianName: c.technicianName 
+              })));
+              
+              // Check if conversation creation is not already in progress
+              if (creatingConversationRef.current) {
+                console.log('Messages - Conversation creation already in progress');
+                return;
+              }
+
+              if (!tecnicoIdFromUrl || !workIdFromUrl || !auth.currentUser?.uid) {
+                console.error('Missing required parameters:', { tecnicoIdFromUrl, workIdFromUrl, currentUserId: auth.currentUser?.uid });
+                setError('Parâmetros insuficientes para criar conversa.');
+                setLoading(false);
+                return;
+              }
+
+              // Set flag to prevent duplicate creation
+              creatingConversationRef.current = true;
+
+              try {
+                // Double-check if conversation already exists in database
+                const existingConversationQuery = query(
+                  collection(db, 'conversations'),
+                  where('gestorId', '==', auth.currentUser.uid),
+                  where('workId', '==', workIdFromUrl),
+                  where('technicianId', '==', tecnicoIdFromUrl)
+                );
+                
+                const existingConversationSnapshot = await getDocs(existingConversationQuery);
+                
+                if (!existingConversationSnapshot.empty) {
+                  console.log('Messages - Conversation already exists in database, selecting it');
+                  const existingConversation = existingConversationSnapshot.docs[0];
+                  const existingData = existingConversation.data();
+                  
+                  // Get technician data for display
+                  const technicianDoc = await getDoc(doc(db, 'users', existingData.technicianId));
+                  const technicianData = technicianDoc.data();
+                  
+                  const conversationToSelect = {
+                    id: existingConversation.id,
+                    technicianId: existingData.technicianId,
+                    technicianName: technicianData?.empresaNome || technicianData?.name || 'Técnico',
+                    obraId: existingData.workId,
+                    obraTitle: existingData.workTitle,
+                    lastMessage: existingData.lastMessage || '',
+                    timestamp: existingData.lastMessageTimestamp,
+                    unreadCount: existingData.messages?.filter(msg => 
+                      msg.senderId !== auth.currentUser.uid && !msg.read
+                    ).length || 0
+                  };
+                  
+                  setSelectedConversation(conversationToSelect);
+                  navigate('/dashgestor/mensagens', { replace: true });
+                  creatingConversationRef.current = false;
+                  setLoading(false);
+                  return;
+                }
+                
+                // Get technician data
+                const technicianDoc = await getDoc(doc(db, 'users', tecnicoIdFromUrl));
+                if (!technicianDoc.exists()) {
+                  console.error('Technician not found:', tecnicoIdFromUrl);
+                  setError('Técnico não encontrado.');
+                  creatingConversationRef.current = false;
+                  setLoading(false);
+                  return;
+                }
+                
+                // Get work data - try both collections
+                let workDoc = await getDoc(doc(db, 'ObrasPedidos', workIdFromUrl));
+                let workData = null;
+                let workTitle = 'Obra';
+
+                if (workDoc.exists()) {
+                  workData = workDoc.data();
+                  workTitle = workData.title || 'Obra';
+                } else {
+                  // Try maintenance collection
+                  workDoc = await getDoc(doc(db, 'ManutençãoPedidos', workIdFromUrl));
+                  if (workDoc.exists()) {
+                    workData = workDoc.data();
+                    workTitle = workData.title || 'Manutenção';
+                  } else {
+                    console.error('Work not found in either collection:', workIdFromUrl);
+                    setError('Trabalho não encontrado. Por favor, verifique se o trabalho ainda existe.');
+                    creatingConversationRef.current = false;
+                    setLoading(false);
+                    return;
+                  }
+                }
+                
+                const technicianData = technicianDoc.data();
+                
+                // Verify user has access to this work (gestor owns it)
+                const userHasAccess = workData.userEmail === auth.currentUser.email || 
+                                     workData.userId === auth.currentUser.uid;
+
+                if (!userHasAccess) {
+                  console.error('User does not have access to this work');
+                  setError('Sem permissão para acessar este trabalho.');
+                  creatingConversationRef.current = false;
+                  setLoading(false);
+                  return;
+                }
+                
+                // Create new conversation
+                const conversationData = {
+                  workId: workIdFromUrl,
+                  workTitle: workTitle,
+                  gestorId: auth.currentUser.uid,
+                  technicianId: tecnicoIdFromUrl,
+                  createdAt: serverTimestamp(),
+                  lastMessage: null,
+                  lastMessageTimestamp: null,
+                  messages: []
+                };
+                
+                const conversationsRef = collection(db, 'conversations');
+                const newConversationRef = await addDoc(conversationsRef, conversationData);
+                
+                console.log('Messages - New conversation created:', newConversationRef.id);
+                
+                // Clear URL parameters and reset flag
+                navigate('/dashgestor/mensagens', { replace: true });
+                creatingConversationRef.current = false;
+                
+                // Create a conversation object to select immediately
+                const newConversationData = {
+                  id: newConversationRef.id,
+                  technicianId: tecnicoIdFromUrl,
+                  technicianName: technicianData?.empresaNome || technicianData?.name || 'Técnico',
+                  obraId: workIdFromUrl,
+                  obraTitle: workTitle,
+                  lastMessage: '',
+                  timestamp: null,
+                  unreadCount: 0
+                };
+                
+                console.log('Messages - Selecting newly created conversation:', newConversationData);
+                setSelectedConversation(newConversationData);
+                setLoading(false);
+                return;
+              } catch (error) {
+                console.error('Error creating conversation:', error);
+                setError('Erro ao criar conversa. Por favor, tente novamente.');
+                creatingConversationRef.current = false;
+                setLoading(false);
+                return;
+              }
+            }
+          }
+          
+          // If no tecnico in URL, check for conversationId in location.state
+          if (location.state?.conversationId) {
+            const found = conversationsData.find(conv => conv.id === location.state.conversationId);
+            if (found) {
+              setSelectedConversation(found);
+            } else if (conversationsData.length > 0) {
+              setSelectedConversation(conversationsData[0]);
+            }
+          } else if (selectedConversationIdRef.current) {
+            // If we have a previously selected conversation, try to maintain it
+            console.log('Messages - Trying to maintain previously selected conversation:', selectedConversationIdRef.current);
+            const existingConversation = conversationsData.find(conv => conv.id === selectedConversationIdRef.current);
+            if (existingConversation) {
+              console.log('Messages - Maintaining previously selected conversation');
+              setSelectedConversation(existingConversation);
+            } else if (conversationsData.length > 0) {
+              console.log('Messages - Previous conversation not found, selecting first available');
+              setSelectedConversation(conversationsData[0]);
+            }
+          } else if (conversationsData.length > 0) {
+            // Only set a default conversation if none is selected yet and no URL parameters
+            console.log('Messages - No previous selection, choosing first conversation');
+            setSelectedConversation(conversationsData[0]);
+          }
           setLoading(false);
-          return;
-        } else {
-          console.log('Messages - No matching conversation found for technician:', tecnicoIdFromUrl);
-          console.log('Messages - Available conversations:', conversationsData.map(c => ({ 
-            id: c.id, 
-            technicianId: c.technicianId,
-            obraId: c.obraId,
-            technicianName: c.technicianName 
-          })));
-        }
+        });
+        return () => unsubscribe();
+      } catch (error) {
+        console.error('Error loading conversations:', error);
+        setError('Erro ao carregar conversas. Por favor, tente novamente mais tarde.');
+        setLoading(false);
       }
-      
-      // If no tecnico in URL, check for conversationId in location.state
-      if (location.state?.conversationId) {
-        const found = conversationsData.find(conv => conv.id === location.state.conversationId);
-        if (found) {
-          setSelectedConversation(found);
-        } else if (conversationsData.length > 0) {
-          setSelectedConversation(conversationsData[0]);
-        }
-      } else if (selectedConversationIdRef.current) {
-        // If we have a previously selected conversation, try to maintain it
-        console.log('Messages - Trying to maintain previously selected conversation:', selectedConversationIdRef.current);
-        const existingConversation = conversationsData.find(conv => conv.id === selectedConversationIdRef.current);
-        if (existingConversation) {
-          console.log('Messages - Maintaining previously selected conversation');
-          setSelectedConversation(existingConversation);
-        }
-      } else if (!selectedConversation && conversationsData.length > 0) {
-        // Only set a default conversation if none is selected yet
-        setSelectedConversation(conversationsData[0]);
-      }
-      setLoading(false);
-    });
-    return () => unsubscribe();
+    };
+    loadConversations();
   }, [auth.currentUser, location.state?.conversationId, tecnicoIdFromUrl, workIdFromUrl, navigate]);
+
+  // Cleanup effect
+  useEffect(() => {
+    return () => {
+      creatingConversationRef.current = false;
+    };
+  }, []);
 
   // Carregar e ouvir mensagens da conversa selecionada
   useEffect(() => {
@@ -349,6 +560,11 @@ const Messages = () => {
 
               <div className="messages-content">
                 {error && <p className="error-message">{error}</p>}
+                {connectionError && (
+                  <div className="connection-error">
+                    <p>⚠️ Problemas de conectividade detectados. Tentando reconectar...</p>
+                  </div>
+                )}
                 {messages.length > 0 ? (
                   <div className="messages-list">
                     {messages.map((message, index) => (
@@ -369,7 +585,7 @@ const Messages = () => {
                           </span>
                           <p>{message.text}</p>
                           <span className="message-time">
-                            {message.timestamp && (new Date(message.timestamp.seconds ? message.timestamp.seconds * 1000 : message.timestamp)).toLocaleTimeString()}
+                            {formatMessageTime(message.timestamp)}
                           </span>
                         </div>
                       </div>

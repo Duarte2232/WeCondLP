@@ -289,6 +289,21 @@
   margin: 0;
 }
 
+.connection-error {
+  background-color: #fef3c7;
+  border: 1px solid #f59e0b;
+  border-radius: 8px;
+  padding: 12px;
+  margin: 8px 0;
+  text-align: center;
+}
+
+.connection-error p {
+  color: #92400e;
+  margin: 0;
+  font-weight: 500;
+}
+
 .loading, .no-messages, .no-conversation {
   display: flex;
   flex-direction: column;

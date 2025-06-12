@@ -26,12 +26,30 @@ const BudgetModal = ({ job, onClose, onSuccess, existingBudget = null, isEditMod
     isMultipleDays: false,
     files: []
   });
+  const [userData, setUserData] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [validationErrors, setValidationErrors] = useState({});
   const fileInputRef = useRef(null);
   const modalRef = useRef(null);
+
+  // Buscar dados do usuário
+  useEffect(() => {
+    const fetchUserData = async () => {
+      if (auth.currentUser) {
+        try {
+          const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
+          if (userDoc.exists()) {
+            setUserData(userDoc.data());
+          }
+        } catch (error) {
+          console.error('Erro ao buscar dados do usuário:', error);
+        }
+      }
+    };
+    fetchUserData();
+  }, [auth.currentUser]);
 
   // Initialize form with existing budget data if in edit mode
   useEffect(() => {
@@ -396,6 +414,7 @@ const BudgetModal = ({ job, onClose, onSuccess, existingBudget = null, isEditMod
         workId: job.id,
         technicianId: auth.currentUser.uid,
         technicianEmail: auth.currentUser.email,
+        technicianName: userData?.empresaNome || userData?.name || 'Técnico',
         availabilityDate: budgetData.availabilityDate,
         isMultipleDays: budgetData.isMultipleDays,
         endDate: budgetData.isMultipleDays ? budgetData.endDate : null,

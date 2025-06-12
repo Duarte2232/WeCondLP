@@ -3,13 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/auth';
 import { db } from '../../services/firebase';
 import { collection, query, where, getDocs, doc, updateDoc, getDoc, addDoc, serverTimestamp, deleteDoc, arrayUnion } from 'firebase/firestore';
-import { FiEdit2, FiEye, FiSearch, FiFilter, FiX, FiCheck, FiArrowLeft, FiFile, FiUpload, FiDownload, FiFileText, FiTrash2 } from 'react-icons/fi';
+import { FiEdit2, FiEye, FiSearch, FiFilter, FiX, FiCheck, FiArrowLeft, FiFile, FiUpload, FiDownload, FiFileText, FiTrash2, FiFolder, FiCalendar, FiUser } from 'react-icons/fi';
 import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { CLOUDINARY_CONFIG } from '../../config/cloudinary';
-import { uploadToCloudinary, uploadToCloudinaryWithSignature } from '../../services/cloudinary.service.js';
+import { uploadToCloudinary, uploadToCloudinaryWithSignature, uploadToCloudinaryDirectSigned } from '../../services/cloudinary.service.js';
 import './dashadmin.css';
 import LoadingAnimation from '../LoadingAnimation/LoadingAnimation';
 import emailjs from 'emailjs-com';
+import DocumentsModal from './components/DocumentsModal';
 
 function DashAdmin() {
   const navigate = useNavigate();
@@ -27,7 +28,7 @@ function DashAdmin() {
   const [newWork, setNewWork] = useState({
     title: '',
     description: '',
-    status: 'Pendente',
+    status: 'disponivel',
     category: '',
     priority: '',
     location: {
@@ -43,10 +44,14 @@ function DashAdmin() {
   const [showOrcamentoModal, setShowOrcamentoModal] = useState(false);
   const [selectedWorkForOrcamento, setSelectedWorkForOrcamento] = useState(null);
   const [newOrcamento, setNewOrcamento] = useState({
-    empresa: '',
-    valor: '',
-    documento: null
+    technicianName: '',
+    availabilityDate: '',
+    endDate: '',
+    isMultipleDays: false,
+    files: []
   });
+  const [showDocumentsModal, setShowDocumentsModal] = useState(false);
+  const [selectedWorkForDocuments, setSelectedWorkForDocuments] = useState(null);
 
   // Verificar se é o admin autorizado
   useEffect(() => {
@@ -67,20 +72,35 @@ function DashAdmin() {
         for (const userDoc of usersSnapshot.docs) {
           const userData = userDoc.data();
           
-          // Carregar obras do usuário
-          const worksRef = collection(db, 'works');
-          const q = query(worksRef, where('userEmail', '==', userData.email));
-          const worksSnapshot = await getDocs(q);
+          // Carregar obras do usuário da coleção ObrasPedidos
+          const obrasRef = collection(db, 'ObrasPedidos');
+          const obrasQuery = query(obrasRef, where('userEmail', '==', userData.email));
+          const obrasSnapshot = await getDocs(obrasQuery);
           
-          const works = worksSnapshot.docs.map(doc => ({
+          const obras = obrasSnapshot.docs.map(doc => ({
             id: doc.id,
-            ...doc.data()
+            ...doc.data(),
+            isMaintenance: false
           }));
+
+          // Carregar manutenções do usuário da coleção ManutençãoPedidos
+          const manutencoesRef = collection(db, 'ManutençãoPedidos');
+          const manutencoesQuery = query(manutencoesRef, where('userEmail', '==', userData.email));
+          const manutencoesSnapshot = await getDocs(manutencoesQuery);
+          
+          const manutencoes = manutencoesSnapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data(),
+            isMaintenance: true
+          }));
+
+          // Combinar obras e manutenções
+          const allWorks = [...obras, ...manutencoes];
 
           usersData.push({
             id: userDoc.id,
             ...userData,
-            works
+            works: allWorks
           });
         }
 
@@ -115,7 +135,17 @@ function DashAdmin() {
   // Função para atualizar uma obra
   const handleUpdateWork = async (workId, updatedWork, userEmail) => {
     try {
-      const workRef = doc(db, 'works', workId);
+      // Primeiro, encontrar a obra para determinar se é manutenção
+      const user = users.find(u => u.email === userEmail);
+      const work = user?.works?.find(w => w.id === workId);
+      
+      if (!work) {
+        throw new Error('Obra não encontrada');
+      }
+
+      // Determinar qual coleção usar baseado no tipo de trabalho
+      const collectionName = work.isMaintenance ? 'ManutençãoPedidos' : 'ObrasPedidos';
+      const workRef = doc(db, collectionName, workId);
       await updateDoc(workRef, updatedWork);
 
       // Atualizar o estado local
@@ -210,24 +240,11 @@ function DashAdmin() {
   };
 
   // Função para remover arquivo
-  const handleRemoveFile = async (fileToRemove) => {
-    try {
-      // Remove do Storage se tiver path
-      if (fileToRemove.path) {
-        const storage = getStorage();
-        const fileRef = ref(storage, fileToRemove.path);
-        await deleteObject(fileRef);
-      }
-
-      // Atualiza o estado removendo o arquivo
-      setEditingWork(prev => ({
-        ...prev,
-        files: prev.files.filter(file => file.url !== fileToRemove.url)
-      }));
-    } catch (error) {
-      console.error('Erro ao remover arquivo:', error);
-      alert('Erro ao remover arquivo');
-    }
+  const handleRemoveFile = (fileToRemove) => {
+    setEditingWork(prev => ({
+      ...prev,
+      files: prev.files.filter(file => file !== fileToRemove)
+    }));
   };
 
   // No JSX para exibir arquivos
@@ -267,7 +284,7 @@ function DashAdmin() {
 
     try {
       if (!editingWork) {
-        // Lógica existente para criar nova obra
+        // Criar nova obra na coleção ObrasPedidos
         const workData = {
           ...newWork,
           userEmail: user.email,
@@ -276,7 +293,7 @@ function DashAdmin() {
           date: newWork.date || new Date().toISOString().split('T')[0]
         };
 
-        const workRef = await addDoc(collection(db, 'works'), workData);
+        const workRef = await addDoc(collection(db, 'ObrasPedidos'), workData);
         setUsers(prevUsers => prevUsers.map(user => {
           if (user.email === workData.userEmail) {
             return {
@@ -288,8 +305,9 @@ function DashAdmin() {
         }));
         alert('Obra criada com sucesso!');
       } else {
-        // Lógica para atualizar obra existente
-        const workRef = doc(db, 'works', editingWork.id);
+        // Atualizar obra existente
+        const collectionName = editingWork.isMaintenance ? 'ManutençãoPedidos' : 'ObrasPedidos';
+        const workRef = doc(db, collectionName, editingWork.id);
         const updateData = {
           ...newWork,
           updatedAt: serverTimestamp()
@@ -315,7 +333,7 @@ function DashAdmin() {
       setNewWork({
         title: '',
         description: '',
-        status: 'Pendente',
+        status: 'disponivel',
         category: '',
         priority: '',
         location: {
@@ -349,121 +367,39 @@ function DashAdmin() {
     }
   };
 
-  // Função para lidar com o upload do documento
-  const handleDocumentoUpload = async (file) => {
-    if (!file) return null;
+  // Upload de um único arquivo com retry nos três métodos (mesmo método do dashboard técnico)
+  const uploadSingleFileWithRetry = async (file) => {
+    console.log(`Iniciando upload de ${file.name} com múltiplos métodos...`);
     
+    // Método 1: Upload padrão não assinado
     try {
-      console.log('Iniciando upload do arquivo:', file.name);
+      console.log(`Tentando método 1 (upload_preset não assinado) para ${file.name}...`);
+      const result = await uploadToCloudinary(file);
+      console.log(`Método 1 bem-sucedido para ${file.name}`);
+      return result;
+    } catch (error1) {
+      console.error(`Método 1 falhou para ${file.name}:`, error1);
       
-      // Primeiro tenta o método normal com resource_type=raw
+      // Método 2: Upload com preset assinado
       try {
-        console.log('Tentando método padrão para raw upload...');
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('upload_preset', CLOUDINARY_CONFIG.uploadPreset);
-        formData.append('resource_type', 'raw');
-  
-        console.log('Dados do upload:', {
-          fileName: file.name,
-          fileSize: file.size,
-          fileType: file.type,
-          uploadPreset: CLOUDINARY_CONFIG.uploadPreset
-        });
-  
-        const response = await fetch(
-          `https://api.cloudinary.com/v1_1/${CLOUDINARY_CONFIG.cloudName}/raw/upload`,
-          {
-            method: 'POST',
-            body: formData
-          }
-        );
-  
-        const responseText = await response.text();
-        console.log('Resposta bruta do servidor:', responseText);
-  
-        if (!response.ok) {
-          throw new Error(`Falha no upload: ${response.status} - ${responseText}`);
-        }
-  
-        const data = JSON.parse(responseText);
-        console.log('Upload bem-sucedido (método padrão):', data);
-  
-        return {
-          url: data.secure_url,
-          publicId: data.public_id,
-          nome: file.name,
-          formato: file.name.split('.').pop().toLowerCase()
-        };
-      } catch (uploadError) {
-        console.error('Erro no método padrão para raw upload:', uploadError);
+        console.log(`Tentando método 2 (upload_preset assinado) para ${file.name}...`);
+        const result = await uploadToCloudinaryWithSignature(file);
+        console.log(`Método 2 bem-sucedido para ${file.name}`);
+        return result;
+      } catch (error2) {
+        console.error(`Método 2 falhou para ${file.name}:`, error2);
         
-        // Se falhar, tenta o uploadToCloudinary normal
-        console.log('Tentando uploadToCloudinary padrão...');
+        // Método 3: Fallback para raw upload direto
         try {
-          const result = await uploadToCloudinary(file, 'auto');
-          console.log('Upload bem-sucedido (uploadToCloudinary):', result);
-          
-          return {
-            url: result.url,
-            publicId: result.publicId,
-            nome: file.name,
-            formato: file.name.split('.').pop().toLowerCase()
-          };
-        } catch (cloudinaryError) {
-          console.error('Erro no uploadToCloudinary:', cloudinaryError);
-          
-          // Se ainda falhar, tenta com assinatura
-          console.log('Tentando método com assinatura...');
-          const result = await uploadToCloudinaryWithSignature(file, 'auto');
-          console.log('Upload bem-sucedido (método assinado):', result);
-          
-          return {
-            url: result.url,
-            publicId: result.publicId,
-            nome: file.name,
-            formato: file.name.split('.').pop().toLowerCase()
-          };
+          console.log(`Tentando método 3 (assinatura direta sem preset) para ${file.name}...`);
+          const result = await uploadToCloudinaryDirectSigned(file);
+          console.log(`Método 3 bem-sucedido para ${file.name}`);
+          return result;
+        } catch (error3) {
+          console.error(`Método 3 falhou para ${file.name}:`, error3);
+          throw new Error(`Todos os métodos de upload falharam para ${file.name}: ${error3.message}`);
         }
       }
-    } catch (error) {
-      console.error('Todos os métodos de upload falharam:', error);
-      throw error;
-    }
-  };
-
-  // Função separada para envio de email
-  const sendNotificationEmail = async (workData) => {
-    try {
-      console.log('1. Iniciando envio de email');
-      console.log('2. Dados completos da obra:', workData);
-      
-      // Buscar os dados do usuário dono da obra
-      const userRef = doc(db, 'users', workData.userId);
-      const userDoc = await getDoc(userRef);
-      const userData = userDoc.data();
-
-      console.log('3. Dados do usuário:', userData);
-
-      const templateParams = {
-        to_email: userData.email,    // Email do dono da obra
-        to_name: userData.name,      // Nome do dono da obra
-        obra_title: workData.title,
-        obra_location: `${workData.location.morada}, ${workData.location.cidade}`
-      };
-
-      console.log('4. Parâmetros do email:', templateParams);
-
-      await emailjs.send(
-        "service_pb8u46m",
-        "template_20a3axt",
-        templateParams,
-        "Gb88AoliqUfgkEuJ1"
-      );
-
-      console.log('5. Email enviado com sucesso!');
-    } catch (error) {
-      console.error('Erro ao enviar email:', error);
     }
   };
 
@@ -473,39 +409,70 @@ function DashAdmin() {
     setIsSubmitting(true);
 
     try {
-      let documentoData = null;
-      if (newOrcamento.documento) {
-        documentoData = await handleDocumentoUpload(newOrcamento.documento);
+      // Upload dos arquivos para o Cloudinary
+      let processedFiles = [];
+      
+      if (newOrcamento.files && newOrcamento.files.length > 0) {
+        console.log('Processando', newOrcamento.files.length, 'arquivos...');
+        
+        for (const file of newOrcamento.files) {
+          try {
+            console.log('Fazendo upload do arquivo:', file.name);
+            const response = await uploadSingleFileWithRetry(file);
+            console.log('Upload concluído para:', file.name, response);
+            
+            processedFiles.push({
+              name: file.name,
+              url: response.url,
+              type: file.type,
+              size: file.size
+            });
+          } catch (error) {
+            console.error('Erro ao fazer upload do arquivo:', file.name, error);
+            throw new Error(`Falha ao fazer upload do arquivo ${file.name}: ${error.message}`);
+          }
+        }
+        
+        console.log('Todos os arquivos foram processados:', processedFiles);
       }
 
+      // Criar o objeto do orçamento com a mesma estrutura que o técnico
       const orcamentoData = {
-        empresa: newOrcamento.empresa,
-        valor: newOrcamento.valor,
-        data: new Date().toISOString(),
-        aceito: false,
-        visualizado: false,
         workId: selectedWorkForOrcamento.id,
-        documento: documentoData ? {
-          url: documentoData.url,
-          nome: documentoData.nome,
-          formato: documentoData.formato,
-          publicId: documentoData.publicId
-        } : null
+        technicianId: "admin-generated", // ID único para admin
+        technicianEmail: user.email,
+        technicianName: newOrcamento.technicianName,
+        availabilityDate: newOrcamento.availabilityDate,
+        isMultipleDays: newOrcamento.isMultipleDays,
+        endDate: newOrcamento.isMultipleDays ? newOrcamento.endDate : null,
+        files: processedFiles,
+        aceito: false,
+        tipo: selectedWorkForOrcamento.isMaintenance ? 'manutencao' : 'obra',
+        createdAt: serverTimestamp()
       };
 
-      // Adicionar à coleção ObrasOrçamentos
-      await addDoc(collection(db, 'ObrasOrçamentos'), orcamentoData);
+      // Adicionar manutencaoId se for manutenção
+      if (selectedWorkForOrcamento.isMaintenance) {
+        orcamentoData.manutencaoId = selectedWorkForOrcamento.id;
+      }
+
+      // Escolher a coleção correta
+      const collectionName = selectedWorkForOrcamento.isMaintenance ? 'ManutençãoOrçamentos' : 'ObrasOrçamentos';
+
+      // Adicionar à coleção de orçamentos
+      await addDoc(collection(db, collectionName), orcamentoData);
 
       // Atualizar a flag hasOrcamentos na obra
-      const workRef = doc(db, 'ObrasPedidos', selectedWorkForOrcamento.id);
+      const workCollectionName = selectedWorkForOrcamento.isMaintenance ? 'ManutençãoPedidos' : 'ObrasPedidos';
+      const workRef = doc(db, workCollectionName, selectedWorkForOrcamento.id);
       await updateDoc(workRef, {
         hasOrcamentos: true
       });
 
-      // Tenta enviar o email passando apenas workData
-      await sendNotificationEmail(workData);
+      // Tentar enviar o email de notificação
+      await sendNotificationEmail(selectedWorkForOrcamento);
 
-      setNewOrcamento({ empresa: '', valor: '', documento: null });
+      setNewOrcamento({ technicianName: '', availabilityDate: '', endDate: '', isMultipleDays: false, files: [] });
       setShowOrcamentoModal(false);
       setIsLoading(false);
       
@@ -514,6 +481,8 @@ function DashAdmin() {
       console.error('Erro ao adicionar orçamento:', error);
       alert('Erro ao adicionar orçamento: ' + error.message);
       setIsLoading(false);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -524,7 +493,24 @@ function DashAdmin() {
     }
 
     try {
-      const workRef = doc(db, 'works', workId);
+      // Encontrar a obra para determinar se é manutenção
+      let workToUpdate = null;
+      
+      for (const user of users) {
+        const work = user.works?.find(w => w.id === workId);
+        if (work) {
+          workToUpdate = work;
+          break;
+        }
+      }
+      
+      if (!workToUpdate) {
+        throw new Error('Obra não encontrada');
+      }
+      
+      // Determinar qual coleção usar
+      const collectionName = workToUpdate.isMaintenance ? 'ManutençãoPedidos' : 'ObrasPedidos';
+      const workRef = doc(db, collectionName, workId);
       const workDoc = await getDoc(workRef);
       const workData = workDoc.data();
       
@@ -568,13 +554,34 @@ function DashAdmin() {
       if (window.confirm('Tem certeza que deseja excluir esta obra?')) {
         setIsLoading(true);
         
-        const workRef = doc(db, 'works', workId);
+        // Encontrar a obra para determinar se é manutenção
+        let workToDelete = null;
+        let userEmail = null;
+        
+        for (const user of users) {
+          const work = user.works?.find(w => w.id === workId);
+          if (work) {
+            workToDelete = work;
+            userEmail = user.email;
+            break;
+          }
+        }
+        
+        if (!workToDelete) {
+          throw new Error('Obra não encontrada');
+        }
+        
+        // Determinar qual coleção usar
+        const collectionName = workToDelete.isMaintenance ? 'ManutençãoPedidos' : 'ObrasPedidos';
+        const workRef = doc(db, collectionName, workId);
         await deleteDoc(workRef);
         
         setUsers(prevUsers => prevUsers.map(user => ({
           ...user,
           works: user.works?.filter(work => work.id !== workId)
         })));
+        
+        alert('Obra excluída com sucesso!');
       }
     } catch (error) {
       console.error('Erro ao deletar obra:', error);
@@ -618,6 +625,65 @@ function DashAdmin() {
     }
   };
 
+  // Funções para lidar com arquivos do orçamento
+  const handleOrcamentoFileUpload = (e) => {
+    const files = Array.from(e.target.files);
+    const validFiles = files.filter(file => {
+      if (file.size > MAX_FILE_SIZE) {
+        alert(`O arquivo ${file.name} excede o limite de 10MB`);
+        return false;
+      }
+      return true;
+    });
+
+    setNewOrcamento(prev => ({
+      ...prev,
+      files: [...prev.files, ...validFiles]
+    }));
+  };
+
+  const handleRemoveOrcamentoFile = (index) => {
+    setNewOrcamento(prev => ({
+      ...prev,
+      files: prev.files.filter((_, i) => i !== index)
+    }));
+  };
+
+  // Função separada para envio de email
+  const sendNotificationEmail = async (workData) => {
+    try {
+      console.log('1. Iniciando envio de email');
+      console.log('2. Dados completos da obra:', workData);
+      
+      // Buscar os dados do usuário dono da obra
+      const userRef = doc(db, 'users', workData.userId);
+      const userDoc = await getDoc(userRef);
+      const userData = userDoc.data();
+
+      console.log('3. Dados do usuário:', userData);
+
+      const templateParams = {
+        to_email: userData.email,    // Email do dono da obra
+        to_name: userData.name,      // Nome do dono da obra
+        obra_title: workData.title,
+        obra_location: `${workData.location.morada}, ${workData.location.cidade}`
+      };
+
+      console.log('4. Parâmetros do email:', templateParams);
+
+      await emailjs.send(
+        "service_pb8u46m",
+        "template_20a3axt",
+        templateParams,
+        "Gb88AoliqUfgkEuJ1"
+      );
+
+      console.log('5. Email enviado com sucesso!');
+    } catch (error) {
+      console.error('Erro ao enviar email:', error);
+    }
+  };
+
   return (
     <div className="admin-dashboard-container">
       <nav className="admin-top-nav">
@@ -656,9 +722,9 @@ function DashAdmin() {
           className="filter-select"
         >
           <option value="">Todos os status</option>
-          <option value="Pendente">Pendente</option>
-          <option value="Em Andamento">Em Andamento</option>
-          <option value="Concluído">Concluído</option>
+          <option value="disponivel">Disponível</option>
+          <option value="em-andamento">Em Andamento</option>
+          <option value="concluido">Concluído</option>
         </select>
       </section>
 
@@ -716,123 +782,75 @@ function DashAdmin() {
                                 </span>
                               </div>
                               <p>{work.description}</p>
-                              <div className="work-details">
-                                <p><strong>Categoria:</strong> {work.category}</p>
-                                <p><strong>Prioridade:</strong> {work.priority}</p>
-                                <p><strong>Local:</strong> {work.location.morada}, {work.location.cidade}</p>
-                                <p><strong>Data:</strong> {new Date(work.date).toLocaleDateString()}</p>
+                              
+                              <div className="work-main-content">
+                                <div className="work-details">
+                                  <p><strong>Categoria:</strong> {work.category}</p>
+                                  <p><strong>Prioridade:</strong> {work.priority}</p>
+                                  <p><strong>Local:</strong> {work.location.morada}, {work.location.cidade}</p>
+                                  <p><strong>Data:</strong> {new Date(work.date).toLocaleDateString()}</p>
+                                </div>
+                                
+                                <div className="work-actions">
+                                  <button
+                                    className="action-button edit-button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleEdit(work);
+                                    }}
+                                  >
+                                    <FiEdit2 /> Editar
+                                  </button>
+                                  <button
+                                    className="action-button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleUpdateWork(work.id, { status: 'em-andamento' }, user.email);
+                                    }}
+                                  >
+                                    <FiCheck /> Em Andamento
+                                  </button>
+                                  <button
+                                    className="action-button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleUpdateWork(work.id, { status: 'concluido' }, user.email);
+                                    }}
+                                  >
+                                    <FiCheck /> Concluído
+                                  </button>
+                                  <button
+                                    className="action-button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSelectedWorkForOrcamento(work);
+                                      setShowOrcamentoModal(true);
+                                    }}
+                                  >
+                                    <FiFileText /> Orçamento
+                                  </button>
+                                  <button
+                                    className="action-button documents-button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSelectedWorkForDocuments(work);
+                                      setShowDocumentsModal(true);
+                                    }}
+                                  >
+                                    <FiFolder /> Documentos
+                                  </button>
+                                  <button
+                                    className="action-button delete-btn"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDelete(work.id);
+                                    }}
+                                  >
+                                    <FiX /> Excluir
+                                  </button>
+                                </div>
                               </div>
                               
-                              {/* Seção de documentos da obra */}
-                              <div className="work-files">
-                                <h4>Documentos da Obra</h4>
-                                {work.files && work.files.length > 0 ? (
-                                  <div className="files-grid">
-                                    {work.files.map((file, fileIndex) => (
-                                      <div key={fileIndex} className={`file-preview-item ${file.type !== 'image' && file.type !== 'video' ? 'document' : ''}`}>
-                                        {file.type === 'image' ? (
-                                          <div className="file-preview">
-                                            <img src={file.url} alt={file.name} />
-                                            <div className="file-preview-overlay">
-                                              <span className="file-name">{file.name}</span>
-                                              <button 
-                                                className="download-btn"
-                                                onClick={(e) => {
-                                                  e.stopPropagation();
-                                                  handleFileDownload(file, file.name);
-                                                }}
-                                              >
-                                                <FiDownload /> Download
-                                              </button>
-                                            </div>
-                                          </div>
-                                        ) : file.type === 'video' ? (
-                                          <div className="file-preview">
-                                            <video src={file.url} controls />
-                                            <div className="file-preview-overlay">
-                                              <span className="file-name">{file.name}</span>
-                                              <button 
-                                                className="download-btn"
-                                                onClick={(e) => {
-                                                  e.stopPropagation();
-                                                  handleFileDownload(file, file.name);
-                                                }}
-                                              >
-                                                <FiDownload /> Download
-                                              </button>
-                                            </div>
-                                          </div>
-                                        ) : (
-                                          <div className="file-preview document">
-                                            <FiFile size={24} />
-                                            <span className="file-name">{file.name}</span>
-                                            <button 
-                                              className="download-btn"
-                                              onClick={(e) => {
-                                                e.stopPropagation();
-                                                handleFileDownload(file, file.name);
-                                              }}
-                                            >
-                                              <FiDownload /> Download
-                                            </button>
-                                          </div>
-                                        )}
-                                      </div>
-                                    ))}
-                                  </div>
-                                ) : (
-                                  <p className="no-files">Nenhum documento disponível para esta obra</p>
-                                )}
-                              </div>
-                              
-                              <div className="work-actions">
-                                <button
-                                  className="action-button edit-button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleEdit(work);
-                                  }}
-                                >
-                                  <FiEdit2 /> Editar
-                                </button>
-                                <button
-                                  className="action-button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleUpdateWork(work.id, { status: 'Em Andamento' }, user.email);
-                                  }}
-                                >
-                                  <FiCheck /> Marcar Em Andamento
-                                </button>
-                                <button
-                                  className="action-button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleUpdateWork(work.id, { status: 'Concluído' }, user.email);
-                                  }}
-                                >
-                                  <FiCheck /> Marcar Concluído
-                                </button>
-                                <button
-                                  className="action-button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setSelectedWorkForOrcamento(work);
-                                    setShowOrcamentoModal(true);
-                                  }}
-                                >
-                                  <FiFileText /> Adicionar Orçamento
-                                </button>
-                                <button
-                                  className="action-button delete-btn"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleDelete(work.id);
-                                  }}
-                                >
-                                  <FiX /> Excluir
-                                </button>
-                              </div>
                               <div className="orcamentos-list">
                                 {Array.isArray(work.orcamentos) && work.orcamentos.length > 0 ? (
                                   work.orcamentos.map((orcamento, index) => (
@@ -1004,9 +1022,9 @@ function DashAdmin() {
                   onChange={(e) => setNewWork({...newWork, status: e.target.value})}
                   required
                 >
-                  <option value="Pendente">Pendente</option>
-                  <option value="Em Andamento">Em Andamento</option>
-                  <option value="Concluído">Concluído</option>
+                  <option value="disponivel">Disponível</option>
+                  <option value="em-andamento">Em Andamento</option>
+                  <option value="concluido">Concluído</option>
                 </select>
               </div>
 
@@ -1078,17 +1096,18 @@ function DashAdmin() {
                     </div>
                     
                     <input
+                      id="edit-file-input"
                       type="file"
                       multiple
                       accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx"
                       onChange={handleFileUpload}
-                      className="file-input"
+                      style={{ display: 'none' }}
                     />
-                    <div className="file-input-text">
+                    <label htmlFor="edit-file-input" className="custom-file-upload">
                       <FiUpload />
-                      <p>Clique ou arraste arquivos aqui</p>
-                      <span>Máximo 10MB por arquivo</span>
-                    </div>
+                      <span>Selecionar arquivos</span>
+                    </label>
+                    <span className="file-type-hint">Máximo 10MB por arquivo</span>
                   </div>
                 )}
               </div>
@@ -1099,7 +1118,7 @@ function DashAdmin() {
                   className="submit-btn"
                   disabled={isSubmitting}
                 >
-                  {isSubmitting ? <LoadingAnimation /> : 'Atualizar Obra'}
+                  {isSubmitting ? <LoadingAnimation inline={true} size="normal" /> : 'Atualizar Obra'}
                 </button>
                 <button
                   type="button"
@@ -1128,7 +1147,7 @@ function DashAdmin() {
                 className="close-btn"
                 onClick={() => {
                   setShowOrcamentoModal(false);
-                  setNewOrcamento({ empresa: '', valor: '', documento: null });
+                  setNewOrcamento({ technicianName: '', availabilityDate: '', endDate: '', isMultipleDays: false, files: [] });
                 }}
               >
                 <FiX />
@@ -1137,54 +1156,110 @@ function DashAdmin() {
             
             <form onSubmit={handleAddOrcamento} className="orcamento-form">
               <div className="form-group">
-                <label>Empresa</label>
+                <label htmlFor="technicianName">
+                  <FiUser /> Nome do Técnico
+                </label>
                 <input
                   type="text"
-                  value={newOrcamento.empresa}
+                  id="technicianName"
+                  value={newOrcamento.technicianName}
                   onChange={(e) => setNewOrcamento({
                     ...newOrcamento,
-                    empresa: e.target.value
+                    technicianName: e.target.value
                   })}
                   required
-                  placeholder="Nome da empresa"
+                  placeholder="Nome completo do técnico"
                 />
               </div>
 
               <div className="form-group">
-                <label>Valor (€)</label>
+                <label htmlFor="availabilityDate">
+                  <FiCalendar /> Data de Disponibilidade
+                </label>
                 <input
-                  type="text"
-                  value={newOrcamento.valor}
+                  type="date"
+                  id="availabilityDate"
+                  value={newOrcamento.availabilityDate}
                   onChange={(e) => setNewOrcamento({
                     ...newOrcamento,
-                    valor: e.target.value
+                    availabilityDate: e.target.value
                   })}
                   required
-                  placeholder="Digite o valor"
                 />
               </div>
 
-              <div className="form-group">
-                <label>Documento do Orçamento (PDF, DOC, DOCX)</label>
-                <div className="file-input-container">
+              <div className="form-group checkbox-group">
+                <div className="checkbox-container">
                   <input
-                    type="file"
+                    type="checkbox"
+                    id="isMultipleDays"
+                    checked={newOrcamento.isMultipleDays}
                     onChange={(e) => setNewOrcamento({
                       ...newOrcamento,
-                      documento: e.target.files[0]
+                      isMultipleDays: e.target.checked
                     })}
-                    accept=".pdf,.doc,.docx"
-                    className="file-input"
                   />
-                  <div className="file-input-text">
-                    <FiUpload />
-                    <p>
-                      {newOrcamento.documento
-                        ? newOrcamento.documento.name
-                        : 'Clique ou arraste o documento aqui (PDF, DOC, DOCX)'}
-                    </p>
-                    <span className="file-type-hint">Apenas documentos PDF, DOC ou DOCX</span>
-                  </div>
+                  <label htmlFor="isMultipleDays">
+                    Obra com duração de múltiplos dias
+                  </label>
+                </div>
+              </div>
+
+              {newOrcamento.isMultipleDays && (
+                <div className="form-group">
+                  <label htmlFor="endDate">
+                    <FiCalendar /> Data Final
+                  </label>
+                  <input
+                    type="date"
+                    id="endDate"
+                    value={newOrcamento.endDate}
+                    onChange={(e) => setNewOrcamento({
+                      ...newOrcamento,
+                      endDate: e.target.value
+                    })}
+                    min={newOrcamento.availabilityDate}
+                    required={newOrcamento.isMultipleDays}
+                  />
+                </div>
+              )}
+
+              <div className="form-group">
+                <label htmlFor="orcamento-file-upload">
+                  <FiUpload /> Anexar Orçamento (PDF)
+                </label>
+                <div className="file-upload-container">
+                  <input
+                    type="file"
+                    id="orcamento-file-upload"
+                    multiple
+                    accept=".pdf"
+                    onChange={handleOrcamentoFileUpload}
+                    style={{ display: 'none' }}
+                  />
+                  <label htmlFor="orcamento-file-upload" className="custom-file-upload">
+                    <FiUpload /> Selecionar Arquivos PDF
+                  </label>
+                  
+                  {newOrcamento.files.length > 0 && (
+                    <div className="file-list">
+                      {newOrcamento.files.map((file, index) => (
+                        <div key={index} className="file-item">
+                          <div className="file-info">
+                            <span className="file-name">{file.name}</span>
+                            <span className="file-size">{Math.round(file.size / 1024)} KB</span>
+                          </div>
+                          <button
+                            type="button"
+                            className="remove-file-btn"
+                            onClick={() => handleRemoveOrcamentoFile(index)}
+                          >
+                            <FiTrash2 />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -1194,13 +1269,24 @@ function DashAdmin() {
                   className="submit-btn"
                   disabled={isSubmitting}
                 >
-                  {isSubmitting ? <LoadingAnimation /> : 'Adicionar Orçamento'}
+                  {isSubmitting ? <LoadingAnimation inline={true} size="normal" /> : 'Adicionar Orçamento'}
                 </button>
               </div>
             </form>
           </div>
         </div>
       )}
+
+      {/* Modal de Documentos */}
+      <DocumentsModal
+        work={selectedWorkForDocuments}
+        isOpen={showDocumentsModal}
+        onClose={() => {
+          setShowDocumentsModal(false);
+          setSelectedWorkForDocuments(null);
+        }}
+        onDownload={handleFileDownload}
+      />
     </div>
   );
 }

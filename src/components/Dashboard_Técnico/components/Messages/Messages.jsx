@@ -18,12 +18,44 @@ const Messages = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [userData, setUserData] = useState(null);
+  const [connectionError, setConnectionError] = useState(false);
   const messagesEndRef = useRef(null);
   // Keep track of the selected conversation ID to prevent losing it on reloads
   const selectedConversationIdRef = useRef(null);
   // Flag to prevent duplicate conversation creation
   const creatingConversationRef = useRef(false);
   
+  // Helper function to format message timestamps consistently
+  const formatMessageTime = (timestamp) => {
+    if (!timestamp) return '';
+    
+    try {
+      let date;
+      if (timestamp.toDate) {
+        // Firestore timestamp
+        date = timestamp.toDate();
+      } else if (timestamp.seconds) {
+        // Firestore timestamp object
+        date = new Date(timestamp.seconds * 1000);
+      } else if (timestamp instanceof Date) {
+        // JavaScript Date object
+        date = timestamp;
+      } else {
+        // String or number
+        date = new Date(timestamp);
+      }
+      
+      return date.toLocaleTimeString('pt-PT', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      });
+    } catch (error) {
+      console.error('Error formatting timestamp:', error);
+      return '';
+    }
+  };
+
   // When selectedConversation changes, update the ref
   useEffect(() => {
     if (selectedConversation) {
@@ -163,9 +195,22 @@ const Messages = () => {
               if (gestorIdFromUrl && workIdFromUrl && !creatingConversationRef.current) {
                 console.log('Messages - Creating new conversation for gestor:', gestorIdFromUrl, 'and work:', workIdFromUrl);
                 
+                // Check if conversation creation is not already in progress
+                if (creatingConversationRef.current) {
+                  console.log('Messages - Conversation creation already in progress');
+                  return;
+                }
+
+                if (!gestorIdFromUrl || !workIdFromUrl || !auth.currentUser?.uid) {
+                  console.error('Missing required parameters:', { gestorIdFromUrl, workIdFromUrl, currentUserId: auth.currentUser?.uid });
+                  setError('Parâmetros insuficientes para criar conversa.');
+                  setLoading(false);
+                  return;
+                }
+
                 // Set flag to prevent duplicate creation
                 creatingConversationRef.current = true;
-                
+
                 try {
                   // Double-check if conversation already exists in database
                   const existingConversationQuery = query(
@@ -215,22 +260,48 @@ const Messages = () => {
                     return;
                   }
                   
-                  // Get work data
-                  const workDoc = await getDoc(doc(db, 'ObrasPedidos', workIdFromUrl));
-                  if (!workDoc.exists()) {
-                    console.error('Work not found:', workIdFromUrl);
+                  // Get work data - try both collections
+                  let workDoc = await getDoc(doc(db, 'ObrasPedidos', workIdFromUrl));
+                  let workData = null;
+                  let workTitle = 'Obra';
+
+                  if (workDoc.exists()) {
+                    workData = workDoc.data();
+                    workTitle = workData.title || 'Obra';
+                  } else {
+                    // Try maintenance collection
+                    workDoc = await getDoc(doc(db, 'ManutençãoPedidos', workIdFromUrl));
+                    if (workDoc.exists()) {
+                      workData = workDoc.data();
+                      workTitle = workData.title || 'Manutenção';
+                    } else {
+                      console.error('Work not found in either collection:', workIdFromUrl);
+                      setError('Trabalho não encontrado. Por favor, verifique se o trabalho ainda existe.');
+                      creatingConversationRef.current = false;
+                      setLoading(false);
+                      return;
+                    }
+                  }
+                  
+                  const gestorData = gestorDoc.data();
+                  
+                  // Verify user has access to this work
+                  const userHasAccess = workData.userEmail === auth.currentUser.email || 
+                                       workData.userId === auth.currentUser.uid ||
+                                       workData.technicianId === auth.currentUser.uid;
+
+                  if (!userHasAccess) {
+                    console.error('User does not have access to this work');
+                    setError('Sem permissão para acessar este trabalho.');
                     creatingConversationRef.current = false;
                     setLoading(false);
                     return;
                   }
                   
-                  const gestorData = gestorDoc.data();
-                  const workData = workDoc.data();
-                  
                   // Create new conversation
                   const conversationData = {
                     workId: workIdFromUrl,
-                    workTitle: workData.title || 'Obra',
+                    workTitle: workTitle,
                     gestorId: gestorIdFromUrl,
                     technicianId: auth.currentUser.uid,
                     createdAt: serverTimestamp(),
@@ -277,9 +348,12 @@ const Messages = () => {
             if (existingConversation) {
               console.log('Messages - Maintaining previously selected conversation');
               setSelectedConversation(existingConversation);
+            } else if (conversationsData.length > 0) {
+              // Fallback to first conversation if previous one doesn't exist
+              setSelectedConversation(conversationsData[0]);
             }
-          } else if (!selectedConversation && conversationsData.length > 0) {
-            // Only set a default conversation if none is selected yet
+          } else if (conversationsData.length > 0) {
+            // Set default conversation if none is selected
             setSelectedConversation(conversationsData[0]);
           }
           
@@ -290,7 +364,15 @@ const Messages = () => {
       } catch (error) {
         console.error('Erro ao carregar conversas:', error);
         setLoading(false);
-        setError('Erro ao carregar conversas');
+        
+        if (error.code === 'permission-denied') {
+          setError('Sem permissão para acessar mensagens. Verifique sua autenticação.');
+        } else if (error.code === 'unavailable') {
+          setConnectionError(true);
+          setError('Serviço temporariamente indisponível. Tente novamente em alguns momentos.');
+        } else {
+          setError('Erro ao carregar conversas. Verifique sua conexão com a internet.');
+        }
       }
     };
 
@@ -462,6 +544,11 @@ const Messages = () => {
 
               <div className="messages-content">
                 {error && <p className="error-message">{error}</p>}
+                {connectionError && (
+                  <div className="connection-error">
+                    <p>⚠️ Problemas de conectividade detectados. Tentando reconectar...</p>
+                  </div>
+                )}
                 {messages.length > 0 ? (
                   <div className="messages-list">
                     {messages.map((message, index) => (
@@ -475,7 +562,7 @@ const Messages = () => {
                           </span>
                           <p>{message.text}</p>
                           <span className="message-time">
-                            {message.timestamp?.toDate().toLocaleTimeString()}
+                            {formatMessageTime(message.timestamp)}
                           </span>
                         </div>
                       </div>
