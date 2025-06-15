@@ -630,8 +630,28 @@ function DashGestor() {
       // Atualizar status do orçamento
       await updateDoc(orcamentoRef, {
         aceito: true,
+        rejeitado: false,
         dataAceitacao: serverTimestamp()
       });
+
+      // REJEITAR TODOS OS OUTROS ORÇAMENTOS DA MESMA OBRA
+      const orcamentoQuery = query(
+        collection(db, orcamentoCollection),
+        where(manutencaoDoc.exists() ? 'manutencaoId' : 'workId', '==', workId)
+      );
+      const snapshot = await getDocs(orcamentoQuery);
+      const batch = [];
+      snapshot.forEach(docSnap => {
+        if (docSnap.id !== orcamentoId) {
+          batch.push(
+            updateDoc(doc(db, orcamentoCollection, docSnap.id), {
+              aceito: false,
+              rejeitado: true
+            })
+          );
+        }
+      });
+      await Promise.all(batch);
 
       // Atualizar estado local baseado no tipo de serviço
       if (workCollection === 'ManutençãoPedidos') {
@@ -1057,8 +1077,27 @@ function DashGestor() {
 
       // Atualizar status do orçamento
       await updateDoc(orcamentoRef, {
-        aceito: false
+        aceito: false,
+        rejeitado: false
       });
+
+      // REVERTER O REJEITADO DOS OUTROS ORÇAMENTOS
+      const orcamentoQuery = query(
+        collection(db, orcamentoCollection),
+        where(isMaintenance ? 'manutencaoId' : 'workId', '==', workId)
+      );
+      const snapshot = await getDocs(orcamentoQuery);
+      const batch = [];
+      snapshot.forEach(docSnap => {
+        if (docSnap.id !== orcamentoId) {
+          batch.push(
+            updateDoc(doc(db, orcamentoCollection, docSnap.id), {
+              rejeitado: false
+            })
+          );
+        }
+      });
+      await Promise.all(batch);
 
       // Atualizar estado local
       if (isMaintenance) {
@@ -1075,7 +1114,7 @@ function DashGestor() {
       setWorkOrcamentos(prev => {
         const currentOrcamentos = prev[workId] || [];
         const updatedOrcamentos = currentOrcamentos.map(orc =>
-          orc.id === orcamentoId ? { ...orc, aceito: false } : orc
+          orc.id === orcamentoId ? { ...orc, aceito: false, rejeitado: false } : orc
         );
         return {
           ...prev,

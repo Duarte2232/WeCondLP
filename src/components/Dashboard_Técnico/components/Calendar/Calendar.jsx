@@ -13,56 +13,76 @@ const Calendar = ({ obras, loading }) => {
   useEffect(() => {
     if (obras && obras.length > 0) {
       const convertedEvents = obras.map(obra => {
-        // Determinar o tipo de evento baseado na categoria
-        let eventType = 'blue'; // Padrão
-        if (obra.category) {
-          const category = obra.category.toLowerCase();
-          if (category.includes('eletricidade') || category.includes('eletr')) {
-            eventType = 'yellow';
-          } else if (category.includes('canalizacao') || category.includes('canal')) {
-            eventType = 'blue';
+        try {
+          // Determine event color based on status
+          const eventType = obra.status === 'aceito' ? 'green' : 'blue';
+          
+          // Extract and validate date
+          let date;
+          if (obra.date) {
+            const parsedDate = new Date(obra.date);
+            if (!isNaN(parsedDate.getTime())) {
+              date = obra.date;
+            } else {
+              console.warn(`Invalid date for obra ${obra.id}: ${obra.date}`);
+              date = new Date().toISOString().split('T')[0];
+            }
           } else {
-            eventType = 'green';
+            date = new Date().toISOString().split('T')[0];
           }
-        }
-        
-        // Extrair a data e hora da obra
-        // Formato padrão da data: 'YYYY-MM-DD'
-        const date = obra.date || new Date().toISOString().split('T')[0];
-        
-        // Determinar hora de início e fim (padrão: 2 horas de duração)
-        let startHour = 9; // Padrão: 9h
-        let endHour = 11;  // Padrão: 11h
-        
-        if (obra.time) {
-          // Se a obra tiver um horário específico no formato "HH:MM - HH:MM"
-          const timeParts = obra.time.split(' - ');
-          if (timeParts.length === 2) {
-            const startTime = timeParts[0].trim();
-            const endTime = timeParts[1].trim();
-            
-            startHour = parseInt(startTime.split(':')[0], 10) || 9;
-            endHour = parseInt(endTime.split(':')[0], 10) || (startHour + 2);
+          
+          // Extract and validate time
+          let startHour = 9;
+          let endHour = 11;
+          let timeString = `${startHour}:00 - ${endHour}:00`;
+          
+          if (obra.time) {
+            try {
+              const timeParts = obra.time.split(' - ');
+              if (timeParts.length === 2) {
+                const startTime = timeParts[0].trim();
+                const endTime = timeParts[1].trim();
+                
+                const startHourMatch = startTime.match(/^(\d{1,2}):/);
+                const endHourMatch = endTime.match(/^(\d{1,2}):/);
+                
+                if (startHourMatch && endHourMatch) {
+                  startHour = parseInt(startHourMatch[1], 10);
+                  endHour = parseInt(endHourMatch[1], 10);
+                  
+                  // Validate hours
+                  if (startHour >= 0 && startHour <= 23 && endHour >= 0 && endHour <= 23) {
+                    timeString = obra.time;
+                  } else {
+                    console.warn(`Invalid hours for obra ${obra.id}: ${obra.time}`);
+                  }
+                }
+              }
+            } catch (error) {
+              console.warn(`Error parsing time for obra ${obra.id}:`, error);
+            }
           }
+          
+          return {
+            id: obra.id,
+            title: obra.title || 'Obra sem título',
+            date: date,
+            time: timeString,
+            startHour: startHour,
+            endHour: endHour,
+            type: eventType,
+            location: obra.location?.cidade || 'Local não especificado',
+            description: obra.description || 'Sem descrição',
+            status: obra.status || 'pendente'
+          };
+        } catch (error) {
+          console.error(`Error processing obra ${obra.id}:`, error);
+          return null;
         }
-        
-        return {
-          id: obra.id,
-          title: obra.title || 'Obra sem título',
-          date: date,
-          time: obra.time || `${startHour}:00 - ${endHour}:00`,
-          startHour: startHour,
-          endHour: endHour,
-          type: eventType,
-          location: obra.location?.cidade || '',
-          description: obra.description || '',
-          status: obra.status || 'disponivel'
-        };
-      });
+      }).filter(Boolean); // Remove any null events from processing errors
       
       setEvents(convertedEvents);
     } else {
-      // Se não houver obras, usar um array vazio para os eventos
       setEvents([]);
     }
   }, [obras]);
@@ -291,41 +311,85 @@ const Calendar = ({ obras, loading }) => {
         </div>
 
         {view === 'month' && (
-          <div className="calendar-grid">
-            <div className="weekdays">
-              {weekDays.map((day, index) => (
-                <div key={index} className="weekday">{day}</div>
-              ))}
-            </div>
-            <div className="days">
-              {getDaysInMonth().map((week, weekIndex) => (
-                <div key={weekIndex} className="week">
-                  {week.map((day, dayIndex) => (
-                    <div 
-                      key={dayIndex} 
-                      className={`day ${!day ? 'empty' : ''} ${day && isToday(new Date(currentDate.getFullYear(), currentDate.getMonth(), day)) ? 'today' : ''}`}
-                    >
-                      {day && (
-                        <>
-                          <div className="day-number">{day}</div>
-                          <div className="events">
-                            {getEventsForDay(day).slice(0, 3).map(event => (
-                              <div 
-                                key={event.id} 
-                                className={`event ${event.type}`}
-                                title={event.title}
-                              >
-                                <div className="event-title">{event.title}</div>
-                                <div className="event-time">{event.time}</div>
-                              </div>
-                            ))}
-                          </div>
-                        </>
-                      )}
-                    </div>
+          <div style={{ display: 'flex', flexDirection: 'row', gap: '24px' }}>
+            <div style={{ flex: 1 }}>
+              <div className="calendar-grid">
+                <div className="calendar-days-header">
+                  {weekDays.map((day, index) => (
+                    <div key={index}>{day}</div>
                   ))}
                 </div>
-              ))}
+                <div className="calendar-days">
+                  {getDaysInMonth().flat().map((day, idx) => {
+                    const dayEvents = getEventsForDay(day);
+                    return (
+                      <div
+                        key={idx}
+                        className={`calendar-day${!day ? ' empty' : ''}`}
+                      >
+                        {day && <span className="day-number">{day}</span>}
+                        <div className="day-events">
+                          {dayEvents.length > 0 && (
+                            <div className="day-events-list">
+                              {dayEvents.map((event, i) => (
+                                <div
+                                  key={event.id}
+                                  className={`day-event-item ${event.type === 'blue' ? 'orcamento-nao-aceito' : ''}`}
+                                  style={{ backgroundColor: event.type === 'green' ? '#10B981' : '#3B82F6', color: 'white' }}
+                                  title={event.title}
+                                >
+                                  <span className="event-title">{event.title}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+            <div className="events-list" style={{ width: 380, background: 'white', borderRadius: 8, padding: 24, boxShadow: '0 1px 3px rgba(0,0,0,0.05)', overflowY: 'auto', maxHeight: 650 }}>
+              <h2>Eventos do Mês</h2>
+              <div className="events-container" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                {events
+                  .filter(event => {
+                    const eventDate = new Date(event.date);
+                    return (
+                      eventDate.getMonth() === currentDate.getMonth() &&
+                      eventDate.getFullYear() === currentDate.getFullYear()
+                    );
+                  })
+                  .sort((a, b) => new Date(a.date) - new Date(b.date))
+                  .map(event => (
+                    <div
+                      key={event.id}
+                      className="event-card"
+                      style={{
+                        borderLeft: `4px solid ${event.type === 'green' ? '#10B981' : '#3B82F6'}`,
+                        background: event.type === 'green' ? 'rgba(16,185,129,0.05)' : 'rgba(59,130,246,0.05)',
+                        marginBottom: 8,
+                        padding: 16,
+                        borderRadius: 8
+                      }}
+                    >
+                      <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 4, color: '#111827', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{event.title}</div>
+                      <div style={{ fontSize: 13, color: '#374151' }}>{new Date(event.date).toLocaleDateString()} {event.time}</div>
+                    </div>
+                  ))}
+                {events.filter(event => {
+                  const eventDate = new Date(event.date);
+                  return (
+                    eventDate.getMonth() === currentDate.getMonth() &&
+                    eventDate.getFullYear() === currentDate.getFullYear()
+                  );
+                }).length === 0 && (
+                  <div style={{ color: '#6B7280', fontStyle: 'italic', textAlign: 'center', padding: 24, background: '#F9FAFB', borderRadius: 8, border: '1px dashed #E5E7EB' }}>
+                    Não há eventos para o mês selecionado.
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}
